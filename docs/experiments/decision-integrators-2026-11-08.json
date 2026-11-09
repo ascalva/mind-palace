@@ -1,0 +1,9651 @@
+{
+ "record": "docs/experiments/decision-integrators-2026-11-08.md",
+ "generated": "2026-11-09T06:03:37+00:00",
+ "questions": {
+  "version": "2026-11-08.1",
+  "families": {
+   "polarity": {
+    "digest": "bce7672f30652942db48933a0412e5321e6be579cae50aad55d3867060a7b4d4",
+    "questions": [
+     "addresses",
+     "contradicts",
+     "relation",
+     "relation_reversed",
+     "supports"
+    ]
+   },
+   "relevance": {
+    "digest": "a73f185d793104ef6324119d34efca9a08bc59a44e20aebaaa9d4a80d5225a05",
+    "questions": [
+     "answers",
+     "on_subject"
+    ]
+   },
+   "kind": {
+    "digest": "af4003d2cc26aede691e4eee3637dc72356c5c8db657434ed3d83fc07ca34698",
+    "questions": [
+     "asks_question",
+     "kind"
+    ]
+   },
+   "reply": {
+    "digest": "011b8175c7f874f7e90a59a4ba9b8c32da530d8ca5a8b94093f9458b3e0c474c",
+    "questions": [
+     "answers_question"
+    ]
+   },
+   "equivalence": {
+    "digest": "2ae5480722fc8b35423a4a954b4787708b608ca115c0d2a0d5a358b047864732",
+    "questions": [
+     "same_question"
+    ]
+   },
+   "subject_arxiv": {
+    "digest": "9f2893e2b19668fc3af03a7eeb0c42498522219fdba812827b2f85df2f161fa4",
+    "questions": [
+     "subject",
+     "subject_reversed"
+    ]
+   },
+   "discovery": {
+    "digest": "276c3444e1dc5a735b5477a971e709822384bf2c9977783c2c467ac02305f4eb",
+    "questions": [
+     "agrees",
+     "background_only",
+     "claim_causal",
+     "claim_hedged",
+     "claim_negative",
+     "claim_time_bound",
+     "denies_part",
+     "disagrees",
+     "more_specific",
+     "names_claim_entities",
+     "null_finding",
+     "opposite_direction",
+     "passage_hedged",
+     "passage_own_data",
+     "relatedness_level",
+     "reports_on_relationship",
+     "same_direction",
+     "same_subject",
+     "shares_quantity",
+     "support_level"
+    ]
+   }
+  }
+ },
+ "hosted_ledger_usd": 0.7396,
+ "results": {
+  "controls": {
+   "hosted": {
+    "benchmark": "controls",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "n": 60,
+    "repeatability": {
+     "compared": 60,
+     "choice_agreement": 0.9833,
+     "choice_max_abs_diff_median": 0.0,
+     "choice_max_abs_diff_max": 0.08,
+     "noul_abs_diff_median": 0.0,
+     "noul_abs_diff_p90": 0.02
+    },
+    "finished": "2026-11-08T23:13:44+00:00",
+    "hosted_ledger_usd": 0.7396
+   },
+   "local": {
+    "benchmark": "controls",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "n": 60,
+    "repeatability": {
+     "compared": 60,
+     "choice_agreement": 1.0,
+     "choice_max_abs_diff_median": 0.0017,
+     "choice_max_abs_diff_max": 0.0164,
+     "noul_abs_diff_median": 0.0017,
+     "noul_abs_diff_p90": 0.012
+    },
+    "context_tag_vs_base": {
+     "compared": 60,
+     "choice_agreement": 1.0,
+     "choice_max_abs_diff_median": 0.0041,
+     "choice_max_abs_diff_max": 0.0288,
+     "noul_abs_diff_median": 0.0044,
+     "noul_abs_diff_p90": 0.016
+    },
+    "base_refusals": 0,
+    "finished": "2026-11-09T02:14:07+00:00"
+   }
+  },
+  "discovery": {
+   "hosted": {
+    "benchmark": "discovery",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "candidates": {
+     "same_subject": {
+      "digest": "a16d6b6729389b3a03e08d1c966999f9d326d48a47048c0d5333cc8802e79008",
+      "type": "noul"
+     },
+     "reports_on_relationship": {
+      "digest": "087e3ded9a6fad61294d77915d1cebe5023c565897d91590e31f2fcd50751e2e",
+      "type": "noul"
+     },
+     "names_claim_entities": {
+      "digest": "80851f7c1eaa11f5bc05600c2698e54605b95292502d16330198fb5c4abd0372",
+      "type": "noul"
+     },
+     "background_only": {
+      "digest": "63287339dfdc168483b3736e3a9ba8a6f36f8e64bd9ec0afbf2da477af8f867a",
+      "type": "noul"
+     },
+     "relatedness_level": {
+      "digest": "03d54892eb9725f954961b4dee4e998e7a7c2ac3a740c3e1884e325561a6f972",
+      "type": "score"
+     },
+     "agrees": {
+      "digest": "5bbff2a19709b17a0e89f23ec5efaf71e14f861006b2da45b72fc35780062c28",
+      "type": "noul"
+     },
+     "disagrees": {
+      "digest": "e5e2c23fe604c46452a23afbf0a8bef23b8324892c2ad34b4e38df6f8044dcec",
+      "type": "noul"
+     },
+     "denies_part": {
+      "digest": "0ac671fb973d99e46d96552fcc0f5fdef16ca59b7879d3d69c0782133275a99b",
+      "type": "noul"
+     },
+     "support_level": {
+      "digest": "76f9dd3c0408dd7a582be6a093e01888987b6ab887978c52b02d7f1343d0b4c5",
+      "type": "score"
+     },
+     "same_direction": {
+      "digest": "76ae7d964b78f38238ecac9ec0454a3d06f17732f9fbf5aa1420e6f5256daa0b",
+      "type": "noul"
+     },
+     "opposite_direction": {
+      "digest": "72a71ccb5331bfb24cbab4bf610ab8555a8e36e9b334d4fc36060eba706df661",
+      "type": "noul"
+     },
+     "shares_quantity": {
+      "digest": "eaf2bf8325761aeb67d09fa7026e497a63a41cc2f72877378976f1ed32983e97",
+      "type": "noul"
+     },
+     "more_specific": {
+      "digest": "b38fc4c6cff9a80b75245988b30cb9168a142ad47b60f8f1cc4e5612d85b0cd6",
+      "type": "noul"
+     },
+     "null_finding": {
+      "digest": "a2a54fa045043a487c7da9fb527e14dbee025e81f77662e3e2f328b8b3e34929",
+      "type": "noul"
+     },
+     "passage_hedged": {
+      "digest": "953517ab5e5205a3efd10e0c2c47eba2d26a0b2c717fcf6338e88fc0c4935bf2",
+      "type": "noul"
+     },
+     "passage_own_data": {
+      "digest": "9d7cc9044dcea4b3441c3acc07965a3d4a4af21551d5b2a1fdf5c56bdf80072f",
+      "type": "noul"
+     },
+     "claim_hedged": {
+      "digest": "18c65fdcdd16ebb4dc280ee1100cc90d4013ddf94dbafc206039a85f8da57788",
+      "type": "noul"
+     },
+     "claim_time_bound": {
+      "digest": "7af88163858daff6a31c018664819a386625e2589002c04fd0410cb70fdcdc3a",
+      "type": "noul"
+     },
+     "claim_causal": {
+      "digest": "dffb19ac5e40aa6fc2c4e0d6f7eecba2666a4d8436333a9e4f5d44d7a1b49eb1",
+      "type": "noul"
+     },
+     "claim_negative": {
+      "digest": "d4ae482cfc1111bbe267bb253c9c245ee7dc753e00b504753963a324cc8d2a86",
+      "type": "noul"
+     },
+     "relation": {
+      "digest": "8ffabd8d11ae75b748718b6e51b75f0c27f3f79cb5c4a5cef93eaa7541ee225a",
+      "type": "choice"
+     }
+    },
+    "rows": {
+     "fit": 554,
+     "check": 365,
+     "test": 339
+    },
+    "rule": {
+     "min_gain_nats": 0.005,
+     "max_keep": 6,
+     "questions_per_request": 20
+    },
+    "selection": {
+     "kept": [
+      "relation",
+      "names_claim_entities",
+      "background_only",
+      "opposite_direction"
+     ],
+     "first_step_gain": {
+      "same_subject": 0.23115,
+      "reports_on_relationship": 0.36286,
+      "names_claim_entities": 0.35096,
+      "background_only": 0.11905,
+      "relatedness_level": 0.34301,
+      "agrees": 0.46947,
+      "disagrees": 0.43747,
+      "denies_part": 0.41678,
+      "support_level": 0.63125,
+      "same_direction": 0.49279,
+      "opposite_direction": 0.44252,
+      "shares_quantity": 0.00538,
+      "more_specific": 0.37472,
+      "null_finding": 0.01148,
+      "passage_hedged": 0.00145,
+      "passage_own_data": 0.00305,
+      "claim_hedged": 0.01146,
+      "claim_time_bound": 0.00207,
+      "claim_causal": 0.00314,
+      "claim_negative": 0.08257,
+      "relation": 0.67523
+     },
+     "path": [
+      {
+       "step": 0,
+       "kept": [],
+       "check_log_loss": 1.0635
+      },
+      {
+       "step": 1,
+       "kept": [
+        "relation"
+       ],
+       "gain": 0.67523,
+       "check_log_loss": 0.38827
+      },
+      {
+       "step": 2,
+       "kept": [
+        "relation",
+        "names_claim_entities"
+       ],
+       "gain": 0.02526,
+       "check_log_loss": 0.36301
+      },
+      {
+       "step": 3,
+       "kept": [
+        "relation",
+        "names_claim_entities",
+        "background_only"
+       ],
+       "gain": 0.01562,
+       "check_log_loss": 0.3474
+      },
+      {
+       "step": 4,
+       "kept": [
+        "relation",
+        "names_claim_entities",
+        "background_only",
+        "opposite_direction"
+       ],
+       "gain": 0.01105,
+       "check_log_loss": 0.33635
+      },
+      {
+       "step": 5,
+       "refused": "reports_on_relationship",
+       "gain": 0.00478
+      }
+     ]
+    },
+    "held_out": {
+     "prior": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4071,
+      "macro_f1": 0.1929,
+      "brier": 0.6434,
+      "log_loss": 1.0609,
+      "ece": 0.0045,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 339,
+        "confidence": 0.4026,
+        "observed": 0.4071
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        138,
+        0,
+        0
+       ],
+       [
+        71,
+        0,
+        0
+       ],
+       [
+        130,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3512,
+       0.4633
+      ],
+      "macro_f1_ci": [
+       0.1733,
+       0.2111
+      ]
+     },
+     "embedder": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4543,
+      "macro_f1": 0.3193,
+      "brier": 0.653,
+      "log_loss": 1.0745,
+      "ece": 0.1244,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 9,
+        "confidence": 0.3966,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 127,
+        "confidence": 0.4433,
+        "observed": 0.3858
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 78,
+        "confidence": 0.544,
+        "observed": 0.4615
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 43,
+        "confidence": 0.6487,
+        "observed": 0.3721
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 54,
+        "confidence": 0.75,
+        "observed": 0.4815
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 23,
+        "confidence": 0.837,
+        "observed": 0.7826
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 5,
+        "confidence": 0.9261,
+        "observed": 1.0
+       }
+      ],
+      "confusion": [
+       [
+        41,
+        0,
+        97
+       ],
+       [
+        19,
+        0,
+        52
+       ],
+       [
+        17,
+        0,
+        113
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3947,
+       0.5134
+      ],
+      "macro_f1_ci": [
+       0.2727,
+       0.3637
+      ]
+     },
+     "embedder_relation": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8555,
+      "macro_f1": 0.8547,
+      "brier": 0.2233,
+      "log_loss": 0.4259,
+      "ece": 0.0378,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 1,
+        "confidence": 0.3448,
+        "observed": 1.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 4,
+        "confidence": 0.4671,
+        "observed": 0.75
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 14,
+        "confidence": 0.5451,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 18,
+        "confidence": 0.6517,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 23,
+        "confidence": 0.7577,
+        "observed": 0.6522
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 130,
+        "confidence": 0.8517,
+        "observed": 0.8692
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 149,
+        "confidence": 0.9467,
+        "observed": 0.9597
+       }
+      ],
+      "confusion": [
+       [
+        120,
+        5,
+        13
+       ],
+       [
+        3,
+        64,
+        4
+       ],
+       [
+        14,
+        10,
+        106
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8168,
+       0.8925
+      ],
+      "macro_f1_ci": [
+       0.8136,
+       0.8922
+      ]
+     },
+     "relation_alone": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8614,
+      "macro_f1": 0.8597,
+      "brier": 0.2216,
+      "log_loss": 0.4223,
+      "ece": 0.015,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 1,
+        "confidence": 0.3645,
+        "observed": 1.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 3,
+        "confidence": 0.4759,
+        "observed": 0.3333
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 14,
+        "confidence": 0.5659,
+        "observed": 0.5714
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 19,
+        "confidence": 0.6358,
+        "observed": 0.6316
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 24,
+        "confidence": 0.752,
+        "observed": 0.75
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 90,
+        "confidence": 0.843,
+        "observed": 0.8222
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 188,
+        "confidence": 0.9364,
+        "observed": 0.9468
+       }
+      ],
+      "confusion": [
+       [
+        122,
+        5,
+        11
+       ],
+       [
+        4,
+        64,
+        3
+       ],
+       [
+        14,
+        10,
+        106
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8228,
+       0.8971
+      ],
+      "macro_f1_ci": [
+       0.8179,
+       0.8959
+      ]
+     },
+     "embedder_kept": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8614,
+      "macro_f1": 0.8555,
+      "brier": 0.2125,
+      "log_loss": 0.3993,
+      "ece": 0.0235,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 7,
+        "confidence": 0.4599,
+        "observed": 0.5714
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 14,
+        "confidence": 0.5461,
+        "observed": 0.5714
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 27,
+        "confidence": 0.6523,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 25,
+        "confidence": 0.7406,
+        "observed": 0.72
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 49,
+        "confidence": 0.8609,
+        "observed": 0.7551
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 217,
+        "confidence": 0.9505,
+        "observed": 0.9539
+       }
+      ],
+      "confusion": [
+       [
+        121,
+        5,
+        12
+       ],
+       [
+        2,
+        59,
+        10
+       ],
+       [
+        10,
+        8,
+        112
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8237,
+       0.8975
+      ],
+      "macro_f1_ci": [
+       0.8137,
+       0.8927
+      ]
+     },
+     "embedder_all": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8702,
+      "macro_f1": 0.8658,
+      "brier": 0.2057,
+      "log_loss": 0.3812,
+      "ece": 0.0251,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 1,
+        "confidence": 0.4314,
+        "observed": 1.0
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 19,
+        "confidence": 0.554,
+        "observed": 0.6316
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 18,
+        "confidence": 0.6452,
+        "observed": 0.6111
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 35,
+        "confidence": 0.7575,
+        "observed": 0.7429
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 59,
+        "confidence": 0.8559,
+        "observed": 0.7966
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 207,
+        "confidence": 0.9654,
+        "observed": 0.9565
+       }
+      ],
+      "confusion": [
+       [
+        120,
+        5,
+        13
+       ],
+       [
+        4,
+        59,
+        8
+       ],
+       [
+        9,
+        5,
+        116
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8338,
+       0.905
+      ],
+      "macro_f1_ci": [
+       0.8253,
+       0.9018
+      ]
+     },
+     "kept_alone": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8614,
+      "macro_f1": 0.855,
+      "brier": 0.2113,
+      "log_loss": 0.3943,
+      "ece": 0.0232,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 8,
+        "confidence": 0.4709,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 15,
+        "confidence": 0.572,
+        "observed": 0.5333
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 16,
+        "confidence": 0.6529,
+        "observed": 0.6875
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 30,
+        "confidence": 0.7531,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 48,
+        "confidence": 0.8579,
+        "observed": 0.7917
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 222,
+        "confidence": 0.9537,
+        "observed": 0.9505
+       }
+      ],
+      "confusion": [
+       [
+        122,
+        5,
+        11
+       ],
+       [
+        3,
+        58,
+        10
+       ],
+       [
+        11,
+        7,
+        112
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8213,
+       0.8971
+      ],
+      "macro_f1_ci": [
+       0.8101,
+       0.8934
+      ]
+     }
+    },
+    "kept_gain_over_embedder_nats": 0.6752,
+    "kept_gain_ci": [
+     0.5691,
+     0.7855
+    ],
+    "shapley_nats": {
+     "embedder": -0.0067,
+     "relation": 0.29335,
+     "names_claim_entities": 0.13092,
+     "background_only": 0.08251,
+     "opposite_direction": 0.16147
+    },
+    "usage": {
+     "requests": 1258,
+     "errors": 0,
+     "input_tokens_per_request": 1231.7,
+     "hosted_usd_per_million_requests": 51.73,
+     "hosted_seconds_median": 0.1
+    },
+    "machine": {
+     "samples": 6,
+     "share_embedder_busy": 1.0,
+     "load_median": 4.0,
+     "load_max": 4.28
+    },
+    "finished": "2026-11-08T23:13:42+00:00",
+    "hosted_ledger_usd": 0.7369
+   },
+   "local": {
+    "benchmark": "discovery",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "candidates": {
+     "same_subject": {
+      "digest": "a16d6b6729389b3a03e08d1c966999f9d326d48a47048c0d5333cc8802e79008",
+      "type": "noul"
+     },
+     "reports_on_relationship": {
+      "digest": "087e3ded9a6fad61294d77915d1cebe5023c565897d91590e31f2fcd50751e2e",
+      "type": "noul"
+     },
+     "names_claim_entities": {
+      "digest": "80851f7c1eaa11f5bc05600c2698e54605b95292502d16330198fb5c4abd0372",
+      "type": "noul"
+     },
+     "background_only": {
+      "digest": "63287339dfdc168483b3736e3a9ba8a6f36f8e64bd9ec0afbf2da477af8f867a",
+      "type": "noul"
+     },
+     "relatedness_level": {
+      "digest": "03d54892eb9725f954961b4dee4e998e7a7c2ac3a740c3e1884e325561a6f972",
+      "type": "score"
+     },
+     "agrees": {
+      "digest": "5bbff2a19709b17a0e89f23ec5efaf71e14f861006b2da45b72fc35780062c28",
+      "type": "noul"
+     },
+     "disagrees": {
+      "digest": "e5e2c23fe604c46452a23afbf0a8bef23b8324892c2ad34b4e38df6f8044dcec",
+      "type": "noul"
+     },
+     "denies_part": {
+      "digest": "0ac671fb973d99e46d96552fcc0f5fdef16ca59b7879d3d69c0782133275a99b",
+      "type": "noul"
+     },
+     "support_level": {
+      "digest": "76f9dd3c0408dd7a582be6a093e01888987b6ab887978c52b02d7f1343d0b4c5",
+      "type": "score"
+     },
+     "same_direction": {
+      "digest": "76ae7d964b78f38238ecac9ec0454a3d06f17732f9fbf5aa1420e6f5256daa0b",
+      "type": "noul"
+     },
+     "opposite_direction": {
+      "digest": "72a71ccb5331bfb24cbab4bf610ab8555a8e36e9b334d4fc36060eba706df661",
+      "type": "noul"
+     },
+     "shares_quantity": {
+      "digest": "eaf2bf8325761aeb67d09fa7026e497a63a41cc2f72877378976f1ed32983e97",
+      "type": "noul"
+     },
+     "more_specific": {
+      "digest": "b38fc4c6cff9a80b75245988b30cb9168a142ad47b60f8f1cc4e5612d85b0cd6",
+      "type": "noul"
+     },
+     "null_finding": {
+      "digest": "a2a54fa045043a487c7da9fb527e14dbee025e81f77662e3e2f328b8b3e34929",
+      "type": "noul"
+     },
+     "passage_hedged": {
+      "digest": "953517ab5e5205a3efd10e0c2c47eba2d26a0b2c717fcf6338e88fc0c4935bf2",
+      "type": "noul"
+     },
+     "passage_own_data": {
+      "digest": "9d7cc9044dcea4b3441c3acc07965a3d4a4af21551d5b2a1fdf5c56bdf80072f",
+      "type": "noul"
+     },
+     "claim_hedged": {
+      "digest": "18c65fdcdd16ebb4dc280ee1100cc90d4013ddf94dbafc206039a85f8da57788",
+      "type": "noul"
+     },
+     "claim_time_bound": {
+      "digest": "7af88163858daff6a31c018664819a386625e2589002c04fd0410cb70fdcdc3a",
+      "type": "noul"
+     },
+     "claim_causal": {
+      "digest": "dffb19ac5e40aa6fc2c4e0d6f7eecba2666a4d8436333a9e4f5d44d7a1b49eb1",
+      "type": "noul"
+     },
+     "claim_negative": {
+      "digest": "d4ae482cfc1111bbe267bb253c9c245ee7dc753e00b504753963a324cc8d2a86",
+      "type": "noul"
+     },
+     "relation": {
+      "digest": "8ffabd8d11ae75b748718b6e51b75f0c27f3f79cb5c4a5cef93eaa7541ee225a",
+      "type": "choice"
+     }
+    },
+    "rows": {
+     "fit": 554,
+     "check": 365,
+     "test": 339
+    },
+    "rule": {
+     "min_gain_nats": 0.005,
+     "max_keep": 6,
+     "questions_per_request": 20
+    },
+    "selection": {
+     "kept": [
+      "relation",
+      "relatedness_level",
+      "support_level",
+      "null_finding",
+      "denies_part",
+      "reports_on_relationship"
+     ],
+     "first_step_gain": {
+      "same_subject": 0.14556,
+      "reports_on_relationship": 0.08934,
+      "names_claim_entities": 0.13762,
+      "background_only": 0.02548,
+      "relatedness_level": 0.11298,
+      "agrees": 0.1285,
+      "disagrees": 0.05724,
+      "denies_part": 0.06187,
+      "support_level": 0.15956,
+      "same_direction": 0.14171,
+      "opposite_direction": 0.03876,
+      "shares_quantity": 0.06969,
+      "more_specific": 0.13099,
+      "null_finding": 0.03376,
+      "passage_hedged": 0.07163,
+      "passage_own_data": 0.02203,
+      "claim_hedged": 0.06987,
+      "claim_time_bound": 0.01185,
+      "claim_causal": 0.03184,
+      "claim_negative": 0.01472,
+      "relation": 0.22827
+     },
+     "path": [
+      {
+       "step": 0,
+       "kept": [],
+       "check_log_loss": 1.0635
+      },
+      {
+       "step": 1,
+       "kept": [
+        "relation"
+       ],
+       "gain": 0.22827,
+       "check_log_loss": 0.83523
+      },
+      {
+       "step": 2,
+       "kept": [
+        "relation",
+        "relatedness_level"
+       ],
+       "gain": 0.02906,
+       "check_log_loss": 0.80617
+      },
+      {
+       "step": 3,
+       "kept": [
+        "relation",
+        "relatedness_level",
+        "support_level"
+       ],
+       "gain": 0.0263,
+       "check_log_loss": 0.77987
+      },
+      {
+       "step": 4,
+       "kept": [
+        "relation",
+        "relatedness_level",
+        "support_level",
+        "null_finding"
+       ],
+       "gain": 0.02283,
+       "check_log_loss": 0.75704
+      },
+      {
+       "step": 5,
+       "kept": [
+        "relation",
+        "relatedness_level",
+        "support_level",
+        "null_finding",
+        "denies_part"
+       ],
+       "gain": 0.00885,
+       "check_log_loss": 0.74819
+      },
+      {
+       "step": 6,
+       "kept": [
+        "relation",
+        "relatedness_level",
+        "support_level",
+        "null_finding",
+        "denies_part",
+        "reports_on_relationship"
+       ],
+       "gain": 0.0074,
+       "check_log_loss": 0.74079
+      }
+     ]
+    },
+    "held_out": {
+     "prior": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4071,
+      "macro_f1": 0.1929,
+      "brier": 0.6434,
+      "log_loss": 1.0609,
+      "ece": 0.0045,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 339,
+        "confidence": 0.4026,
+        "observed": 0.4071
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        138,
+        0,
+        0
+       ],
+       [
+        71,
+        0,
+        0
+       ],
+       [
+        130,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3512,
+       0.4633
+      ],
+      "macro_f1_ci": [
+       0.1733,
+       0.2111
+      ]
+     },
+     "embedder": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4543,
+      "macro_f1": 0.3193,
+      "brier": 0.653,
+      "log_loss": 1.0745,
+      "ece": 0.1244,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 9,
+        "confidence": 0.3966,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 127,
+        "confidence": 0.4433,
+        "observed": 0.3858
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 78,
+        "confidence": 0.544,
+        "observed": 0.4615
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 43,
+        "confidence": 0.6487,
+        "observed": 0.3721
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 54,
+        "confidence": 0.75,
+        "observed": 0.4815
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 23,
+        "confidence": 0.837,
+        "observed": 0.7826
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 5,
+        "confidence": 0.9261,
+        "observed": 1.0
+       }
+      ],
+      "confusion": [
+       [
+        41,
+        0,
+        97
+       ],
+       [
+        19,
+        0,
+        52
+       ],
+       [
+        17,
+        0,
+        113
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3947,
+       0.5134
+      ],
+      "macro_f1_ci": [
+       0.2727,
+       0.3637
+      ]
+     },
+     "embedder_relation": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.6755,
+      "macro_f1": 0.6255,
+      "brier": 0.4644,
+      "log_loss": 0.8225,
+      "ece": 0.0926,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 5,
+        "confidence": 0.3807,
+        "observed": 0.2
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 57,
+        "confidence": 0.4664,
+        "observed": 0.4035
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 99,
+        "confidence": 0.5477,
+        "observed": 0.6263
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 75,
+        "confidence": 0.6502,
+        "observed": 0.7733
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 48,
+        "confidence": 0.7393,
+        "observed": 0.8333
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 21,
+        "confidence": 0.8532,
+        "observed": 0.7143
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 34,
+        "confidence": 0.9544,
+        "observed": 0.8824
+       }
+      ],
+      "confusion": [
+       [
+        102,
+        7,
+        29
+       ],
+       [
+        19,
+        23,
+        29
+       ],
+       [
+        22,
+        4,
+        104
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.6239,
+       0.7281
+      ],
+      "macro_f1_ci": [
+       0.5564,
+       0.6903
+      ]
+     },
+     "relation_alone": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.646,
+      "macro_f1": 0.6044,
+      "brier": 0.4763,
+      "log_loss": 0.8363,
+      "ece": 0.0733,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 9,
+        "confidence": 0.3714,
+        "observed": 0.2222
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 63,
+        "confidence": 0.4535,
+        "observed": 0.3492
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 72,
+        "confidence": 0.5514,
+        "observed": 0.5833
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 100,
+        "confidence": 0.6523,
+        "observed": 0.73
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 45,
+        "confidence": 0.7327,
+        "observed": 0.8222
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 22,
+        "confidence": 0.854,
+        "observed": 0.8636
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 28,
+        "confidence": 0.9518,
+        "observed": 0.8571
+       }
+      ],
+      "confusion": [
+       [
+        113,
+        9,
+        16
+       ],
+       [
+        23,
+        25,
+        23
+       ],
+       [
+        44,
+        5,
+        81
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.5916,
+       0.6989
+      ],
+      "macro_f1_ci": [
+       0.5368,
+       0.6665
+      ]
+     },
+     "embedder_kept": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.6696,
+      "macro_f1": 0.6258,
+      "brier": 0.4403,
+      "log_loss": 0.7717,
+      "ece": 0.08,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 6,
+        "confidence": 0.3874,
+        "observed": 0.1667
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 37,
+        "confidence": 0.4565,
+        "observed": 0.4865
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 49,
+        "confidence": 0.5453,
+        "observed": 0.3673
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 40,
+        "confidence": 0.6627,
+        "observed": 0.65
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 49,
+        "confidence": 0.7543,
+        "observed": 0.6939
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 80,
+        "confidence": 0.8504,
+        "observed": 0.75
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 78,
+        "confidence": 0.9547,
+        "observed": 0.8974
+       }
+      ],
+      "confusion": [
+       [
+        89,
+        12,
+        37
+       ],
+       [
+        12,
+        26,
+        33
+       ],
+       [
+        10,
+        8,
+        112
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.6173,
+       0.7208
+      ],
+      "macro_f1_ci": [
+       0.5687,
+       0.6807
+      ]
+     },
+     "embedder_all": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.6785,
+      "macro_f1": 0.6412,
+      "brier": 0.4392,
+      "log_loss": 0.7682,
+      "ece": 0.092,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 4,
+        "confidence": 0.3695,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 32,
+        "confidence": 0.4642,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 42,
+        "confidence": 0.5545,
+        "observed": 0.4286
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 53,
+        "confidence": 0.6512,
+        "observed": 0.5094
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 40,
+        "confidence": 0.7528,
+        "observed": 0.775
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 84,
+        "confidence": 0.8499,
+        "observed": 0.7143
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 84,
+        "confidence": 0.9577,
+        "observed": 0.9048
+       }
+      ],
+      "confusion": [
+       [
+        86,
+        12,
+        40
+       ],
+       [
+        10,
+        29,
+        32
+       ],
+       [
+        8,
+        7,
+        115
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.6257,
+       0.7297
+      ],
+      "macro_f1_ci": [
+       0.5858,
+       0.6942
+      ]
+     },
+     "kept_alone": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.6962,
+      "macro_f1": 0.6696,
+      "brier": 0.4185,
+      "log_loss": 0.736,
+      "ece": 0.0468,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 6,
+        "confidence": 0.3709,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 40,
+        "confidence": 0.464,
+        "observed": 0.325
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 54,
+        "confidence": 0.5484,
+        "observed": 0.5741
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 53,
+        "confidence": 0.6471,
+        "observed": 0.6415
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 63,
+        "confidence": 0.7523,
+        "observed": 0.7778
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 67,
+        "confidence": 0.8528,
+        "observed": 0.806
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 56,
+        "confidence": 0.9483,
+        "observed": 0.9107
+       }
+      ],
+      "confusion": [
+       [
+        104,
+        14,
+        20
+       ],
+       [
+        16,
+        36,
+        19
+       ],
+       [
+        22,
+        12,
+        96
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.6452,
+       0.7466
+      ],
+      "macro_f1_ci": [
+       0.6117,
+       0.7226
+      ]
+     }
+    },
+    "kept_gain_over_embedder_nats": 0.3028,
+    "kept_gain_ci": [
+     0.2104,
+     0.3891
+    ],
+    "shapley_nats": {
+     "embedder": -0.02494,
+     "relation": 0.1079,
+     "relatedness_level": 0.08511,
+     "support_level": 0.05482,
+     "null_finding": 0.01952,
+     "denies_part": 0.02059,
+     "reports_on_relationship": 0.02618
+    },
+    "usage": {
+     "requests": 1258,
+     "errors": 0,
+     "input_tokens_per_request": 10471.8,
+     "hosted_usd_per_million_requests": 439.82,
+     "local_seconds_median": 7.0092,
+     "local_seconds_p90": 7.7964
+    },
+    "machine": {
+     "samples": 576,
+     "share_embedder_busy": 0.932,
+     "load_median": 2.42,
+     "load_max": 13.27
+    },
+    "finished": "2026-11-09T02:12:26+00:00"
+   }
+  },
+  "duplicates": {
+   "hosted": {
+    "benchmark": "duplicates",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "post_hoc_canonical_posts": {
+     "hub_posts": 8,
+     "positives_with_a_hub": 67,
+     "share_above_half_with_hub": 0.0,
+     "share_above_half_without_hub": 0.5038,
+     "auroc_without_hub_positives": 0.9354,
+     "cosine_auroc_without_hub_positives": 0.5847
+    },
+    "question_digest": "2ae5480722fc8b35423a4a954b4787708b608ca115c0d2a0d5a358b047864732",
+    "positives": 200,
+    "negatives": 200,
+    "noul": {
+     "n": 400,
+     "missing": 0,
+     "accuracy": 0.6625,
+     "macro_f1": 0.622,
+     "brier": 0.5174,
+     "log_loss": 0.7912,
+     "ece": 0.2165,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 1,
+       "confidence": 0.5,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 18,
+       "confidence": 0.565,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 24,
+       "confidence": 0.6629,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 52,
+       "confidence": 0.7681,
+       "observed": 0.5962
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 66,
+       "confidence": 0.8689,
+       "observed": 0.4697
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 239,
+       "confidence": 0.9528,
+       "observed": 0.7615
+      }
+     ],
+     "confusion": [
+      [
+       198,
+       2
+      ],
+      [
+       133,
+       67
+      ]
+     ],
+     "labels": [
+      "different",
+      "same"
+     ],
+     "auroc": 0.8688,
+     "ece_positive": 0.2787,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 236,
+       "confidence": 0.0499,
+       "observed": 0.2669
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 40,
+       "confidence": 0.144,
+       "observed": 0.8
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 33,
+       "confidence": 0.2382,
+       "observed": 0.6061
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 11,
+       "confidence": 0.3418,
+       "observed": 0.8182
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 11,
+       "confidence": 0.4382,
+       "observed": 0.8182
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 8,
+       "confidence": 0.5613,
+       "observed": 0.875
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 11,
+       "confidence": 0.6609,
+       "observed": 0.9091
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 17,
+       "confidence": 0.7647,
+       "observed": 1.0
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 19,
+       "confidence": 0.8637,
+       "observed": 1.0
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 14,
+       "confidence": 0.9564,
+       "observed": 1.0
+      }
+     ]
+    },
+    "cosine_auroc": 0.5036,
+    "noul_minus_cosine_auroc_ci": [
+     0.3131,
+     0.4143
+    ],
+    "usage": {
+     "requests": 400,
+     "errors": 0,
+     "input_tokens_per_request": 749.2,
+     "hosted_usd_per_million_requests": 31.47,
+     "hosted_seconds_median": 0.093
+    },
+    "machine": {
+     "samples": 0
+    },
+    "finished": "2026-11-08T23:14:42+00:00",
+    "hosted_ledger_usd": 0.7396
+   },
+   "local": {
+    "benchmark": "duplicates",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "post_hoc_canonical_posts": {
+     "hub_posts": 8,
+     "positives_with_a_hub": 67,
+     "share_above_half_with_hub": 0.1791,
+     "share_above_half_without_hub": 0.3985,
+     "auroc_without_hub_positives": 0.7341,
+     "cosine_auroc_without_hub_positives": 0.5847
+    },
+    "question_digest": "2ae5480722fc8b35423a4a954b4787708b608ca115c0d2a0d5a358b047864732",
+    "positives": 200,
+    "negatives": 200,
+    "noul": {
+     "n": 400,
+     "missing": 0,
+     "accuracy": 0.585,
+     "macro_f1": 0.5549,
+     "brier": 0.4915,
+     "log_loss": 0.6909,
+     "ece": 0.0776,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 148,
+       "confidence": 0.5534,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 99,
+       "confidence": 0.6457,
+       "observed": 0.5758
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 117,
+       "confidence": 0.7538,
+       "observed": 0.7094
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 28,
+       "confidence": 0.8452,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 8,
+       "confidence": 0.9211,
+       "observed": 0.75
+      }
+     ],
+     "confusion": [
+      [
+       169,
+       31
+      ],
+      [
+       135,
+       65
+      ]
+     ],
+     "labels": [
+      "different",
+      "same"
+     ],
+     "auroc": 0.6526,
+     "ece_positive": 0.114,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 8,
+       "confidence": 0.0789,
+       "observed": 0.25
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 28,
+       "confidence": 0.1548,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 102,
+       "confidence": 0.244,
+       "observed": 0.3039
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 77,
+       "confidence": 0.3542,
+       "observed": 0.4805
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 89,
+       "confidence": 0.4442,
+       "observed": 0.573
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 59,
+       "confidence": 0.5499,
+       "observed": 0.6102
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 22,
+       "confidence": 0.6455,
+       "observed": 0.7727
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 15,
+       "confidence": 0.7388,
+       "observed": 0.8
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 0
+      }
+     ]
+    },
+    "cosine_auroc": 0.5036,
+    "noul_minus_cosine_auroc_ci": [
+     0.0907,
+     0.2067
+    ],
+    "usage": {
+     "requests": 400,
+     "errors": 0,
+     "input_tokens_per_request": 554.6,
+     "hosted_usd_per_million_requests": 23.3,
+     "local_seconds_median": 2.929,
+     "local_seconds_p90": 3.2425
+    },
+    "machine": {
+     "samples": 106,
+     "share_embedder_busy": 0.953,
+     "load_median": 4.5,
+     "load_max": 15.77
+    },
+    "finished": "2026-11-08T23:51:08+00:00"
+   }
+  },
+  "kind": {
+   "hosted": {
+    "benchmark": "kind",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "question_digest": "af4003d2cc26aede691e4eee3637dc72356c5c8db657434ed3d83fc07ca34698",
+    "posts": 600,
+    "questions": 300,
+    "answers": 300,
+    "noul": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.9567,
+     "macro_f1": 0.9566,
+     "brier": 0.0552,
+     "log_loss": 0.1137,
+     "ece": 0.0433,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 15,
+       "confidence": 0.542,
+       "observed": 0.3333
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 19,
+       "confidence": 0.6658,
+       "observed": 0.6316
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 22,
+       "confidence": 0.7573,
+       "observed": 0.7273
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 37,
+       "confidence": 0.8678,
+       "observed": 0.973
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 507,
+       "confidence": 0.9612,
+       "observed": 0.9961
+      }
+     ],
+     "confusion": [
+      [
+       280,
+       20
+      ],
+      [
+       6,
+       294
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.9962,
+     "ece_positive": 0.0564,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 238,
+       "confidence": 0.0429,
+       "observed": 0.0042
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 21,
+       "confidence": 0.1319,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 11,
+       "confidence": 0.2545,
+       "observed": 0.0909
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 11,
+       "confidence": 0.3473,
+       "observed": 0.1818
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 5,
+       "confidence": 0.462,
+       "observed": 0.4
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 9,
+       "confidence": 0.5378,
+       "observed": 0.1111
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 8,
+       "confidence": 0.6712,
+       "observed": 0.375
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 12,
+       "confidence": 0.7633,
+       "observed": 0.5833
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 15,
+       "confidence": 0.8653,
+       "observed": 0.9333
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 270,
+       "confidence": 0.9647,
+       "observed": 0.9963
+      }
+     ]
+    },
+    "kind_choice_asks": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.985,
+     "macro_f1": 0.985,
+     "brier": 0.0264,
+     "log_loss": 0.0798,
+     "ece": 0.0073,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 5,
+       "confidence": 0.564,
+       "observed": 0.6
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 9,
+       "confidence": 0.6644,
+       "observed": 0.8889
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 10,
+       "confidence": 0.769,
+       "observed": 0.8
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 12,
+       "confidence": 0.8558,
+       "observed": 0.9167
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 564,
+       "confidence": 0.9967,
+       "observed": 0.9947
+      }
+     ],
+     "confusion": [
+      [
+       295,
+       5
+      ],
+      [
+       4,
+       296
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.9955,
+     "ece_positive": 0.0113,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 279,
+       "confidence": 0.0049,
+       "observed": 0.0072
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 7,
+       "confidence": 0.1586,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 4,
+       "confidence": 0.2375,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 7,
+       "confidence": 0.3414,
+       "observed": 0.1429
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 2,
+       "confidence": 0.415,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 3,
+       "confidence": 0.55,
+       "observed": 0.6667
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 2,
+       "confidence": 0.685,
+       "observed": 1.0
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 4,
+       "confidence": 0.76,
+       "observed": 0.5
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 6,
+       "confidence": 0.8467,
+       "observed": 0.8333
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 286,
+       "confidence": 0.9979,
+       "observed": 0.9965
+      }
+     ]
+    },
+    "kind_choice_distribution": {
+     "question": {
+      "asks_a_question": 0.978,
+      "makes_a_claim": 0.009,
+      "reports_an_observation": 0.007,
+      "gives_an_instruction": 0.006,
+      "records_a_decision": 0.0
+     },
+     "answer": {
+      "asks_a_question": 0.032,
+      "makes_a_claim": 0.582,
+      "reports_an_observation": 0.066,
+      "gives_an_instruction": 0.315,
+      "records_a_decision": 0.004
+     }
+    },
+    "question_mark": {
+     "auroc": 0.8483,
+     "accuracy": 0.8483
+    },
+    "embedder_knn": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.6017,
+     "macro_f1": 0.5953,
+     "brier": 0.4706,
+     "log_loss": 0.7154,
+     "ece": 0.0878,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 107,
+       "confidence": 0.5,
+       "observed": 0.5327
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 182,
+       "confidence": 0.6,
+       "observed": 0.522
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 152,
+       "confidence": 0.7,
+       "observed": 0.5658
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 93,
+       "confidence": 0.8,
+       "observed": 0.6882
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 52,
+       "confidence": 0.9,
+       "observed": 0.9231
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 14,
+       "confidence": 1.0,
+       "observed": 0.7857
+      }
+     ],
+     "confusion": [
+      [
+       143,
+       157
+      ],
+      [
+       82,
+       218
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.6846,
+     "ece_positive": 0.1155,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 3,
+       "confidence": 0.1,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 8,
+       "confidence": 0.2,
+       "observed": 0.125
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 41,
+       "confidence": 0.3,
+       "observed": 0.2439
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 66,
+       "confidence": 0.4,
+       "observed": 0.3182
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 107,
+       "confidence": 0.5,
+       "observed": 0.4673
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 116,
+       "confidence": 0.6,
+       "observed": 0.431
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 111,
+       "confidence": 0.7,
+       "observed": 0.4955
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 85,
+       "confidence": 0.8,
+       "observed": 0.6706
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 49,
+       "confidence": 0.9,
+       "observed": 0.9184
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 14,
+       "confidence": 1.0,
+       "observed": 0.7857
+      }
+     ]
+    },
+    "noul_minus_question_mark_auroc_ci": [
+     0.1199,
+     0.1763
+    ],
+    "usage": {
+     "requests": 600,
+     "errors": 0,
+     "input_tokens_per_request": 710.3,
+     "hosted_usd_per_million_requests": 29.83,
+     "hosted_seconds_median": 0.096
+    },
+    "machine": {
+     "samples": 3,
+     "share_embedder_busy": 1.0,
+     "load_median": 2.87,
+     "load_max": 2.88
+    },
+    "finished": "2026-11-08T22:34:53+00:00",
+    "hosted_ledger_usd": 0.0592
+   },
+   "local": {
+    "benchmark": "kind",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "question_digest": "af4003d2cc26aede691e4eee3637dc72356c5c8db657434ed3d83fc07ca34698",
+    "posts": 600,
+    "questions": 300,
+    "answers": 300,
+    "noul": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.5117,
+     "macro_f1": 0.3587,
+     "brier": 0.5053,
+     "log_loss": 0.6857,
+     "ece": 0.2778,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 45,
+       "confidence": 0.5585,
+       "observed": 0.1556
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 162,
+       "confidence": 0.659,
+       "observed": 0.1173
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 190,
+       "confidence": 0.7496,
+       "observed": 0.4947
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 163,
+       "confidence": 0.8439,
+       "observed": 0.9018
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 40,
+       "confidence": 0.9268,
+       "observed": 1.0
+      }
+     ],
+     "confusion": [
+      [
+       7,
+       293
+      ],
+      [
+       0,
+       300
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.898,
+     "ece_positive": 0.2882,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 2,
+       "confidence": 0.3891,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 5,
+       "confidence": 0.4667,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 40,
+       "confidence": 0.5617,
+       "observed": 0.05
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 160,
+       "confidence": 0.6596,
+       "observed": 0.1062
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 190,
+       "confidence": 0.7496,
+       "observed": 0.4947
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 163,
+       "confidence": 0.8439,
+       "observed": 0.9018
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 40,
+       "confidence": 0.9268,
+       "observed": 1.0
+      }
+     ]
+    },
+    "kind_choice_asks": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.7133,
+     "macro_f1": 0.7058,
+     "brier": 0.378,
+     "log_loss": 0.5572,
+     "ece": 0.0393,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 128,
+       "confidence": 0.5479,
+       "observed": 0.5938
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 142,
+       "confidence": 0.6474,
+       "observed": 0.5704
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 127,
+       "confidence": 0.7474,
+       "observed": 0.7323
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 101,
+       "confidence": 0.8536,
+       "observed": 0.8317
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 102,
+       "confidence": 0.9475,
+       "observed": 0.9216
+      }
+     ],
+     "confusion": [
+      [
+       166,
+       134
+      ],
+      [
+       38,
+       262
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.8098,
+     "ece_positive": 0.0905,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 36,
+       "confidence": 0.0421,
+       "observed": 0.0556
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 24,
+       "confidence": 0.1506,
+       "observed": 0.1667
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 34,
+       "confidence": 0.2524,
+       "observed": 0.1176
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 50,
+       "confidence": 0.3524,
+       "observed": 0.26
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 60,
+       "confidence": 0.4504,
+       "observed": 0.25
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 68,
+       "confidence": 0.5464,
+       "observed": 0.4559
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 92,
+       "confidence": 0.6474,
+       "observed": 0.4783
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 93,
+       "confidence": 0.7473,
+       "observed": 0.6774
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 77,
+       "confidence": 0.8549,
+       "observed": 0.8312
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 66,
+       "confidence": 0.9419,
+       "observed": 0.9091
+      }
+     ]
+    },
+    "kind_choice_distribution": {
+     "question": {
+      "asks_a_question": 0.723,
+      "makes_a_claim": 0.071,
+      "reports_an_observation": 0.066,
+      "gives_an_instruction": 0.074,
+      "records_a_decision": 0.065
+     },
+     "answer": {
+      "asks_a_question": 0.452,
+      "makes_a_claim": 0.178,
+      "reports_an_observation": 0.058,
+      "gives_an_instruction": 0.187,
+      "records_a_decision": 0.125
+     }
+    },
+    "question_mark": {
+     "auroc": 0.8483,
+     "accuracy": 0.8483
+    },
+    "embedder_knn": {
+     "n": 600,
+     "missing": 0,
+     "accuracy": 0.6017,
+     "macro_f1": 0.5953,
+     "brier": 0.4706,
+     "log_loss": 0.7154,
+     "ece": 0.0878,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 107,
+       "confidence": 0.5,
+       "observed": 0.5327
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 182,
+       "confidence": 0.6,
+       "observed": 0.522
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 152,
+       "confidence": 0.7,
+       "observed": 0.5658
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 93,
+       "confidence": 0.8,
+       "observed": 0.6882
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 52,
+       "confidence": 0.9,
+       "observed": 0.9231
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 14,
+       "confidence": 1.0,
+       "observed": 0.7857
+      }
+     ],
+     "confusion": [
+      [
+       143,
+       157
+      ],
+      [
+       82,
+       218
+      ]
+     ],
+     "labels": [
+      "answer",
+      "question"
+     ],
+     "auroc": 0.6846,
+     "ece_positive": 0.1155,
+     "reliability_positive": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 3,
+       "confidence": 0.1,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 8,
+       "confidence": 0.2,
+       "observed": 0.125
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 41,
+       "confidence": 0.3,
+       "observed": 0.2439
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 66,
+       "confidence": 0.4,
+       "observed": 0.3182
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 107,
+       "confidence": 0.5,
+       "observed": 0.4673
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 116,
+       "confidence": 0.6,
+       "observed": 0.431
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 111,
+       "confidence": 0.7,
+       "observed": 0.4955
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 85,
+       "confidence": 0.8,
+       "observed": 0.6706
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 49,
+       "confidence": 0.9,
+       "observed": 0.9184
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 14,
+       "confidence": 1.0,
+       "observed": 0.7857
+      }
+     ]
+    },
+    "noul_minus_question_mark_auroc_ci": [
+     0.011,
+     0.0842
+    ],
+    "usage": {
+     "requests": 600,
+     "errors": 0,
+     "input_tokens_per_request": 836.8,
+     "hosted_usd_per_million_requests": 35.15,
+     "local_seconds_median": 2.665,
+     "local_seconds_p90": 3.1782
+    },
+    "machine": {
+     "samples": 156,
+     "share_embedder_busy": 0.859,
+     "load_median": 3.64,
+     "load_max": 6.05
+    },
+    "finished": "2026-11-08T23:20:36+00:00"
+   }
+  },
+  "linking": {
+   "hosted": {
+    "benchmark": "linking",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "question_digest": "011b8175c7f874f7e90a59a4ba9b8c32da530d8ca5a8b94093f9458b3e0c474c",
+    "questions": 300,
+    "pool": 889,
+    "covered_at_10": 290,
+    "pair_auroc": 0.9836,
+    "usage": {
+     "requests": 3000,
+     "errors": 0,
+     "input_tokens_per_request": 793.3,
+     "hosted_usd_per_million_requests": 33.32,
+     "hosted_seconds_median": 0.095
+    },
+    "machine": {
+     "samples": 14,
+     "share_embedder_busy": 1.0,
+     "load_median": 4.0,
+     "load_max": 4.17
+    },
+    "embedder": {
+     "mrr10": 0.905,
+     "hit1": 0.8621
+    },
+    "judged": {
+     "mrr10": 0.9813,
+     "hit1": 0.9655,
+     "mrr_minus_embedder_ci": [
+      0.0489,
+      0.105
+     ]
+    },
+    "fused": {
+     "mrr10": 0.9363,
+     "hit1": 0.8931,
+     "mrr_minus_embedder_ci": [
+      0.0198,
+      0.0441
+     ]
+    },
+    "finished": "2026-11-08T22:45:54+00:00",
+    "hosted_ledger_usd": 0.1705
+   },
+   "local": {
+    "benchmark": "linking",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "question_digest": "011b8175c7f874f7e90a59a4ba9b8c32da530d8ca5a8b94093f9458b3e0c474c",
+    "questions": 300,
+    "pool": 889,
+    "covered_at_10": 290,
+    "pair_auroc": 0.7993,
+    "usage": {
+     "requests": 3000,
+     "errors": 0,
+     "input_tokens_per_request": 602.7,
+     "hosted_usd_per_million_requests": 25.31,
+     "local_seconds_median": 2.5335,
+     "local_seconds_p90": 3.2033
+    },
+    "machine": {
+     "samples": 758,
+     "share_embedder_busy": 0.958,
+     "load_median": 2.37,
+     "load_max": 5.93
+    },
+    "embedder": {
+     "mrr10": 0.905,
+     "hit1": 0.8621
+    },
+    "judged": {
+     "mrr10": 0.7187,
+     "hit1": 0.5793,
+     "mrr_minus_embedder_ci": [
+      -0.2312,
+      -0.1414
+     ]
+    },
+    "fused": {
+     "mrr10": 0.8654,
+     "hit1": 0.7897,
+     "mrr_minus_embedder_ci": [
+      -0.0684,
+      -0.0126
+     ]
+    },
+    "finished": "2026-11-09T00:54:30+00:00"
+   }
+  },
+  "polarity": {
+   "hosted": {
+    "benchmark": "polarity",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "question_digest": "bce7672f30652942db48933a0412e5321e6be579cae50aad55d3867060a7b4d4",
+    "pairs": {
+     "train": 919,
+     "dev": 339,
+     "by_label": {
+      "train": {
+       "says_nothing": 355,
+       "contradicts": 194,
+       "supports": 370
+      },
+      "dev": {
+       "says_nothing": 130,
+       "supports": 138,
+       "contradicts": 71
+      }
+     }
+    },
+    "state_cuts": 2,
+    "usage": {
+     "requests": 1258,
+     "errors": 0,
+     "input_tokens_per_request": 1082.7,
+     "hosted_usd_per_million_requests": 45.47,
+     "hosted_seconds_median": 0.098
+    },
+    "machine": {
+     "samples": 4,
+     "share_embedder_busy": 0.0,
+     "load_median": 4.01,
+     "load_max": 4.25
+    },
+    "dev": {
+     "choice": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8378,
+      "macro_f1": 0.8345,
+      "brier": 0.2383,
+      "log_loss": 0.614,
+      "ece": 0.0783,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 7,
+        "confidence": 0.4671,
+        "observed": 0.1429
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 22,
+        "confidence": 0.5573,
+        "observed": 0.4545
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 16,
+        "confidence": 0.6475,
+        "observed": 0.75
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 24,
+        "confidence": 0.7646,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 24,
+        "confidence": 0.8692,
+        "observed": 0.75
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 246,
+        "confidence": 0.9845,
+        "observed": 0.9228
+       }
+      ],
+      "confusion": [
+       [
+        121,
+        6,
+        11
+       ],
+       [
+        4,
+        65,
+        2
+       ],
+       [
+        16,
+        16,
+        98
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.7976,
+       0.8754
+      ],
+      "macro_f1_ci": [
+       0.7918,
+       0.8726
+      ]
+     },
+     "choice_reversed": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8407,
+      "macro_f1": 0.8369,
+      "brier": 0.2482,
+      "log_loss": 0.6307,
+      "ece": 0.0733,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 5,
+        "confidence": 0.464,
+        "observed": 0.4
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 27,
+        "confidence": 0.5648,
+        "observed": 0.6296
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 21,
+        "confidence": 0.6619,
+        "observed": 0.5238
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 15,
+        "confidence": 0.7593,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 29,
+        "confidence": 0.8617,
+        "observed": 0.7931
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 242,
+        "confidence": 0.9855,
+        "observed": 0.9174
+       }
+      ],
+      "confusion": [
+       [
+        125,
+        5,
+        8
+       ],
+       [
+        4,
+        65,
+        2
+       ],
+       [
+        19,
+        16,
+        95
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8012,
+       0.8779
+      ],
+      "macro_f1_ci": [
+       0.7944,
+       0.8762
+      ]
+     },
+     "noul_product": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8496,
+      "macro_f1": 0.847,
+      "brier": 0.2282,
+      "log_loss": 0.4585,
+      "ece": 0.0396,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 2,
+        "confidence": 0.3877,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 7,
+        "confidence": 0.4806,
+        "observed": 0.2857
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 24,
+        "confidence": 0.56,
+        "observed": 0.625
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 31,
+        "confidence": 0.6534,
+        "observed": 0.5806
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 39,
+        "confidence": 0.748,
+        "observed": 0.7949
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 94,
+        "confidence": 0.8612,
+        "observed": 0.9255
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 142,
+        "confidence": 0.9448,
+        "observed": 0.9437
+       }
+      ],
+      "confusion": [
+       [
+        115,
+        6,
+        17
+       ],
+       [
+        2,
+        64,
+        5
+       ],
+       [
+        8,
+        13,
+        109
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8123,
+       0.8875
+      ],
+      "macro_f1_ci": [
+       0.8062,
+       0.8864
+      ]
+     },
+     "noul_companion": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.8643,
+      "macro_f1": 0.8641,
+      "brier": 0.2123,
+      "log_loss": 0.405,
+      "ece": 0.0492,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 2,
+        "confidence": 0.3722,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 9,
+        "confidence": 0.4544,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 20,
+        "confidence": 0.5532,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 22,
+        "confidence": 0.6623,
+        "observed": 0.8636
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 35,
+        "confidence": 0.7555,
+        "observed": 0.8
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 65,
+        "confidence": 0.8546,
+        "observed": 0.7846
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 186,
+        "confidence": 0.9422,
+        "observed": 0.9677
+       }
+      ],
+      "confusion": [
+       [
+        114,
+        7,
+        17
+       ],
+       [
+        2,
+        63,
+        6
+       ],
+       [
+        9,
+        5,
+        116
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8261,
+       0.8994
+      ],
+      "macro_f1_ci": [
+       0.8226,
+       0.8996
+      ]
+     },
+     "majority": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4071,
+      "macro_f1": 0.1929,
+      "brier": 0.6434,
+      "log_loss": 1.0609,
+      "ece": 0.0045,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 339,
+        "confidence": 0.4026,
+        "observed": 0.4071
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        138,
+        0,
+        0
+       ],
+       [
+        71,
+        0,
+        0
+       ],
+       [
+        130,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ]
+     },
+     "embedder_logistic": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4543,
+      "macro_f1": 0.3193,
+      "brier": 0.653,
+      "log_loss": 1.0745,
+      "ece": 0.1244,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 9,
+        "confidence": 0.3966,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 127,
+        "confidence": 0.4433,
+        "observed": 0.3858
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 78,
+        "confidence": 0.544,
+        "observed": 0.4615
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 43,
+        "confidence": 0.6487,
+        "observed": 0.3721
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 54,
+        "confidence": 0.75,
+        "observed": 0.4815
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 23,
+        "confidence": 0.837,
+        "observed": 0.7826
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 5,
+        "confidence": 0.9261,
+        "observed": 1.0
+       }
+      ],
+      "confusion": [
+       [
+        41,
+        0,
+        97
+       ],
+       [
+        19,
+        0,
+        52
+       ],
+       [
+        17,
+        0,
+        113
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3947,
+       0.5134
+      ],
+      "macro_f1_ci": [
+       0.2727,
+       0.3637
+      ]
+     },
+     "auroc": {
+      "supports_vs_contradicts": {
+       "cosine": 0.5364,
+       "cosine_ci": [
+        0.4244,
+        0.6381
+       ],
+       "choice": 0.9736,
+       "nouls": 0.9744
+      },
+      "evidence_vs_nothing": {
+       "cosine": 0.6664,
+       "choice": 0.9415,
+       "addresses": 0.9486
+      }
+     },
+     "order_flips": 0.0265,
+     "choice_minus_embedder_macro_f1_ci": [
+      0.4592,
+      0.574
+     ]
+    },
+    "train": {
+     "choice": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.8455,
+      "macro_f1": 0.8405,
+      "brier": 0.2289,
+      "log_loss": 0.5262,
+      "ece": 0.0712,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 2,
+        "confidence": 0.375,
+        "observed": 0.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 14,
+        "confidence": 0.4664,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 43,
+        "confidence": 0.5574,
+        "observed": 0.4186
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 35,
+        "confidence": 0.6511,
+        "observed": 0.6
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 59,
+        "confidence": 0.7569,
+        "observed": 0.5593
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 93,
+        "confidence": 0.8592,
+        "observed": 0.7742
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 673,
+        "confidence": 0.985,
+        "observed": 0.9302
+       }
+      ],
+      "confusion": [
+       [
+        339,
+        10,
+        21
+       ],
+       [
+        6,
+        176,
+        12
+       ],
+       [
+        46,
+        47,
+        262
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8208,
+       0.869
+      ],
+      "macro_f1_ci": [
+       0.8144,
+       0.8647
+      ]
+     },
+     "choice_reversed": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.8498,
+      "macro_f1": 0.8447,
+      "brier": 0.2317,
+      "log_loss": 0.5535,
+      "ece": 0.0684,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 1,
+        "confidence": 0.38,
+        "observed": 0.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 14,
+        "confidence": 0.4793,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 46,
+        "confidence": 0.5504,
+        "observed": 0.587
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 40,
+        "confidence": 0.6547,
+        "observed": 0.475
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 57,
+        "confidence": 0.7577,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 95,
+        "confidence": 0.8618,
+        "observed": 0.7474
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 666,
+        "confidence": 0.9854,
+        "observed": 0.9294
+       }
+      ],
+      "confusion": [
+       [
+        341,
+        10,
+        19
+       ],
+       [
+        5,
+        178,
+        11
+       ],
+       [
+        45,
+        48,
+        262
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8253,
+       0.8732
+      ],
+      "macro_f1_ci": [
+       0.8191,
+       0.8687
+      ]
+     },
+     "noul_product": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.8575,
+      "macro_f1": 0.8535,
+      "brier": 0.219,
+      "log_loss": 0.407,
+      "ece": 0.0268,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 25,
+        "confidence": 0.4624,
+        "observed": 0.56
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 63,
+        "confidence": 0.56,
+        "observed": 0.5556
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 80,
+        "confidence": 0.652,
+        "observed": 0.65
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 114,
+        "confidence": 0.7575,
+        "observed": 0.7456
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 236,
+        "confidence": 0.8593,
+        "observed": 0.9025
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 401,
+        "confidence": 0.9446,
+        "observed": 0.9701
+       }
+      ],
+      "confusion": [
+       [
+        324,
+        10,
+        36
+       ],
+       [
+        4,
+        177,
+        13
+       ],
+       [
+        23,
+        45,
+        287
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8332,
+       0.8795
+      ],
+      "macro_f1_ci": [
+       0.829,
+       0.8762
+      ]
+     },
+     "noul_companion": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.8705,
+      "macro_f1": 0.8684,
+      "brier": 0.2047,
+      "log_loss": 0.3837,
+      "ece": 0.0383,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 3,
+        "confidence": 0.3812,
+        "observed": 0.3333
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 26,
+        "confidence": 0.4642,
+        "observed": 0.6154
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 46,
+        "confidence": 0.5497,
+        "observed": 0.6522
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 75,
+        "confidence": 0.6529,
+        "observed": 0.68
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 76,
+        "confidence": 0.7593,
+        "observed": 0.7368
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 170,
+        "confidence": 0.8605,
+        "observed": 0.8176
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 523,
+        "confidence": 0.9399,
+        "observed": 0.9694
+       }
+      ],
+      "confusion": [
+       [
+        319,
+        10,
+        41
+       ],
+       [
+        4,
+        169,
+        21
+       ],
+       [
+        21,
+        22,
+        312
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.8475,
+       0.8914
+      ],
+      "macro_f1_ci": [
+       0.8448,
+       0.8903
+      ]
+     },
+     "majority": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.4026,
+      "macro_f1": 0.1914,
+      "brier": 0.6441,
+      "log_loss": 1.0621,
+      "ece": 0.0,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 919,
+        "confidence": 0.4026,
+        "observed": 0.4026
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        370,
+        0,
+        0
+       ],
+       [
+        194,
+        0,
+        0
+       ],
+       [
+        355,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ]
+     },
+     "auroc": {
+      "supports_vs_contradicts": {
+       "cosine": 0.5407,
+       "cosine_ci": [
+        0.4809,
+        0.6064
+       ],
+       "choice": 0.9897,
+       "nouls": 0.9893
+      },
+      "evidence_vs_nothing": {
+       "cosine": 0.617,
+       "choice": 0.9419,
+       "addresses": 0.9494
+      }
+     },
+     "order_flips": 0.012
+    },
+    "examples": [
+     {
+      "why": "confident error on supports",
+      "claim_id": 275,
+      "doc_id": 14241418,
+      "claim": "Combining phosphatidylinositide 3-kinase and MEK 1/2 inhibitors is effective at treating KRAS mutant tumors.",
+      "title": "NVP-BEZ235, a dual PI3K/mTOR inhibitor, prevents PI3K signaling and inhibits the growth of cancer cells with activating PI3K mutations.",
+      "label": "supports",
+      "relation": {
+       "supports": 0.0,
+       "contradicts": 0.0,
+       "says_nothing": 1.0
+      },
+      "nouls": {
+       "supports": 0.04,
+       "contradicts": 0.07,
+       "addresses": 0.05
+      },
+      "cosine": 0.81
+     },
+     {
+      "why": "confident error on supports",
+      "claim_id": 593,
+      "doc_id": 19675911,
+      "claim": "Incidence of heart failure decreased by 10% in women since 1979.",
+      "title": "Trends in heart failure incidence and survival in a community-based population.",
+      "label": "supports",
+      "relation": {
+       "supports": 0.0,
+       "contradicts": 1.0,
+       "says_nothing": 0.0
+      },
+      "nouls": {
+       "supports": 0.02,
+       "contradicts": 0.96,
+       "addresses": 0.97
+      },
+      "cosine": 0.908
+     },
+     {
+      "why": "clear hit on supports",
+      "claim_id": 50,
+      "doc_id": 12580014,
+      "claim": "AIRE is expressed in some skin tumors.",
+      "title": "Keratin-dependent regulation of Aire and gene expression in skin tumor keratinocytes",
+      "label": "supports",
+      "relation": {
+       "supports": 1.0,
+       "contradicts": 0.0,
+       "says_nothing": 0.0
+      },
+      "nouls": {
+       "supports": 0.97,
+       "contradicts": 0.02,
+       "addresses": 0.98
+      },
+      "cosine": 0.86
+     },
+     {
+      "why": "confident error on contradicts",
+      "claim_id": 879,
+      "doc_id": 8426046,
+      "claim": "Occupancy of ribosomes by IncRNAs do not make functional peptides.",
+      "title": "Ribosome Profiling Provides Evidence that Large Noncoding RNAs Do Not Encode Proteins",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.98,
+       "contradicts": 0.01,
+       "says_nothing": 0.01
+      },
+      "nouls": {
+       "supports": 0.87,
+       "contradicts": 0.1,
+       "addresses": 0.92
+      },
+      "cosine": 0.853
+     },
+     {
+      "why": "confident error on contradicts",
+      "claim_id": 1221,
+      "doc_id": 19736671,
+      "claim": "The genomic aberrations found in matasteses are very similar to those found in the primary tumor.",
+      "title": "Evolution of metastasis revealed by mutational landscapes of chemically induced skin cancers",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.81,
+       "contradicts": 0.1,
+       "says_nothing": 0.09
+      },
+      "nouls": {
+       "supports": 0.62,
+       "contradicts": 0.19,
+       "addresses": 0.76
+      },
+      "cosine": 0.838
+     },
+     {
+      "why": "clear hit on contradicts",
+      "claim_id": 42,
+      "doc_id": 18174210,
+      "claim": "A high microerythrocyte count raises vulnerability to severe anemia in homozygous alpha (+)- thalassemia trait subjects.",
+      "title": "Increased Microerythrocyte Count in Homozygous α+-Thalassaemia Contributes to Protection against Severe Malarial Anaemia",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.0,
+       "contradicts": 1.0,
+       "says_nothing": 0.0
+      },
+      "nouls": {
+       "supports": 0.04,
+       "contradicts": 0.94,
+       "addresses": 0.84
+      },
+      "cosine": 0.911
+     },
+     {
+      "why": "confident error on says_nothing",
+      "claim_id": 385,
+      "doc_id": 9767444,
+      "claim": "Epigenetic modulating agents (EMAs) modulate antitumor immune response in a cancer model system.",
+      "title": "Epigenetic therapy activates type I interferon signaling in murine ovarian cancer to reduce immunosuppression and tumor burden.",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 1.0,
+       "contradicts": 0.0,
+       "says_nothing": 0.0
+      },
+      "nouls": {
+       "supports": 0.96,
+       "contradicts": 0.03,
+       "addresses": 0.97
+      },
+      "cosine": 0.823
+     },
+     {
+      "why": "confident error on says_nothing",
+      "claim_id": 907,
+      "doc_id": 6923961,
+      "claim": "PGE 2 promotes intestinal tumor growth by altering the expression of tumor suppressing and DNA repair genes.",
+      "title": "Prostaglandin E2 promotes intestinal tumor growth via DNA methylation",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 1.0,
+       "contradicts": 0.0,
+       "says_nothing": 0.0
+      },
+      "nouls": {
+       "supports": 0.94,
+       "contradicts": 0.03,
+       "addresses": 0.97
+      },
+      "cosine": 0.943
+     },
+     {
+      "why": "clear hit on says_nothing",
+      "claim_id": 13,
+      "doc_id": 1606628,
+      "claim": "5% of perinatal mortality is due to low birth weight.",
+      "title": "Estimates of global prevalence of childhood underweight in 1990 and 2015.",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 0.0,
+       "contradicts": 0.0,
+       "says_nothing": 1.0
+      },
+      "nouls": {
+       "supports": 0.02,
+       "contradicts": 0.05,
+       "addresses": 0.03
+      },
+      "cosine": 0.887
+     }
+    ],
+    "finished": "2026-11-08T23:13:06+00:00",
+    "hosted_ledger_usd": 0.672
+   },
+   "local": {
+    "benchmark": "polarity",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "question_digest": "bce7672f30652942db48933a0412e5321e6be579cae50aad55d3867060a7b4d4",
+    "pairs": {
+     "train": 919,
+     "dev": 339,
+     "by_label": {
+      "train": {
+       "says_nothing": 355,
+       "contradicts": 194,
+       "supports": 370
+      },
+      "dev": {
+       "says_nothing": 130,
+       "supports": 138,
+       "contradicts": 71
+      }
+     }
+    },
+    "state_cuts": 2,
+    "usage": {
+     "requests": 1258,
+     "errors": 0,
+     "input_tokens_per_request": 2752.0,
+     "hosted_usd_per_million_requests": 115.58,
+     "local_seconds_median": 0.7227,
+     "local_seconds_p90": 0.9179
+    },
+    "machine": {
+     "samples": 174,
+     "share_embedder_busy": 0.856,
+     "load_median": 4.04,
+     "load_max": 4.93
+    },
+    "dev": {
+     "choice": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4838,
+      "macro_f1": 0.386,
+      "brier": 0.7671,
+      "log_loss": 1.3183,
+      "ece": 0.3537,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 3,
+        "confidence": 0.3803,
+        "observed": 0.6667
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 13,
+        "confidence": 0.4522,
+        "observed": 0.4615
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 31,
+        "confidence": 0.547,
+        "observed": 0.3226
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 26,
+        "confidence": 0.657,
+        "observed": 0.3462
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 36,
+        "confidence": 0.7598,
+        "observed": 0.3889
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 68,
+        "confidence": 0.8545,
+        "observed": 0.25
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 162,
+        "confidence": 0.9595,
+        "observed": 0.6543
+       }
+      ],
+      "confusion": [
+       [
+        133,
+        5,
+        0
+       ],
+       [
+        52,
+        18,
+        1
+       ],
+       [
+        113,
+        4,
+        13
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.426,
+       0.5378
+      ],
+      "macro_f1_ci": [
+       0.3159,
+       0.449
+      ]
+     },
+     "choice_reversed": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4926,
+      "macro_f1": 0.3954,
+      "brier": 0.7664,
+      "log_loss": 1.3929,
+      "ece": 0.3533,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 1,
+        "confidence": 0.3676,
+        "observed": 0.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 19,
+        "confidence": 0.4548,
+        "observed": 0.5263
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 25,
+        "confidence": 0.5449,
+        "observed": 0.24
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 31,
+        "confidence": 0.6476,
+        "observed": 0.4194
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 37,
+        "confidence": 0.7505,
+        "observed": 0.3784
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 47,
+        "confidence": 0.8526,
+        "observed": 0.2979
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 179,
+        "confidence": 0.9693,
+        "observed": 0.6145
+       }
+      ],
+      "confusion": [
+       [
+        135,
+        3,
+        0
+       ],
+       [
+        52,
+        17,
+        2
+       ],
+       [
+        113,
+        2,
+        15
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4363,
+       0.5455
+      ],
+      "macro_f1_ci": [
+       0.3227,
+       0.4586
+      ]
+     },
+     "noul_product": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.5516,
+      "macro_f1": 0.4917,
+      "brier": 0.5944,
+      "log_loss": 1.0222,
+      "ece": 0.1926,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 24,
+        "confidence": 0.3829,
+        "observed": 0.5417
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 55,
+        "confidence": 0.4559,
+        "observed": 0.4
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 47,
+        "confidence": 0.5481,
+        "observed": 0.4255
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 30,
+        "confidence": 0.6427,
+        "observed": 0.3333
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 36,
+        "confidence": 0.7554,
+        "observed": 0.4167
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 33,
+        "confidence": 0.8495,
+        "observed": 0.4242
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 114,
+        "confidence": 0.9661,
+        "observed": 0.8158
+       }
+      ],
+      "confusion": [
+       [
+        124,
+        13,
+        1
+       ],
+       [
+        30,
+        39,
+        2
+       ],
+       [
+        64,
+        42,
+        24
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4969,
+       0.6042
+      ],
+      "macro_f1_ci": [
+       0.4311,
+       0.5451
+      ]
+     },
+     "noul_companion": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.5251,
+      "macro_f1": 0.4532,
+      "brier": 0.6,
+      "log_loss": 1.0362,
+      "ece": 0.0918,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 18,
+        "confidence": 0.3811,
+        "observed": 0.5
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 89,
+        "confidence": 0.4523,
+        "observed": 0.3371
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 108,
+        "confidence": 0.5479,
+        "observed": 0.4352
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 79,
+        "confidence": 0.6553,
+        "observed": 0.6582
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 41,
+        "confidence": 0.7397,
+        "observed": 0.878
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 3,
+        "confidence": 0.8154,
+        "observed": 1.0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 1,
+        "confidence": 0.9016,
+        "observed": 1.0
+       }
+      ],
+      "confusion": [
+       [
+        125,
+        13,
+        0
+       ],
+       [
+        30,
+        33,
+        8
+       ],
+       [
+        66,
+        44,
+        20
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4735,
+       0.5782
+      ],
+      "macro_f1_ci": [
+       0.4034,
+       0.5043
+      ]
+     },
+     "majority": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4071,
+      "macro_f1": 0.1929,
+      "brier": 0.6434,
+      "log_loss": 1.0609,
+      "ece": 0.0045,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 339,
+        "confidence": 0.4026,
+        "observed": 0.4071
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        138,
+        0,
+        0
+       ],
+       [
+        71,
+        0,
+        0
+       ],
+       [
+        130,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ]
+     },
+     "embedder_logistic": {
+      "n": 339,
+      "missing": 0,
+      "accuracy": 0.4543,
+      "macro_f1": 0.3193,
+      "brier": 0.653,
+      "log_loss": 1.0745,
+      "ece": 0.1244,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 9,
+        "confidence": 0.3966,
+        "observed": 0.4444
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 127,
+        "confidence": 0.4433,
+        "observed": 0.3858
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 78,
+        "confidence": 0.544,
+        "observed": 0.4615
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 43,
+        "confidence": 0.6487,
+        "observed": 0.3721
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 54,
+        "confidence": 0.75,
+        "observed": 0.4815
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 23,
+        "confidence": 0.837,
+        "observed": 0.7826
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 5,
+        "confidence": 0.9261,
+        "observed": 1.0
+       }
+      ],
+      "confusion": [
+       [
+        41,
+        0,
+        97
+       ],
+       [
+        19,
+        0,
+        52
+       ],
+       [
+        17,
+        0,
+        113
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.3947,
+       0.5134
+      ],
+      "macro_f1_ci": [
+       0.2727,
+       0.3637
+      ]
+     },
+     "auroc": {
+      "supports_vs_contradicts": {
+       "cosine": 0.5364,
+       "cosine_ci": [
+        0.4244,
+        0.6381
+       ],
+       "choice": 0.8541,
+       "nouls": 0.8507
+      },
+      "evidence_vs_nothing": {
+       "cosine": 0.6664,
+       "choice": 0.7595,
+       "addresses": 0.7936
+      }
+     },
+     "order_flips": 0.0295,
+     "choice_minus_embedder_macro_f1_ci": [
+      -0.0186,
+      0.1478
+     ]
+    },
+    "train": {
+     "choice": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.482,
+      "macro_f1": 0.3669,
+      "brier": 0.782,
+      "log_loss": 1.388,
+      "ece": 0.3546,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 5,
+        "confidence": 0.361,
+        "observed": 0.0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 57,
+        "confidence": 0.461,
+        "observed": 0.4561
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 51,
+        "confidence": 0.5547,
+        "observed": 0.451
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 76,
+        "confidence": 0.6527,
+        "observed": 0.3289
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 99,
+        "confidence": 0.7526,
+        "observed": 0.2121
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 165,
+        "confidence": 0.8541,
+        "observed": 0.2667
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 466,
+        "confidence": 0.9603,
+        "observed": 0.6524
+       }
+      ],
+      "confusion": [
+       [
+        367,
+        2,
+        1
+       ],
+       [
+        160,
+        33,
+        1
+       ],
+       [
+        298,
+        14,
+        43
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4479,
+       0.5183
+      ],
+      "macro_f1_ci": [
+       0.3315,
+       0.4035
+      ]
+     },
+     "choice_reversed": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.4918,
+      "macro_f1": 0.3799,
+      "brier": 0.7701,
+      "log_loss": 1.4327,
+      "ece": 0.3486,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 10,
+        "confidence": 0.3894,
+        "observed": 0.4
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 45,
+        "confidence": 0.459,
+        "observed": 0.3778
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 75,
+        "confidence": 0.5492,
+        "observed": 0.4133
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 86,
+        "confidence": 0.6568,
+        "observed": 0.3605
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 84,
+        "confidence": 0.7511,
+        "observed": 0.1905
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 118,
+        "confidence": 0.8523,
+        "observed": 0.2797
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 501,
+        "confidence": 0.9706,
+        "observed": 0.6387
+       }
+      ],
+      "confusion": [
+       [
+        367,
+        1,
+        2
+       ],
+       [
+        154,
+        31,
+        9
+       ],
+       [
+        289,
+        12,
+        54
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4577,
+       0.5281
+      ],
+      "macro_f1_ci": [
+       0.3429,
+       0.418
+      ]
+     },
+     "noul_product": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.5277,
+      "macro_f1": 0.4507,
+      "brier": 0.6004,
+      "log_loss": 1.049,
+      "ece": 0.1898,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 51,
+        "confidence": 0.3772,
+        "observed": 0.2745
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 158,
+        "confidence": 0.4473,
+        "observed": 0.3924
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 146,
+        "confidence": 0.5468,
+        "observed": 0.3562
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 91,
+        "confidence": 0.6491,
+        "observed": 0.3846
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 74,
+        "confidence": 0.7491,
+        "observed": 0.4054
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 89,
+        "confidence": 0.8481,
+        "observed": 0.5618
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 310,
+        "confidence": 0.9667,
+        "observed": 0.7806
+       }
+      ],
+      "confusion": [
+       [
+        348,
+        19,
+        3
+       ],
+       [
+        106,
+        81,
+        7
+       ],
+       [
+        182,
+        117,
+        56
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4929,
+       0.5607
+      ],
+      "macro_f1_ci": [
+       0.4157,
+       0.4837
+      ]
+     },
+     "noul_companion": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.5245,
+      "macro_f1": 0.4499,
+      "brier": 0.5993,
+      "log_loss": 1.0444,
+      "ece": 0.0896,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 52,
+        "confidence": 0.3749,
+        "observed": 0.3654
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 252,
+        "confidence": 0.454,
+        "observed": 0.3175
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 294,
+        "confidence": 0.5477,
+        "observed": 0.4728
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 213,
+        "confidence": 0.6423,
+        "observed": 0.7183
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 89,
+        "confidence": 0.7404,
+        "observed": 0.8315
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 19,
+        "confidence": 0.8344,
+        "observed": 0.8947
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        345,
+        17,
+        8
+       ],
+       [
+        109,
+        77,
+        8
+       ],
+       [
+        187,
+        108,
+        60
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ],
+      "accuracy_ci": [
+       0.4902,
+       0.56
+      ],
+      "macro_f1_ci": [
+       0.4159,
+       0.4821
+      ]
+     },
+     "majority": {
+      "n": 919,
+      "missing": 0,
+      "accuracy": 0.4026,
+      "macro_f1": 0.1914,
+      "brier": 0.6441,
+      "log_loss": 1.0621,
+      "ece": 0.0,
+      "reliability": [
+       {
+        "bin": [
+         0.0,
+         0.1
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.1,
+         0.2
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.2,
+         0.3
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.3,
+         0.4
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.4,
+         0.5
+        ],
+        "n": 919,
+        "confidence": 0.4026,
+        "observed": 0.4026
+       },
+       {
+        "bin": [
+         0.5,
+         0.6
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.6,
+         0.7
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.7,
+         0.8
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.8,
+         0.9
+        ],
+        "n": 0
+       },
+       {
+        "bin": [
+         0.9,
+         1.0
+        ],
+        "n": 0
+       }
+      ],
+      "confusion": [
+       [
+        370,
+        0,
+        0
+       ],
+       [
+        194,
+        0,
+        0
+       ],
+       [
+        355,
+        0,
+        0
+       ]
+      ],
+      "labels": [
+       "supports",
+       "contradicts",
+       "says_nothing"
+      ]
+     },
+     "auroc": {
+      "supports_vs_contradicts": {
+       "cosine": 0.5407,
+       "cosine_ci": [
+        0.4809,
+        0.6064
+       ],
+       "choice": 0.8459,
+       "nouls": 0.847
+      },
+      "evidence_vs_nothing": {
+       "cosine": 0.617,
+       "choice": 0.7744,
+       "addresses": 0.7948
+      }
+     },
+     "order_flips": 0.0446
+    },
+    "examples": [
+     {
+      "why": "confident error on supports",
+      "claim_id": 1298,
+      "doc_id": 11718220,
+      "claim": "Thigh-length graduated compression stockings (GCS) did not reduce deep vein thrombosis in patients admitted to hospital who are immobile because of acute stroke.",
+      "title": "Effectiveness of thigh-length graduated compression stockings to reduce the risk of deep vein thrombosis after stroke (CLOTS trial 1): a multicentre, randomised controlled trial",
+      "label": "supports",
+      "relation": {
+       "supports": 0.09,
+       "contradicts": 0.843,
+       "says_nothing": 0.066
+      },
+      "nouls": {
+       "supports": 0.274,
+       "contradicts": 0.82,
+       "addresses": 0.928
+      },
+      "cosine": 0.923
+     },
+     {
+      "why": "confident error on supports",
+      "claim_id": 971,
+      "doc_id": 46695481,
+      "claim": "Primary cervical cancer screening with HPV detection has higher longitudinal sensitivity than conventional cytology to detect cervical intraepithelial neoplasia grade 2.",
+      "title": "Human papillomavirus and Papanicolaou tests to screen for cervical cancer.",
+      "label": "supports",
+      "relation": {
+       "supports": 0.108,
+       "contradicts": 0.773,
+       "says_nothing": 0.119
+      },
+      "nouls": {
+       "supports": 0.232,
+       "contradicts": 0.909,
+       "addresses": 0.722
+      },
+      "cosine": 0.956
+     },
+     {
+      "why": "clear hit on supports",
+      "claim_id": 124,
+      "doc_id": 4883040,
+      "claim": "Antiretroviral therapy reduces rates of tuberculosis across a broad range of CD4 strata.",
+      "title": "Antiretroviral Therapy for Prevention of Tuberculosis in Adults with HIV: A Systematic Review and Meta-Analysis",
+      "label": "supports",
+      "relation": {
+       "supports": 0.998,
+       "contradicts": 0.0,
+       "says_nothing": 0.002
+      },
+      "nouls": {
+       "supports": 0.999,
+       "contradicts": 0.322,
+       "addresses": 0.987
+      },
+      "cosine": 0.924
+     },
+     {
+      "why": "confident error on contradicts",
+      "claim_id": 759,
+      "doc_id": 1805641,
+      "claim": "Mathematical models predict that using Artemisinin-based combination therapy over nongametocytocidal drugs have a dramatic impact in reducing malaria transmission.",
+      "title": "Modelling the Impact of Artemisinin Combination Therapy and Long-Acting Treatments on Malaria Transmission Intensity",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.98,
+       "contradicts": 0.003,
+       "says_nothing": 0.017
+      },
+      "nouls": {
+       "supports": 0.992,
+       "contradicts": 0.322,
+       "addresses": 0.985
+      },
+      "cosine": 0.926
+     },
+     {
+      "why": "confident error on contradicts",
+      "claim_id": 993,
+      "doc_id": 16472469,
+      "claim": "Pyridostatin destabilizes the G - quadruplex in the telomeric region.",
+      "title": "Targeting BRCA1 and BRCA2 Deficiencies with G-Quadruplex-Interacting Compounds",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.975,
+       "contradicts": 0.006,
+       "says_nothing": 0.019
+      },
+      "nouls": {
+       "supports": 0.97,
+       "contradicts": 0.566,
+       "addresses": 0.932
+      },
+      "cosine": 0.916
+     },
+     {
+      "why": "clear hit on contradicts",
+      "claim_id": 51,
+      "doc_id": 45638119,
+      "claim": "ALDH1 expression is associated with better breast cancer outcomes.",
+      "title": "ALDH1 is a marker of normal and malignant human mammary stem cells and a predictor of poor clinical outcome.",
+      "label": "contradicts",
+      "relation": {
+       "supports": 0.024,
+       "contradicts": 0.9,
+       "says_nothing": 0.076
+      },
+      "nouls": {
+       "supports": 0.118,
+       "contradicts": 0.983,
+       "addresses": 0.872
+      },
+      "cosine": 0.905
+     },
+     {
+      "why": "confident error on says_nothing",
+      "claim_id": 385,
+      "doc_id": 9767444,
+      "claim": "Epigenetic modulating agents (EMAs) modulate antitumor immune response in a cancer model system.",
+      "title": "Epigenetic therapy activates type I interferon signaling in murine ovarian cancer to reduce immunosuppression and tumor burden.",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 0.992,
+       "contradicts": 0.002,
+       "says_nothing": 0.006
+      },
+      "nouls": {
+       "supports": 0.997,
+       "contradicts": 0.32,
+       "addresses": 0.99
+      },
+      "cosine": 0.823
+     },
+     {
+      "why": "confident error on says_nothing",
+      "claim_id": 127,
+      "doc_id": 21598000,
+      "claim": "Arginine 90 in p150n is important for interaction with EB1.",
+      "title": "Structural basis for the activation of microtubule assembly by the EB1 and p150Glued complex.",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 0.974,
+       "contradicts": 0.003,
+       "says_nothing": 0.023
+      },
+      "nouls": {
+       "supports": 0.96,
+       "contradicts": 0.325,
+       "addresses": 0.928
+      },
+      "cosine": 0.825
+     },
+     {
+      "why": "clear hit on says_nothing",
+      "claim_id": 716,
+      "doc_id": 18421962,
+      "claim": "Low expression of miR7a exerts a biological function in testis.",
+      "title": "Assessing the ceRNA hypothesis with quantitative measurements of miRNA and target abundance.",
+      "label": "says_nothing",
+      "relation": {
+       "supports": 0.065,
+       "contradicts": 0.112,
+       "says_nothing": 0.823
+      },
+      "nouls": {
+       "supports": 0.013,
+       "contradicts": 0.564,
+       "addresses": 0.277
+      },
+      "cosine": 0.864
+     }
+    ],
+    "finished": "2026-11-08T22:58:02+00:00"
+   }
+  },
+  "rerank": {
+   "hosted": {
+    "benchmark": "rerank",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "scifact": {
+     "queries": 300,
+     "shortlist": 20,
+     "primary_question": "addresses",
+     "secondary_question": "relation",
+     "coverage_at_20": 0.9567,
+     "usage": {
+      "requests": 6000,
+      "errors": 0,
+      "input_tokens_per_request": 1050.5,
+      "hosted_usd_per_million_requests": 44.12,
+      "hosted_seconds_median": 0.1
+     },
+     "machine": {
+      "samples": 0
+     },
+     "embedder": {
+      "ndcg10": 0.8492,
+      "recall10": 0.9288
+     },
+     "judged": {
+      "ndcg10": 0.8302,
+      "recall10": 0.9467,
+      "minus_embedder": -0.019,
+      "minus_embedder_ci": [
+       -0.0489,
+       0.0127
+      ]
+     },
+     "fused": {
+      "ndcg10": 0.8497,
+      "recall10": 0.9389,
+      "minus_embedder": 0.0005,
+      "minus_embedder_ci": [
+       -0.0156,
+       0.0158
+      ]
+     },
+     "judged_secondary": {
+      "ndcg10": 0.8181,
+      "recall10": 0.9356,
+      "minus_embedder": -0.0311,
+      "minus_embedder_ci": [
+       -0.0604,
+       -0.0022
+      ]
+     },
+     "fused_secondary": {
+      "ndcg10": 0.849,
+      "recall10": 0.9349,
+      "minus_embedder": -0.0002,
+      "minus_embedder_ci": [
+       -0.0154,
+       0.0139
+      ]
+     },
+     "mining": {
+      "pairs": 6000,
+      "hits_in_pool": 71,
+      "contradicting_pairs_in_dev": 71,
+      "choice": {
+       "average_precision": 0.4646,
+       "precision_at_10": 0.7,
+       "precision_at_25": 0.48,
+       "precision_at_50": 0.42,
+       "precision_at_100": 0.41,
+       "precision_at_50_ci": [
+        0.34,
+        0.68
+       ]
+      },
+      "noul": {
+       "average_precision": 0.4297,
+       "precision_at_10": 0.5,
+       "precision_at_25": 0.44,
+       "precision_at_50": 0.46,
+       "precision_at_100": 0.41,
+       "precision_at_50_ci": [
+        0.32,
+        0.64
+       ]
+      },
+      "noul_product": {
+       "average_precision": 0.4163,
+       "precision_at_10": 0.5,
+       "precision_at_25": 0.44,
+       "precision_at_50": 0.42,
+       "precision_at_100": 0.42,
+       "precision_at_50_ci": [
+        0.3,
+        0.64
+       ]
+      },
+      "cosine": {
+       "average_precision": 0.1553,
+       "precision_at_10": 0.1,
+       "precision_at_25": 0.08,
+       "precision_at_50": 0.22,
+       "precision_at_100": 0.2,
+       "precision_at_50_ci": [
+        0.08,
+        0.38
+       ]
+      },
+      "random": {
+       "average_precision": 0.0127,
+       "precision_at_10": 0.0,
+       "precision_at_25": 0.04,
+       "precision_at_50": 0.04,
+       "precision_at_100": 0.02,
+       "precision_at_50_ci": [
+        0.0,
+        0.1
+       ]
+      }
+     },
+     "post_hoc_with_evidence": {
+      "queries": 188,
+      "embedder": 0.9199,
+      "judged": 0.94,
+      "fused": 0.9409
+     },
+     "post_hoc_without_evidence": {
+      "queries": 112,
+      "embedder": 0.7305,
+      "judged": 0.6459,
+      "fused": 0.6965
+     }
+    },
+    "nfcorpus": {
+     "queries": 323,
+     "shortlist": 20,
+     "primary_question": "answers",
+     "secondary_question": "on_subject",
+     "coverage_at_20": 0.805,
+     "usage": {
+      "requests": 6460,
+      "errors": 0,
+      "input_tokens_per_request": 725.9,
+      "hosted_usd_per_million_requests": 30.49,
+      "hosted_seconds_median": 0.095
+     },
+     "machine": {
+      "samples": 0
+     },
+     "embedder": {
+      "ndcg10": 0.3677,
+      "recall10": 0.1831
+     },
+     "judged": {
+      "ndcg10": 0.4144,
+      "recall10": 0.2,
+      "minus_embedder": 0.0466,
+      "minus_embedder_ci": [
+       0.0333,
+       0.0606
+      ]
+     },
+     "fused": {
+      "ndcg10": 0.4,
+      "recall10": 0.1953,
+      "minus_embedder": 0.0323,
+      "minus_embedder_ci": [
+       0.0252,
+       0.04
+      ]
+     },
+     "judged_secondary": {
+      "ndcg10": 0.4159,
+      "recall10": 0.1947,
+      "minus_embedder": 0.0481,
+      "minus_embedder_ci": [
+       0.0361,
+       0.0609
+      ]
+     },
+     "fused_secondary": {
+      "ndcg10": 0.4023,
+      "recall10": 0.1945,
+      "minus_embedder": 0.0345,
+      "minus_embedder_ci": [
+       0.027,
+       0.0424
+      ]
+     }
+    },
+    "finished": "2026-11-08T23:16:25+00:00",
+    "hosted_ledger_usd": 0.7396
+   },
+   "local": {
+    "benchmark": "rerank",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "scifact": {
+     "queries": 300,
+     "shortlist": 20,
+     "primary_question": "addresses",
+     "secondary_question": "relation",
+     "coverage_at_20": 0.9567,
+     "usage": {
+      "requests": 6000,
+      "errors": 0,
+      "input_tokens_per_request": 2595.2,
+      "hosted_usd_per_million_requests": 109.0,
+      "local_seconds_median": 2.8109,
+      "local_seconds_p90": 3.4696
+     },
+     "machine": {
+      "samples": 0
+     },
+     "embedder": {
+      "ndcg10": 0.8492,
+      "recall10": 0.9288
+     },
+     "judged": {
+      "ndcg10": 0.6362,
+      "recall10": 0.8705,
+      "minus_embedder": -0.213,
+      "minus_embedder_ci": [
+       -0.252,
+       -0.173
+      ]
+     },
+     "fused": {
+      "ndcg10": 0.7836,
+      "recall10": 0.9342,
+      "minus_embedder": -0.0656,
+      "minus_embedder_ci": [
+       -0.0885,
+       -0.0422
+      ]
+     },
+     "judged_secondary": {
+      "ndcg10": 0.6304,
+      "recall10": 0.859,
+      "minus_embedder": -0.2187,
+      "minus_embedder_ci": [
+       -0.2607,
+       -0.1785
+      ]
+     },
+     "fused_secondary": {
+      "ndcg10": 0.78,
+      "recall10": 0.9298,
+      "minus_embedder": -0.0692,
+      "minus_embedder_ci": [
+       -0.0948,
+       -0.0449
+      ]
+     },
+     "mining": {
+      "pairs": 6000,
+      "hits_in_pool": 71,
+      "contradicting_pairs_in_dev": 71,
+      "choice": {
+       "average_precision": 0.0657,
+       "precision_at_10": 0.3,
+       "precision_at_25": 0.16,
+       "precision_at_50": 0.14,
+       "precision_at_100": 0.1,
+       "precision_at_50_ci": [
+        0.04,
+        0.22
+       ]
+      },
+      "noul": {
+       "average_precision": 0.1023,
+       "precision_at_10": 0.4,
+       "precision_at_25": 0.24,
+       "precision_at_50": 0.2,
+       "precision_at_100": 0.12,
+       "precision_at_50_ci": [
+        0.06,
+        0.3
+       ]
+      },
+      "noul_product": {
+       "average_precision": 0.074,
+       "precision_at_10": 0.3,
+       "precision_at_25": 0.2,
+       "precision_at_50": 0.16,
+       "precision_at_100": 0.1,
+       "precision_at_50_ci": [
+        0.02,
+        0.26
+       ]
+      },
+      "cosine": {
+       "average_precision": 0.1553,
+       "precision_at_10": 0.1,
+       "precision_at_25": 0.08,
+       "precision_at_50": 0.22,
+       "precision_at_100": 0.2,
+       "precision_at_50_ci": [
+        0.08,
+        0.38
+       ]
+      },
+      "random": {
+       "average_precision": 0.0127,
+       "precision_at_10": 0.0,
+       "precision_at_25": 0.04,
+       "precision_at_50": 0.04,
+       "precision_at_100": 0.02,
+       "precision_at_50_ci": [
+        0.0,
+        0.1
+       ]
+      }
+     },
+     "post_hoc_with_evidence": {
+      "queries": 188,
+      "embedder": 0.9199,
+      "judged": 0.7403,
+      "fused": 0.8775
+     },
+     "post_hoc_without_evidence": {
+      "queries": 112,
+      "embedder": 0.7305,
+      "judged": 0.4614,
+      "fused": 0.626
+     }
+    },
+    "nfcorpus": {
+     "queries": 323,
+     "shortlist": 20,
+     "primary_question": "answers",
+     "secondary_question": "on_subject",
+     "coverage_at_20": 0.805,
+     "usage": {
+      "requests": 6460,
+      "errors": 0,
+      "input_tokens_per_request": 981.5,
+      "hosted_usd_per_million_requests": 41.22,
+      "local_seconds_median": 1.3123,
+      "local_seconds_p90": 2.4405
+     },
+     "machine": {
+      "samples": 0
+     },
+     "embedder": {
+      "ndcg10": 0.3677,
+      "recall10": 0.1831
+     },
+     "judged": {
+      "ndcg10": 0.2748,
+      "recall10": 0.1523,
+      "minus_embedder": -0.0929,
+      "minus_embedder_ci": [
+       -0.1145,
+       -0.0729
+      ]
+     },
+     "fused": {
+      "ndcg10": 0.3398,
+      "recall10": 0.177,
+      "minus_embedder": -0.028,
+      "minus_embedder_ci": [
+       -0.0408,
+       -0.0167
+      ]
+     },
+     "judged_secondary": {
+      "ndcg10": 0.2941,
+      "recall10": 0.1577,
+      "minus_embedder": -0.0736,
+      "minus_embedder_ci": [
+       -0.0925,
+       -0.0551
+      ]
+     },
+     "fused_secondary": {
+      "ndcg10": 0.3515,
+      "recall10": 0.1818,
+      "minus_embedder": -0.0163,
+      "minus_embedder_ci": [
+       -0.028,
+       -0.0053
+      ]
+     }
+    },
+    "finished": "2026-11-09T06:01:59+00:00"
+   }
+  },
+  "topic": {
+   "hosted": {
+    "benchmark": "topic",
+    "arm": "hosted",
+    "model": "jev-1.14.0",
+    "question_digest": "9f2893e2b19668fc3af03a7eeb0c42498522219fdba812827b2f85df2f161fa4",
+    "items": 780,
+    "per_archive": {
+     "astro-ph": 60,
+     "cond-mat": 60,
+     "cs": 60,
+     "econ": 60,
+     "eess": 60,
+     "math": 60,
+     "math-ph": 60,
+     "nlin": 60,
+     "physics": 60,
+     "q-bio": 60,
+     "q-fin": 60,
+     "quant-ph": 60,
+     "stat": 60
+    },
+    "choice": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.5256,
+     "macro_f1": 0.5316,
+     "brier": 0.6429,
+     "log_loss": 1.844,
+     "ece": 0.1631,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 14,
+       "confidence": 0.2779,
+       "observed": 0.0714
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 54,
+       "confidence": 0.3644,
+       "observed": 0.2407
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 125,
+       "confidence": 0.4595,
+       "observed": 0.248
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 106,
+       "confidence": 0.549,
+       "observed": 0.3962
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 104,
+       "confidence": 0.6542,
+       "observed": 0.4808
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 102,
+       "confidence": 0.7551,
+       "observed": 0.5882
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 106,
+       "confidence": 0.855,
+       "observed": 0.7075
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 169,
+       "confidence": 0.9604,
+       "observed": 0.8166
+      }
+     ],
+     "confusion": [
+      [
+       49,
+       1,
+       0,
+       2,
+       0,
+       0,
+       0,
+       0,
+       8,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       50,
+       0,
+       1,
+       0,
+       0,
+       1,
+       0,
+       6,
+       0,
+       0,
+       0,
+       2
+      ],
+      [
+       0,
+       3,
+       5,
+       1,
+       0,
+       3,
+       2,
+       17,
+       25,
+       1,
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       3,
+       0,
+       41,
+       0,
+       1,
+       0,
+       0,
+       10,
+       0,
+       2,
+       0,
+       3
+      ],
+      [
+       0,
+       22,
+       0,
+       0,
+       30,
+       0,
+       0,
+       3,
+       5,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       4,
+       1,
+       1,
+       2,
+       13,
+       10,
+       13,
+       15,
+       1,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       15,
+       0,
+       0,
+       2,
+       2,
+       30,
+       3,
+       2,
+       0,
+       0,
+       0,
+       6
+      ],
+      [
+       0,
+       7,
+       2,
+       1,
+       1,
+       2,
+       0,
+       19,
+       17,
+       8,
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       7,
+       0,
+       3,
+       1,
+       1,
+       1,
+       3,
+       35,
+       2,
+       3,
+       0,
+       4
+      ],
+      [
+       0,
+       3,
+       0,
+       0,
+       0,
+       1,
+       2,
+       4,
+       11,
+       39,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       1,
+       0,
+       19,
+       0,
+       0,
+       0,
+       0,
+       6,
+       1,
+       32,
+       0,
+       1
+      ],
+      [
+       0,
+       19,
+       0,
+       0,
+       0,
+       2,
+       0,
+       1,
+       5,
+       1,
+       1,
+       31,
+       0
+      ],
+      [
+       0,
+       20,
+       0,
+       0,
+       0,
+       0,
+       1,
+       0,
+       3,
+       0,
+       0,
+       0,
+       36
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "choice_reversed": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.5218,
+     "macro_f1": 0.5307,
+     "brier": 0.6671,
+     "log_loss": 2.0263,
+     "ece": 0.1684,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 14,
+       "confidence": 0.27,
+       "observed": 0.1429
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 48,
+       "confidence": 0.3635,
+       "observed": 0.1667
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 99,
+       "confidence": 0.4525,
+       "observed": 0.3434
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 143,
+       "confidence": 0.555,
+       "observed": 0.3916
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 104,
+       "confidence": 0.6551,
+       "observed": 0.4712
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 104,
+       "confidence": 0.7545,
+       "observed": 0.5769
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 115,
+       "confidence": 0.857,
+       "observed": 0.6609
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 153,
+       "confidence": 0.9662,
+       "observed": 0.7974
+      }
+     ],
+     "confusion": [
+      [
+       50,
+       1,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       8,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       50,
+       0,
+       2,
+       0,
+       0,
+       1,
+       0,
+       5,
+       0,
+       0,
+       0,
+       2
+      ],
+      [
+       0,
+       4,
+       4,
+       1,
+       0,
+       5,
+       0,
+       12,
+       31,
+       0,
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       4,
+       0,
+       39,
+       0,
+       1,
+       0,
+       0,
+       9,
+       0,
+       2,
+       0,
+       5
+      ],
+      [
+       0,
+       23,
+       0,
+       0,
+       29,
+       0,
+       0,
+       3,
+       5,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       5,
+       1,
+       1,
+       2,
+       12,
+       4,
+       14,
+       19,
+       2,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       17,
+       0,
+       0,
+       2,
+       2,
+       29,
+       3,
+       2,
+       0,
+       0,
+       0,
+       5
+      ],
+      [
+       0,
+       6,
+       1,
+       1,
+       2,
+       2,
+       0,
+       25,
+       17,
+       3,
+       2,
+       1,
+       0
+      ],
+      [
+       0,
+       7,
+       0,
+       3,
+       1,
+       1,
+       1,
+       2,
+       37,
+       1,
+       3,
+       0,
+       4
+      ],
+      [
+       0,
+       3,
+       0,
+       0,
+       0,
+       1,
+       2,
+       8,
+       13,
+       33,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       1,
+       0,
+       16,
+       0,
+       0,
+       0,
+       1,
+       9,
+       0,
+       32,
+       0,
+       1
+      ],
+      [
+       0,
+       20,
+       0,
+       0,
+       0,
+       2,
+       0,
+       1,
+       5,
+       1,
+       1,
+       30,
+       0
+      ],
+      [
+       0,
+       20,
+       0,
+       0,
+       0,
+       0,
+       0,
+       1,
+       2,
+       0,
+       0,
+       0,
+       37
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "choice_top3_accuracy": 0.8321,
+    "order_flips": 0.0808,
+    "embedder_knn": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.5577,
+     "macro_f1": 0.5497,
+     "brier": 0.5898,
+     "log_loss": 2.0924,
+     "ece": 0.0383,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 31,
+       "confidence": 0.2,
+       "observed": 0.1613
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 143,
+       "confidence": 0.3,
+       "observed": 0.2937
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 164,
+       "confidence": 0.4,
+       "observed": 0.4268
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 129,
+       "confidence": 0.5,
+       "observed": 0.5736
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 106,
+       "confidence": 0.6,
+       "observed": 0.6321
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 68,
+       "confidence": 0.7,
+       "observed": 0.7647
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 47,
+       "confidence": 0.8,
+       "observed": 0.8511
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 33,
+       "confidence": 0.9,
+       "observed": 0.8182
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 59,
+       "confidence": 1.0,
+       "observed": 0.9831
+      }
+     ],
+     "confusion": [
+      [
+       58,
+       0,
+       1,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       32,
+       1,
+       1,
+       4,
+       0,
+       7,
+       0,
+       3,
+       1,
+       0,
+       3,
+       8
+      ],
+      [
+       0,
+       0,
+       33,
+       1,
+       2,
+       8,
+       0,
+       6,
+       4,
+       4,
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       5,
+       1,
+       18,
+       6,
+       1,
+       0,
+       2,
+       9,
+       2,
+       10,
+       1,
+       5
+      ],
+      [
+       0,
+       6,
+       2,
+       3,
+       34,
+       3,
+       4,
+       0,
+       1,
+       1,
+       0,
+       0,
+       6
+      ],
+      [
+       0,
+       0,
+       18,
+       0,
+       5,
+       27,
+       0,
+       3,
+       0,
+       3,
+       0,
+       2,
+       2
+      ],
+      [
+       0,
+       4,
+       6,
+       0,
+       8,
+       7,
+       26,
+       1,
+       1,
+       0,
+       0,
+       0,
+       7
+      ],
+      [
+       0,
+       1,
+       8,
+       0,
+       7,
+       8,
+       1,
+       15,
+       2,
+       12,
+       3,
+       3,
+       0
+      ],
+      [
+       1,
+       5,
+       8,
+       7,
+       2,
+       6,
+       0,
+       1,
+       16,
+       6,
+       3,
+       0,
+       5
+      ],
+      [
+       0,
+       0,
+       4,
+       3,
+       0,
+       5,
+       1,
+       5,
+       3,
+       39,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       2,
+       3,
+       0,
+       1,
+       0,
+       0,
+       1,
+       1,
+       51,
+       0,
+       1
+      ],
+      [
+       0,
+       2,
+       2,
+       0,
+       0,
+       0,
+       3,
+       1,
+       0,
+       1,
+       0,
+       51,
+       0
+      ],
+      [
+       0,
+       8,
+       1,
+       0,
+       5,
+       1,
+       5,
+       0,
+       5,
+       0,
+       0,
+       0,
+       35
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "post_hoc_accuracy_any_listed_archive": {
+     "choice": 0.7641,
+     "embedder_knn": 0.6962
+    },
+    "cross_listed_items": 555,
+    "choice_minus_knn_accuracy_ci": [
+     -0.0769,
+     0.009
+    ],
+    "usage": {
+     "requests": 780,
+     "errors": 0,
+     "input_tokens_per_request": 1256.8,
+     "hosted_usd_per_million_requests": 52.78,
+     "hosted_seconds_median": 0.099
+    },
+    "machine": {
+     "samples": 0
+    },
+    "finished": "2026-11-08T23:13:46+00:00",
+    "hosted_ledger_usd": 0.7396
+   },
+   "local": {
+    "benchmark": "topic",
+    "arm": "local",
+    "model": "tev1-ctx8192",
+    "question_digest": "9f2893e2b19668fc3af03a7eeb0c42498522219fdba812827b2f85df2f161fa4",
+    "items": 780,
+    "per_archive": {
+     "astro-ph": 60,
+     "cond-mat": 60,
+     "cs": 60,
+     "econ": 60,
+     "eess": 60,
+     "math": 60,
+     "math-ph": 60,
+     "nlin": 60,
+     "physics": 60,
+     "q-bio": 60,
+     "q-fin": 60,
+     "quant-ph": 60,
+     "stat": 60
+    },
+    "choice": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.3205,
+     "macro_f1": 0.3048,
+     "brier": 1.0374,
+     "log_loss": 3.7806,
+     "ece": 0.4171,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 5,
+       "confidence": 0.273,
+       "observed": 0.2
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 35,
+       "confidence": 0.3561,
+       "observed": 0.1714
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 69,
+       "confidence": 0.4525,
+       "observed": 0.1594
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 115,
+       "confidence": 0.5526,
+       "observed": 0.2261
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 110,
+       "confidence": 0.6492,
+       "observed": 0.3182
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 96,
+       "confidence": 0.75,
+       "observed": 0.3125
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 130,
+       "confidence": 0.8516,
+       "observed": 0.2923
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 220,
+       "confidence": 0.9665,
+       "observed": 0.4682
+      }
+     ],
+     "confusion": [
+      [
+       36,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       24,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       48,
+       0,
+       0,
+       0,
+       0,
+       9,
+       0,
+       2,
+       0,
+       0,
+       1,
+       0
+      ],
+      [
+       0,
+       11,
+       1,
+       1,
+       0,
+       29,
+       7,
+       1,
+       7,
+       0,
+       2,
+       0,
+       1
+      ],
+      [
+       0,
+       17,
+       0,
+       17,
+       0,
+       1,
+       6,
+       0,
+       11,
+       2,
+       4,
+       0,
+       2
+      ],
+      [
+       0,
+       43,
+       0,
+       1,
+       4,
+       1,
+       5,
+       1,
+       2,
+       3,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       6,
+       0,
+       0,
+       0,
+       32,
+       12,
+       0,
+       10,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       22,
+       0,
+       0,
+       0,
+       4,
+       30,
+       1,
+       1,
+       2,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       11,
+       0,
+       1,
+       1,
+       27,
+       2,
+       0,
+       14,
+       2,
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       27,
+       0,
+       4,
+       1,
+       4,
+       7,
+       0,
+       11,
+       4,
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       11,
+       0,
+       0,
+       0,
+       9,
+       6,
+       0,
+       19,
+       15,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       2,
+       0,
+       20,
+       0,
+       1,
+       2,
+       0,
+       1,
+       0,
+       34,
+       0,
+       0
+      ],
+      [
+       0,
+       12,
+       1,
+       0,
+       0,
+       14,
+       9,
+       0,
+       7,
+       0,
+       1,
+       16,
+       0
+      ],
+      [
+       0,
+       42,
+       0,
+       0,
+       0,
+       2,
+       5,
+       0,
+       4,
+       1,
+       0,
+       0,
+       6
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "choice_reversed": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.3923,
+     "macro_f1": 0.3576,
+     "brier": 0.9522,
+     "log_loss": 3.5343,
+     "ece": 0.3809,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 5,
+       "confidence": 0.2822,
+       "observed": 0.0
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 22,
+       "confidence": 0.3605,
+       "observed": 0.0909
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 62,
+       "confidence": 0.4485,
+       "observed": 0.1935
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 98,
+       "confidence": 0.5454,
+       "observed": 0.3163
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 100,
+       "confidence": 0.654,
+       "observed": 0.28
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 104,
+       "confidence": 0.7541,
+       "observed": 0.3462
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 82,
+       "confidence": 0.8447,
+       "observed": 0.4024
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 307,
+       "confidence": 0.9753,
+       "observed": 0.5342
+      }
+     ],
+     "confusion": [
+      [
+       55,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       5,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       51,
+       0,
+       2,
+       0,
+       1,
+       3,
+       0,
+       1,
+       1,
+       0,
+       1,
+       0
+      ],
+      [
+       0,
+       9,
+       1,
+       1,
+       0,
+       35,
+       2,
+       2,
+       7,
+       1,
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       15,
+       0,
+       21,
+       0,
+       4,
+       5,
+       0,
+       4,
+       3,
+       5,
+       0,
+       3
+      ],
+      [
+       0,
+       41,
+       0,
+       1,
+       3,
+       3,
+       3,
+       2,
+       2,
+       4,
+       1,
+       0,
+       0
+      ],
+      [
+       0,
+       2,
+       0,
+       0,
+       0,
+       34,
+       9,
+       0,
+       12,
+       2,
+       0,
+       1,
+       0
+      ],
+      [
+       0,
+       18,
+       0,
+       0,
+       0,
+       8,
+       29,
+       0,
+       1,
+       3,
+       0,
+       0,
+       1
+      ],
+      [
+       0,
+       7,
+       0,
+       1,
+       1,
+       24,
+       2,
+       0,
+       9,
+       12,
+       2,
+       2,
+       0
+      ],
+      [
+       0,
+       23,
+       0,
+       6,
+       0,
+       10,
+       2,
+       1,
+       10,
+       5,
+       2,
+       0,
+       1
+      ],
+      [
+       0,
+       9,
+       0,
+       0,
+       0,
+       8,
+       0,
+       0,
+       4,
+       39,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       0,
+       19,
+       0,
+       2,
+       1,
+       0,
+       0,
+       0,
+       38,
+       0,
+       0
+      ],
+      [
+       0,
+       14,
+       0,
+       0,
+       0,
+       17,
+       4,
+       0,
+       2,
+       1,
+       1,
+       21,
+       0
+      ],
+      [
+       0,
+       41,
+       0,
+       2,
+       0,
+       4,
+       3,
+       0,
+       4,
+       2,
+       0,
+       0,
+       4
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "choice_top3_accuracy": 0.5949,
+    "order_flips": 0.2615,
+    "embedder_knn": {
+     "n": 780,
+     "missing": 0,
+     "accuracy": 0.5577,
+     "macro_f1": 0.5497,
+     "brier": 0.5898,
+     "log_loss": 2.0924,
+     "ece": 0.0383,
+     "reliability": [
+      {
+       "bin": [
+        0.0,
+        0.1
+       ],
+       "n": 0
+      },
+      {
+       "bin": [
+        0.1,
+        0.2
+       ],
+       "n": 31,
+       "confidence": 0.2,
+       "observed": 0.1613
+      },
+      {
+       "bin": [
+        0.2,
+        0.3
+       ],
+       "n": 143,
+       "confidence": 0.3,
+       "observed": 0.2937
+      },
+      {
+       "bin": [
+        0.3,
+        0.4
+       ],
+       "n": 164,
+       "confidence": 0.4,
+       "observed": 0.4268
+      },
+      {
+       "bin": [
+        0.4,
+        0.5
+       ],
+       "n": 129,
+       "confidence": 0.5,
+       "observed": 0.5736
+      },
+      {
+       "bin": [
+        0.5,
+        0.6
+       ],
+       "n": 106,
+       "confidence": 0.6,
+       "observed": 0.6321
+      },
+      {
+       "bin": [
+        0.6,
+        0.7
+       ],
+       "n": 68,
+       "confidence": 0.7,
+       "observed": 0.7647
+      },
+      {
+       "bin": [
+        0.7,
+        0.8
+       ],
+       "n": 47,
+       "confidence": 0.8,
+       "observed": 0.8511
+      },
+      {
+       "bin": [
+        0.8,
+        0.9
+       ],
+       "n": 33,
+       "confidence": 0.9,
+       "observed": 0.8182
+      },
+      {
+       "bin": [
+        0.9,
+        1.0
+       ],
+       "n": 59,
+       "confidence": 1.0,
+       "observed": 0.9831
+      }
+     ],
+     "confusion": [
+      [
+       58,
+       0,
+       1,
+       0,
+       0,
+       1,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       32,
+       1,
+       1,
+       4,
+       0,
+       7,
+       0,
+       3,
+       1,
+       0,
+       3,
+       8
+      ],
+      [
+       0,
+       0,
+       33,
+       1,
+       2,
+       8,
+       0,
+       6,
+       4,
+       4,
+       2,
+       0,
+       0
+      ],
+      [
+       0,
+       5,
+       1,
+       18,
+       6,
+       1,
+       0,
+       2,
+       9,
+       2,
+       10,
+       1,
+       5
+      ],
+      [
+       0,
+       6,
+       2,
+       3,
+       34,
+       3,
+       4,
+       0,
+       1,
+       1,
+       0,
+       0,
+       6
+      ],
+      [
+       0,
+       0,
+       18,
+       0,
+       5,
+       27,
+       0,
+       3,
+       0,
+       3,
+       0,
+       2,
+       2
+      ],
+      [
+       0,
+       4,
+       6,
+       0,
+       8,
+       7,
+       26,
+       1,
+       1,
+       0,
+       0,
+       0,
+       7
+      ],
+      [
+       0,
+       1,
+       8,
+       0,
+       7,
+       8,
+       1,
+       15,
+       2,
+       12,
+       3,
+       3,
+       0
+      ],
+      [
+       1,
+       5,
+       8,
+       7,
+       2,
+       6,
+       0,
+       1,
+       16,
+       6,
+       3,
+       0,
+       5
+      ],
+      [
+       0,
+       0,
+       4,
+       3,
+       0,
+       5,
+       1,
+       5,
+       3,
+       39,
+       0,
+       0,
+       0
+      ],
+      [
+       0,
+       0,
+       2,
+       3,
+       0,
+       1,
+       0,
+       0,
+       1,
+       1,
+       51,
+       0,
+       1
+      ],
+      [
+       0,
+       2,
+       2,
+       0,
+       0,
+       0,
+       3,
+       1,
+       0,
+       1,
+       0,
+       51,
+       0
+      ],
+      [
+       0,
+       8,
+       1,
+       0,
+       5,
+       1,
+       5,
+       0,
+       5,
+       0,
+       0,
+       0,
+       35
+      ]
+     ],
+     "labels": [
+      "astrophysics",
+      "computer_science",
+      "condensed_matter",
+      "economics",
+      "electrical_engineering_and_systems_science",
+      "mathematical_physics",
+      "mathematics",
+      "nonlinear_sciences",
+      "physics",
+      "quantitative_biology",
+      "quantitative_finance",
+      "quantum_physics",
+      "statistics"
+     ]
+    },
+    "post_hoc_accuracy_any_listed_archive": {
+     "choice": 0.5321,
+     "embedder_knn": 0.6962
+    },
+    "cross_listed_items": 555,
+    "choice_minus_knn_accuracy_ci": [
+     -0.2795,
+     -0.1987
+    ],
+    "usage": {
+     "requests": 780,
+     "errors": 0,
+     "input_tokens_per_request": 1399.7,
+     "hosted_usd_per_million_requests": 58.79,
+     "local_seconds_median": 3.2757,
+     "local_seconds_p90": 3.7012
+    },
+    "machine": {
+     "samples": 257,
+     "share_embedder_busy": 0.934,
+     "load_median": 3.79,
+     "load_max": 8.67
+    },
+    "finished": "2026-11-08T23:42:10+00:00"
+   }
+  }
+ }
+}
