@@ -85,7 +85,7 @@ STOP_USD = 1.50                # the hosted arm stops here; the owner's grant is
 EMBED_PORT = 8081
 CHAT_PORT = 8080               # the gate pauses while the chat model serves
 EMBED_MODEL = "embeddinggemma-2"
-EMBED_BATCH = 32
+EMBED_BATCH = 64               # the corpus runner's measured default: one stream of 64
 DOC_CHARS = 2000               # the embedder sees a document cut here (embedder_bench.DOC_CHARS)
 STATE_CHARS = 6000             # the decision model sees a passage cut here (cuts are counted)
 SEED = 20261108
@@ -474,7 +474,7 @@ def classification(y: I64, p: F64, names: Sequence[str], clusters: Sequence[Any]
 
 
 def gemma_query(task: str, text: str) -> str:
-    return f"task: {task} | query: {text}"
+    return f"task: {task} | query: {text[:DOC_CHARS]}"
 
 
 def gemma_doc(title: str, text: str) -> str:
