@@ -18,6 +18,7 @@ links:
   - docs/design-notes/dn-ingress.md
   - docs/brainstorms/ingress.md
   - docs/design-notes/dn-two-phase-ingestion.md
+  - docs/design-notes/dn-embedder-use.md
 ---
 # Track — Query language (the sentence algebra, its compiler, and the surface)
 
