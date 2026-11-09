@@ -1,0 +1,364 @@
+% A self-contained article for the decision-integrator study.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Decision Models as Generic Integrators:\\ Typed Meaning beside the Embedding}
+\author{Alberto Serrano-Calva}
+\date{8 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+An embedding model is a generic integrator: it gives every text a vector and every pair a
+similarity, but a similarity cannot say whether a passage supports a claim or contradicts it. A
+decision model answers typed questions about supplied state with probabilities, and with its
+questions held as declared, versioned data it can attach typed meaning to any node or edge. This
+article designs the layer that holds such answers beside the vector (fields keyed by the item, the
+integrator's identity and the question set's digest, derived by a drain after landing), proposes
+six laws that generalize those of a lazily embedded vector, and adds a question-discovery loop
+whose four guard rails are laws: held-out keeping, bounded questions, attributable versions, and
+no weight without measured gain. On public data, with arms and falsifiers declared before the runs,
+cosine similarity separates supporting from contradicting abstracts no better than chance (AUROC
+0.536) while a hosted decision model does (0.974, macro-F1 0.835, calibration error 0.078); judging
+the embedding's shortlist lifts contradiction mining from 0.155 to 0.465 average precision,
+question-to-answer linking from 0.905 to 0.981 MRR, and NFCorpus nDCG@10 by 0.047. A local
+0.8-billion-parameter decision model carries signal (AUROC 0.854 on polarity) but clears the
+declared bar for no family. Reading individual answers showed three benchmark labels measuring a
+relation other than the one asked.
+\end{abstract}
+
+\section{Introduction}
+A store that builds context from many sources needs integrators: procedures that turn any raw
+input into structure. Some are tailor-made. A transcript integrator that turns session logs and
+commits into causal edges by rules written for those events produces good structure for those
+events and nothing for any other source. A generic integrator applies to any text. The embedding
+model is the standard one: every chunk gets a vector, every pair of texts a similarity, and the
+store a semantic backbone over which retrieval, clustering and the graph's spectral measures run
+\citep{reimers2019sbert}. A similarity is one number with one meaning. It cannot say whether a
+passage supports a claim, contradicts it, or shares its vocabulary and says nothing about it; those
+are the relations natural-language inference was built to label \citep{bowman2015snli}, and the
+ones a store needs to find contradictions, revisions and answers.
+
+A decision model answers typed questions about supplied state with probabilities: a Choice among
+named options, a Noul (the probability that a statement is true), a Score on described levels
+\citep{typesafedocs}. Held as declared, versioned data, generic questions turn such a model into
+a second generic integrator: it can attach a kind to any node and a polarity to any edge. This
+article asks whether that integrator adds meaning the embedding cannot give, whether a small local
+model is good enough to be its default, and how its answers should live in a store. The
+contributions are:
+\begin{itemize}
+\item a layer for typed derived fields beside the vector, keyed by the item, the integrator's
+  identity and the question set's digest, computed by a drain after landing, with six proposed
+  laws that generalize the laws of a lazily embedded vector to several derived fields
+  (\cref{sec:layer});
+\item a question-discovery loop with four guard rails stated as laws: questions kept only on
+  held-out rows, bounded in number and budget, versioned and attributable, and never raised in
+  weight without measured gain (\cref{sec:discovery});
+\item measurements on public data with ground truth, with arms and falsifiers declared before the
+  runs, of a 0.8-billion-parameter local decision model and a hosted one against an embedding
+  model, on polarity, the two integrators composed for re-ranking, contradiction mining, subject,
+  kind, reply and equivalence, and a discovery pilot (\cref{sec:evaluation}).
+\end{itemize}
+
+\section{Background and related work}
+\paragraph{Similarity and its blind spot.} Dense retrieval embeds queries and documents so that
+relevant pairs are near \citep{reimers2019sbert}, and benchmarks such as BEIR measure it across
+collections \citep{thakur2021beir}. Nearness is symmetric in polarity: a finding and its negation
+share their terms and their topic. SciFact pairs scientific claims with abstracts that support or
+contradict them, and with cited abstracts that do neither \citep{wadden2020scifact}; it is the
+polarity task in its plainest form.
+
+\paragraph{Judging candidates.} Cross-encoders that read a query and a candidate together re-rank
+a retriever's shortlist far better than the retriever orders it \citep{nogueira2019passage}; the
+decision model here plays that role with a typed question in place of a trained relevance head.
+Reciprocal rank fusion combines two orders without calibrating their scores against each other
+\citep{cormack2009rrf}. nDCG measures a ranking with graded relevance \citep{jarvelin2002cumulated}.
+
+\paragraph{Calibration.} A probability is useful to code only if it means what it says. The Brier
+score \citep{brier1950} and the log loss are proper scores; expected calibration error bins the
+predicted probability and compares each bin's mean with its observed frequency
+\citep{naeini2015ece,guo2017calibration}; AUROC measures ranking alone \citep{hanley1982auc}.
+Intervals here are percentile bootstraps \citep{efron1979bootstrap} over the natural clusters.
+
+\paragraph{Attribution and signed graphs.} The Shapley value is the unique efficient, symmetric,
+null-respecting and additive attribution of a value over coalitions \citep{shapley1953}; the
+palace's attribution law (SCL-3) applies it to the sources a configuration switches on. A signed
+graph is balanced when its vertices split into camps with every negative edge between camps
+\citep{harary1953balance}; the palace computes balance and frustrated triangles from its signed
+edges, which today come from authored properties and a large chat model's one-word labels.
+
+\section{Typed derived fields}\label{sec:layer}
+\begin{definition}[Integrator]
+An \emph{integrator} is a pair $J = (m, Q)$ of a model identity $m$ (a versioned model id, or a
+local model's name and weights digest) and a question set $Q$, a finite map from question ids to
+typed questions. Its \emph{digest} $\delta(Q)$ is a hash of $Q$ with the ids sorted and each
+question's own order kept, since the order of a Choice's options is part of what a model reads.
+\end{definition}
+
+\begin{definition}[Field]
+For an item $i$ with bytes $b_i$, a \emph{node field} of $J$ is a partial map
+$F_J : (h(b_i), m, \delta(Q)) \mapsto a$, where $h$ is the content hash and $a$ the whole typed
+answer: a Choice's probability vector, a Noul's probability, a Score's level probabilities. An
+\emph{edge field} keys an ordered pair $(h(b_i), h(b_j))$ the same way. A key without an answer is
+\emph{pending}.
+\end{definition}
+
+An answer is never edited: a new model or a new wording is a new key, and the old answers stay
+keyed by the old identity, as the vector plane keeps one atom per chunk text and embedder. The
+thresholds that turn a probability into an action live in code, and the band between them is a
+state of its own. Answers are derived after landing by a drain of the store's one writer, exactly
+as the vector is under two-phase ingestion: landing never waits, and a query that needs a missing
+answer says so.
+
+\Cref{tab:laws} states six laws for the layer. INT-1 to INT-3 generalize three laws already
+proved for one derived field, the vector (completeness without it, convergence of its drain, and
+the soundness of pending reports), from one embedder to a set of integrators; INT-4 makes identity
+explicit; INT-5 keeps hosted integrators on the network side of the store's boundary; INT-6 bounds
+an answer's influence on rankings and keeps authored structure out of its reach. They are proposed
+with falsifiers, not yet proved.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lp{0.43\textwidth}p{0.36\textwidth}@{}}
+\toprule
+law & statement & falsifier \\
+\midrule
+INT-1 & a landing writes no answer; a drain of $J$ writes only $F_J$, so keys, structures and other
+fields are unchanged & a structural answer or another field that differs across a drain of $J$ \\
+INT-2 & deriving a key is idempotent and commutes with other derivations and later landings; the
+drain leaves nothing pending; a landed answer is never recomputed & an interrupted drain that
+re-asks a key or leaves one pending \\
+INT-3 & a query reads only answers under the current identity and reports pending keys, never a
+default for them & reading a pending key as ``no'' changes an answer \\
+INT-4 & keys carry $m$ and $\delta(Q)$; any change of wording or option order changes $\delta(Q)$;
+no answer is edited & two declared sets with one digest; a rewrite under one key \\
+INT-5 & a hosted field exists only where configuration lets data leave; the process that reads
+stores holds no connection & a request carrying text from a disallowed stratum \\
+INT-6 & an answer enters ranking only on its own labelled scale or as a bounded multiplier, and
+never touches an authored edge & an answer that changes an authored edge \\
+\bottomrule
+\end{tabular}
+\caption{The proposed laws of the typed-field layer.}\label{tab:laws}
+\end{table}
+
+\paragraph{Where answers go.} The polarity family is a producer for the store's signed edges: a
+decided label whose probability clears an upper threshold becomes an edge with provenance
+\emph{interpreted} and weight $\cos \times p$, so balance, frustrated triangles and the camps of a
+hypothetical edge read it unchanged. A supersession candidate's score
+$s(C, D) = \mathrm{sim}(C, D)\, \mathbf{1}[\mathrm{contradiction}]\, \mathbf{1}[t(D) > t(C)]$ takes
+$P(\mathrm{contradicts} \mid C, D)$ in place of the indicator. A kind field scopes a query's
+carrier. A relevance or reply field re-ranks the embedding's shortlist on a scale of its own.
+
+\section{Question discovery}\label{sec:discovery}
+The integrators answer declared questions. Above them, a loop decides what to ask: it proposes
+candidate questions from the generic families (or a local chat model drafts them), measures what
+each adds beyond the store's current fields on held-out rows, keeps the ones that pay and retires
+the rest, following the feature-discovery pattern in which a proposer writes questions, a decision
+model answers them for every row and a classical model trained on the answers judges each change
+on rows the proposer never read \citep{typesafedocs}.
+
+\paragraph{What a question is worth.} Let $Y$ be a label, $X$ the current features and $A_q$ the
+answers to question $q$. For the Bayes-optimal predictors, the expected log loss with and without
+$A_q$ differ by the conditional mutual information:
+\begin{equation}
+\mathbb{E}[-\log p(Y \mid X)] - \mathbb{E}[-\log p(Y \mid X, A_q)] = H(Y \mid X) - H(Y \mid X, A_q)
+= I(Y; A_q \mid X).
+\end{equation}
+With fitted models, the drop in held-out log loss estimates it, biased down by
+misspecification. With the value $v(S) = \mathrm{LL}(\varnothing) - \mathrm{LL}(S)$ of a set of
+sources, the Shapley value splits $I(Y; X_S)$ among the sources, the embedding among them.
+
+\paragraph{The guard rails.} DSC-1: a question is kept only for its gain on rows disjoint from the
+rows it was drafted from and the rows its scoring model was fit on, and the series is read once on
+a split no pass read; this is the defence against wording tuned to the cases it was written from.
+DSC-2: at most $K$ questions an item and a declared budget a pass. DSC-3: every kept question has
+an id, a version, a family and a digest, with its measured gain and Shapley share recorded under
+the digest. DSC-4, borrowed from a bounded utility field: a question's weight moves by
+\begin{equation}
+w \leftarrow w + \lambda (b - w) + \mathrm{clamp}(g, -c, c),
+\end{equation}
+with $g$ the held-out gain measured in the pass and $0$ when none was measured. Without measured
+gain the weight only decays toward $b$; it stays in $[b - c/\lambda, b + c/\lambda]$; and a
+question whose weight falls under a declared line retires.
+
+\begin{algorithm}[t]
+\caption{One pass of question discovery (greedy forward selection).}\label{alg:select}
+\begin{algorithmic}[1]
+\Require base features $X$, candidates $\{A_q\}$, labels $y$, disjoint fit and check rows
+\State $S \gets \varnothing$; $\ell \gets \mathrm{LL}_{\mathrm{check}}(\mathrm{fit}(X))$
+\While{$|S| < K_{\max}$}
+  \State $q^\star \gets \arg\min_{q \notin S} \mathrm{LL}_{\mathrm{check}}(\mathrm{fit}(X, A_S, A_q))$
+  \If{$\ell - \mathrm{LL}_{\mathrm{check}}(\cdot) < g_{\min}$} \State \textbf{break} \EndIf
+  \State $S \gets S \cup \{q^\star\}$; update $\ell$
+\EndWhile
+\State \Return $S$, scored once on the held-out split
+\end{algorithmic}
+\end{algorithm}
+
+\section{Implementation}
+The harness (\code{eval/decision\_integrators.py}) builds one request per item or pair: the
+state is the text in named fields (a claim and a passage with its title, a document, a post), and
+the questions are a declared family from one module (\code{eval/decision\_questions.py}). Every
+request and its answer are kept, keyed by the hash of the payload, so a rerun asks nothing twice
+and any result can be asked again. The local arm posts to the decision model's endpoint on the
+loopback; the hosted arm writes its requests to a file and runs the edge's own client as a
+separate process that reads its key from the system keychain, prices each answer's input tokens
+into a ledger and stops at a dollar limit, so the process that reads the store never holds a
+network connection. A failed request is an error row, counted and never read as an answer. The
+embedding model is the store's own, one stream, and its vectors are cached.
+
+The polarity family follows a published citation-check pattern: a Choice ``How does the passage
+relate to the claim?'' over \emph{supports}, \emph{contradicts} and \emph{says nothing}, its
+reverse as an order control, and three Nouls: supports, contradicts, and a companion asking whether
+the passage reports a finding on what the claim asserts. The Noul variant combines two
+independent judgments $s$ and $c$ into
+\begin{equation}
+p \propto \bigl(s(1-c),\; c(1-s),\; (1-s)(1-c)\bigr),
+\end{equation}
+renormalizing away the impossible ``both''.
+
+\section{Evaluation}\label{sec:evaluation}
+All figures come from the record \code{docs/experiments/decision-integrators-2026-11-08.md}
+in the repository \citep{serranocalva2026palace}, which fixed the arms, ten falsifiers, three
+controls and a default bar before any run. The local model is \code{tev1:0.8b} (752 million
+parameters, served by Ollama under a tag with an 8192-token window); the hosted model is
+\code{jev-1.14.0}; the embedding model is EmbeddingGemma-2 on the store's own server, in the formats
+an earlier bench measured. The data: SciFact's original release, every labelled pair of train and
+dev \citep{wadden2020scifact}; BEIR SciFact and NFCorpus for re-ranking
+\citep{thakur2021beir,boteva2016nfcorpus}; and from a corpus instance of the store, 780 arXiv items
+over 13 archives, 600 Stack Exchange posts, 300 questions with a pool of 889 answers, and 400
+question pairs. The hosted arm sent only public text and spent \$0.74.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+benchmark & metric & local 0.8B & hosted & embedding & other \\
+\midrule
+polarity, SciFact dev (339) & macro-F1 & 0.386 & 0.835 & 0.319 & 0.193 \\
+\quad supports vs contradicts & AUROC & 0.854 & 0.974 & 0.536 & \\
+\quad calibration & ECE & 0.354 & 0.078 & 0.124 & \\
+re-ranking SciFact (300) & nDCG@10 & 0.636 & 0.830 & 0.849 & 0.850 \\
+re-ranking NFCorpus (323) & nDCG@10 & 0.275 & 0.414 & 0.368 & 0.400 \\
+contradiction mining (6{,}000) & avg.\ precision & 0.066 & 0.465 & 0.155 & 0.013 \\
+subject, arXiv (780) & accuracy & 0.321 & 0.526 & 0.558 & 0.077 \\
+kind, Stack Exchange (600) & AUROC & 0.898 & 0.996 & 0.685 & 0.848 \\
+reply linking (300) & MRR@10 & 0.719 & 0.981 & 0.905 & 0.936 \\
+equivalence (400) & AUROC & 0.653 & 0.869 & 0.504 & \\
+\bottomrule
+\end{tabular}
+\caption{The benchmarks. ``Embedding'' is the cosine (polarity: a logistic regression on it, fit
+on train; subject and kind: $k$NN with $k = 10$; re-ranking, mining and linking: the embedding's
+order). ``Other'' is the majority class, the fused order of the hosted judge and the embedding,
+random order, chance, or a question mark in the post, by row.}\label{tab:results}
+\end{table}
+
+\paragraph{Polarity.} \Cref{tab:results} carries the first answer. The cosine separates supporting
+from contradicting abstracts at AUROC 0.536 (95\% interval [0.424, 0.638]): similarity is blind to
+polarity, as the premise said. The hosted Choice reaches macro-F1 0.835 and exceeds the embedding's
+logistic arm by [0.459, 0.574]; its probabilities are calibrated (ECE 0.078), the three-Noul rule
+does slightly better (0.864, ECE 0.049), and reversing the options changes 2.6\% of answers. The
+local model's answers carry the signal (AUROC 0.854) but its Choice puts its top mass on
+\emph{supports} for 298 of 339 pairs (macro-F1 0.386, ECE 0.354); its interval against the embedding,
+[$-0.019$, 0.148], reaches zero, so the declared falsifier fires for it.
+
+\paragraph{Composition.} The embedding's top 20 holds all 71 labelled contradictions of SciFact's
+dev claims among 6{,}000 pairs, and cannot say which they are: ranked by cosine, 22\% of the top 50
+are contradictions; ranked by the hosted model's $P(\mathrm{contradicts})$, 42\%, with average
+precision 0.155 to 0.465 (a lower bound, since uncited abstracts are unlabelled). Judging each of
+the ten nearest answers lifts question-to-answer MRR@10 from 0.905 to 0.981 ([0.049, 0.105]); judging
+NFCorpus's top 20 with ``Does the passage contain an answer to the query?'' lifts nDCG@10 by 0.047
+([0.033, 0.061]). On SciFact it does not ([$-0.049$, 0.013]). The answers say why: BEIR marks a
+claim's cited abstract relevant even when the release finds no evidence in it, for 112 of the 300
+claims, and the question asked whether a passage decides the claim. On the 188 claims with
+evidence the judged order scores 0.940 against 0.920; on the 112 without, 0.646 against 0.731. The
+local model's judgments lower every ranking (SciFact $-0.21$, NFCorpus $-0.09$, linking $-0.19$),
+and fusion halves its losses without removing them.
+
+\paragraph{Subject, kind and equivalence.} A zero-shot Choice over 13 archive names matches a $k$NN
+that needs 779 labelled neighbours (0.526 against 0.558, interval reaching zero); 555 of the items
+are cross-listed, and half of the hosted model's errors name an archive the item is listed in.
+Whether a post asks a question is answered almost perfectly by the hosted model (AUROC 0.996; the
+kind Choice's ECE 0.011), above the question-mark rule (0.848) and far above $k$NN (0.685); the
+local model orders posts well (0.898) and places nearly all of them above one half. Duplicate
+questions were paired with each one's nearest unlinked neighbour, so the cosine is near chance by
+construction (0.504) and the hosted model ranks them at 0.869; 67 of the 200 duplicate pairs
+involve one of eight canonical posts that specific questions are closed against, which the model,
+asked whether two posts ask the same question, reads literally as different (median 0.07); without
+them its AUROC is 0.935.
+
+\paragraph{Discovery.} On SciFact the hosted pilot kept the polarity Choice and three edge questions
+(mentions the claim's main entities; mentions its subject only in passing; reports an effect in the
+opposite direction) and refused the fifth candidate at a gain of 0.0048 nats; held out, the kept set
+lowers log loss from the embedding's 1.075 to 0.399 (gain interval [0.569, 0.786] nats), and the
+embedding's Shapley share is $-0.007$ nats against the Choice's 0.293. The local pilot kept six,
+the cap, with the two Scores carrying what its Choice misses (1.075 to 0.772). Questions about the
+claim alone (hedged, time-bound, causal) added almost nothing to polarity.
+
+\paragraph{Controls and the bar.} The 8192-token tag answered as the original tag (60 of 60 top
+answers, median difference 0.004); both models repeated themselves (60 of 60 and 59 of 60); the
+embedding reproduced its bench (0.849, 0.368). The declared bar asked a local family to beat the
+embedding with an interval above zero, to have ECE at most 0.10, and to reach 0.8 of the hosted
+model. The local model clears it for no family; for kind it passes the first and third tests and
+fails calibration, which makes it a ranker. The hosted model clears the first two for polarity,
+kind, reply and answer-style relevance. Its median request took 0.10\,s with the network; the local
+polarity request took 0.72\,s on one stream with the embedding server busy.
+
+\paragraph{The labels are not the questions.} Three labels measured a relation other than the one
+asked: arXiv's primary archive against cross-lists, BEIR's citation against evidence, and a site's
+closed-as-duplicate against asking the same question. Each was found by reading individual answers,
+and in each the typed question answered what it asked. This is the case for measuring a family on
+more than one source before it ships.
+
+\section{Limitations}
+The polarity and re-ranking results rest on two biomedical collections and the kind,
+reply and equivalence results on three Stack Exchange sites; each family should be measured on a
+second source before it is called generic. SciFact labels only cited abstracts, so contradiction
+precision is a lower bound and some ``says nothing'' labels are debatable. The embedding server was
+shared with another study for the whole run, so no embedding timing is claimed and local latency
+was measured under contention; only the polarity run was single-stream. Three readings (cross-lists,
+canonical posts, evidence) were added after reading answers and are labelled post hoc. The laws are
+proposed with falsifiers and not yet proved. One pass of discovery cannot exercise the weight rule,
+which needs several.
+
+\section{Future work}
+Measure tev1's 4-billion-parameter sibling against the same bar on the same benchmarks; a
+monotone recalibration fit on held-out rows, recorded as part of the integrator's identity, may
+rescue the small model's probabilities where its order is good. Measure the ``covered by'' variant
+of equivalence and the \emph{elaborates} option of polarity on data that labels them. Prove the
+layer's laws on the model already used for the lazily embedded vector, with attacks and controls.
+Run the discovery loop for several passes, with a proposer that reads only its read rows' misses,
+to exercise the weight rule and to measure what passes after the first one add.
+
+\section{Conclusion}
+A decision model with declared, versioned questions is a second generic integrator: it gives
+any edge a polarity and any node a kind, which similarity cannot, and the two compose, the embedding
+proposing and the decision model judging. Its answers belong in typed fields beside the vector,
+derived by a drain, never guessed when pending, attributed as a source and kept local unless an
+instance allows otherwise. On this machine the 0.8-billion-parameter local model is not yet good
+enough to be the default; the hosted model is, for polarity, kind and reply, where data may leave
+the machine.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
