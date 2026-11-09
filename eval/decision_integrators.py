@@ -885,6 +885,16 @@ def run_rerank(args: argparse.Namespace, arm: Arm) -> dict[str, Any]:
                 block[key]["minus_embedder_ci"] = cluster_ci(mean_stat(d), list(range(len(d))))
         if ds == "scifact":
             block["mining"] = mining(args, arm, shortlist, rows, where, claims, pairs, vec)
+            # post hoc (not declared): BEIR marks a claim's cited abstract relevant even when the
+            # release labels it without evidence; split the queries by that label
+            evidence = {p.claim_id for p in pairs if p.label != 2}
+            for name, keep in (("with_evidence", [int(q) in evidence for q in qids]),
+                               ("without_evidence", [int(q) not in evidence for q in qids])):
+                mask = np.array(keep)
+                block[f"post_hoc_{name}"] = {
+                    "queries": int(mask.sum()),
+                    **{k: round(float(np.array(per[k]["ndcg10"])[mask].mean()), 4)
+                       for k in ("embedder", "judged", "fused")}}
         result[ds] = block
     return result
 
@@ -929,11 +939,15 @@ def run_topic(args: argparse.Namespace, arm: Arm) -> dict[str, Any]:
     archive_to_option = {a: name for name, (a, _) in dq.ARXIV_ARCHIVES.items()}
     options = list(dq.ARXIV_ARCHIVES)
     by_archive: dict[str, list[str]] = defaultdict(list)
+    listed: dict[str, set[int]] = {}  # every option among an item's own cross-lists
     for m in corpus.meta("arxiv"):
         if m.get("categories"):
             archive = str(m["categories"][0]).split(".")[0]
             if archive in archive_to_option:
                 by_archive[archive].append(str(m["id"]))
+                listed[str(m["id"])] = {options.index(archive_to_option[c.split(".")[0]])
+                                        for c in m["categories"]
+                                        if c.split(".")[0] in archive_to_option}
     rng = random.Random(SEED)
     items: list[tuple[str, int]] = []
     for archive in sorted(by_archive):
@@ -959,6 +973,13 @@ def run_topic(args: argparse.Namespace, arm: Arm) -> dict[str, Any]:
     pk = knn_probs(vecs, y, len(options))
     top3 = np.argsort(-np.nan_to_num(p, nan=0.0), axis=1)[:, :3]
     flips = np.argmax(p, axis=1) != np.argmax(pr, axis=1)
+
+    def any_listed(q: F64) -> float:
+        """Post hoc (not declared): the top answer is among the item's own cross-lists."""
+        top = np.argmax(np.nan_to_num(q, nan=0.0), axis=1)
+        return round(float(np.mean([int(top[k]) in listed[i] for k, (i, _) in enumerate(items)])),
+                     4)
+
     return {"benchmark": "topic", "arm": arm.name, "model": arm.model,
             "question_digest": dq.digest(questions), "items": len(items),
             "per_archive": dict(Counter(dq.ARXIV_ARCHIVES[options[c]][0] for _, c in items)),
@@ -968,6 +989,9 @@ def run_topic(args: argparse.Namespace, arm: Arm) -> dict[str, Any]:
                                                          for i in range(len(y))])), 4),
             "order_flips": round(float(np.mean(flips)), 4),
             "embedder_knn": classification(y, pk, options),
+            "post_hoc_accuracy_any_listed_archive": {"choice": any_listed(p),
+                                                     "embedder_knn": any_listed(pk)},
+            "cross_listed_items": int(sum(len(listed[i]) > 1 for i, _ in items)),
             "choice_minus_knn_accuracy_ci": cluster_ci(
                 lambda i: accuracy(y[i], p[i]) - accuracy(y[i], pk[i]), list(range(len(y)))),
             "usage": usage_summary(rows, arm), "machine": sampler.summary()}
@@ -1149,7 +1173,21 @@ def run_duplicates(args: argparse.Namespace, arm: Arm) -> dict[str, Any]:
     y = np.array([k for _, _, k in pairs], dtype=np.int64)
     s = np.array([noul(r, "same_question") for r in rows])
     cos = np.array([float(sims[row_of[a], row_of[b]]) for a, b, _ in pairs])
+    # post hoc (not declared): a "hub" is a post in three or more of the sampled duplicate pairs,
+    # a canonical question that specific questions are closed against
+    degree = Counter(x for p in pos for x in p)
+    hub = np.array([int(k == 1 and (degree[a] >= 3 or degree[b] >= 3)) for a, b, k in pairs])
+    plain = (y == 0) | (hub == 0)
+    post_hoc = {"hub_posts": sum(1 for v in degree.values() if v >= 3),
+                "positives_with_a_hub": int(hub.sum()),
+                "share_above_half_with_hub": round(float(np.mean(s[hub == 1] > 0.5)), 4)
+                if hub.sum() else None,
+                "share_above_half_without_hub": round(float(np.mean(
+                    s[(y == 1) & (hub == 0)] > 0.5)), 4),
+                "auroc_without_hub_positives": round(auroc(s[plain], y[plain]), 4),
+                "cosine_auroc_without_hub_positives": round(auroc(cos[plain], y[plain]), 4)}
     return {"benchmark": "duplicates", "arm": arm.name, "model": arm.model,
+            "post_hoc_canonical_posts": post_hoc,
             "question_digest": dq.digest(dq.EQUIVALENCE), "positives": len(pos),
             "negatives": len(neg),
             "noul": classification(y, two_class(s), ["different", "same"], positive=1),
