@@ -184,3 +184,29 @@ def test_integrate_has_its_own_independent_lever(tmp_path) -> None:
         assert CHAT_SYNC_KIND in k and CODE_SYNC_KIND in k
     finally:
         no_integ.queue.close()
+
+
+def test_code_that_keeps_no_vectors_syncs_its_repositories_instead_of_the_embed_lane(
+        tmp_path) -> None:
+    """`[ingestion.code] embed = false` (dn-palace-lite): the code lever still gates the agent,
+    and its paths enqueue the repositories' lexical sync, never the code embed lane or its
+    history backfill, so no code text reaches the embedder."""
+    from scheduler.code_sync import CODE_BACKFILL_KIND, REPOSITORY_SYNC_KIND
+
+    cfg = _cfg(tmp_path / "lexical")
+    cfg = dataclasses.replace(cfg, ingestion=dataclasses.replace(
+        cfg.ingestion, code=dataclasses.replace(cfg.ingestion.code, embed=False)))
+    comps = build_components(cfg)
+    try:
+        for which in ("housekeeping", "catchup"):
+            k = _kinds(comps, which)
+            assert REPOSITORY_SYNC_KIND in k, which
+            assert CODE_SYNC_KIND not in k and CODE_BACKFILL_KIND not in k, which
+    finally:
+        comps.queue.close()
+    off = build_components(_cfg(tmp_path / "off", code=False))
+    try:
+        assert REPOSITORY_SYNC_KIND not in _kinds(off, "housekeeping")
+        assert REPOSITORY_SYNC_KIND not in _kinds(off, "catchup")
+    finally:
+        off.queue.close()
