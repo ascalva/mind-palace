@@ -50,7 +50,7 @@ from typing import Any
 from core.ingest.files import check_dir, daemon_uid, read_bounded, real_dir, written_by_one
 from core.kernel.clearance import classes_of
 from core.kernel.config import Config, get_config
-from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, OPERATOR, Grant
+from core.query import AMBASSADOR, AMBASSADOR_OVERLAY, GUEST, OPERATOR, Grant
 from core.sentence import ast
 from core.sentence.plan import Plan
 from core.sentence.types import IllScopedSentence, Sort
@@ -69,6 +69,11 @@ _ROLE_GRANTS: dict[str, str] = {"ambassador": "ambassador", "cli": "operator"}
 # The open corpus's runner (dn-corpus-instance §3.2) speaks the corpus role under the same grant:
 # its role opens the corpus streams and writes `corpus/` in the observed place alone.
 _DAEMON_ROLES: dict[str, str] = {"inbox": "ambassador", "corpus": "ambassador"}
+# The roles that only read: no spool, no table role, so a command can neither be compiled for one
+# (its grant has the write bit on no plane, ING-1) nor spooled (`write_request` knows only the
+# spools' roles). The guest is an external agent's principal (`core.query.GUEST`,
+# dn-guest-principal).
+_READ_ROLES: dict[str, str] = {"guest": "guest"}
 # The roles whose spool the palace group may write: the agents run under their own account
 # (plane-principals), and the Ambassador's grant is the least the ingress gives. The operator's
 # spool is the owner's account's alone.
@@ -96,13 +101,15 @@ class Busy(RuntimeError):
 def grant_for(role: str) -> Grant:
     """The grant a role speaks under at the ingress, a spool's or one of the daemon's own jobs'.
     An unknown role is refused, never defaulted."""
-    kind = _ROLE_GRANTS.get(role) or _DAEMON_ROLES.get(role)
+    kind = _ROLE_GRANTS.get(role) or _DAEMON_ROLES.get(role) or _READ_ROLES.get(role)
     if kind == "operator":
         return OPERATOR
     if kind == "ambassador":
         return AMBASSADOR_OVERLAY if get_config().query.hypotheticals else AMBASSADOR
+    if kind == "guest":
+        return GUEST
     raise IllScopedSentence(f"the ingress knows no role {role!r}; one of "
-                            f"{', '.join(sorted({*_ROLE_GRANTS, *_DAEMON_ROLES}))}")
+                            f"{', '.join(sorted({*_ROLE_GRANTS, *_DAEMON_ROLES, *_READ_ROLES}))}")
 
 
 @dataclass(frozen=True)
