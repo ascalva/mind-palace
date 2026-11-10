@@ -2,12 +2,12 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-105_rows_in_16_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-375_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-106_rows_in_16_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-380_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3673-brightgreen)](docs/runbook.md)
+[![tests](https://img.shields.io/badge/tests-3683-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -33,7 +33,7 @@ read "reference:openai-math:Local-smoothing" chunk 3
 
 There are five sorts: a *field* (a score on every node), a *region* (a set of nodes), *chains* (paths that spell a word over the edge types), a *witness* (the commit that minted an edge) and a *text* (one record). The verbs move between them: `near`, `diffuse`, `reach`, `relate`, `trace`, `walk … via`, `witness`, `read`. The connectives compose them: `and`, `or`, `minus`, `then`; `within`, `over` and `as of` restrict; `top k`, `atleast t`, `far` and `not` bound; `assume … in` evaluates a sentence under a hypothesis, and its answer is a `Hyp` beside the actual answer, never a fact. The grammar is `core/sentence/grammar.py`; [`docs/query/asking.md`](docs/query/asking.md) is the guide to writing a sentence.
 
-Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has one read tool, `query`, and the Open WebUI bridge serves the same manifest. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
+Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has one read tool, `query`, and the Open WebUI bridge serves the same manifest. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A third surface holds a narrower grant: `scripts/palace_mcp.py --role guest` serves an external agent `query` and `overview` alone, read-only over the dialogue, the repository's code and docs, the papers and the observed records, never the notes or the interpretations derived from them (SCO-9, `docs/design-notes/dn-guest-principal.md`). A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
 
 ## From a sentence to an answer
 
@@ -121,9 +121,9 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 27 statement files; 25,652 lines of models and proofs, 3,810 of statements, 5,757 of attacks |
-| theorems | 1,538 proved in `formal/Palace`; 375 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 105 rows in 16 families, 381 cited declarations, 92 law markers checked against the rows |
+| the library | 38 proof modules, 37 models, 27 statement files; 25,700 lines of models and proofs, 3,846 of statements, 5,757 of attacks |
+| theorems | 1,544 proved in `formal/Palace`; 380 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 106 rows in 16 families, 386 cited declarations, 93 law markers checked against the rows |
 | attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
 | the replay | 56,231 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
