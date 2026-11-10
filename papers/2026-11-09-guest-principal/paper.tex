@@ -1,0 +1,298 @@
+% A self-contained article for one pull request: the guest principal.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\lean}[1]{\texttt{#1}}
+\newcommand{\str}[1]{\textsf{#1}}
+
+\title{A Read-Only Guest Principal for a Personal Knowledge Store}
+\author{Alberto Serrano-Calva}
+\date{9 November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A personal knowledge store answers sentences of a typed query algebra under a grant: a set of
+scopes, one per clock, and a sentence is admitted when every clause's required scope lies under
+some granted plane. The store's local model holds a grant that reads the owner's notes. We add a
+second principal for an agent outside that trust boundary: a read-only grant over the dialogue,
+the repository's code and documents, curated papers and observed records, and never the notes or
+the model readings derived from them. The grant's properties are a finite check, proved in Lean:
+it names no stratum of the notes after downward closure, so every clause over them is refused, and
+it admits no command and no hypothetical. Admission bounds which rows a sentence reads; it does not
+bound what an admitted row says. The transcript stratum records the path of every file a
+conversation wrote, a note's included. An adversarial battery of 71 sentences over a fixture store
+found five that returned a note's path, through a causal edge's endpoint and through
+\texttt{witness}. For a grant without the notes, the universe a sentence reads now withholds every
+edge that ends in them, whole. After the change no output of the battery, with or without its
+trace, carries a canary token placed in a note's path, title and body, and the guest's outputs over
+two stores that differ only in the notes are identical.
+\end{abstract}
+
+\section{Introduction}
+
+The store \citep{palace2026} keeps several strata: the \emph{mirror} (the owner's notes),
+\emph{interpreted} relations and readings that models derive from the notes, the \emph{dialogue}
+(chat turns, the transcripts of agent sessions and the documents written in them), the
+\emph{reference} stratum (the repository's code and documents), \emph{curated} papers, and
+\emph{observed} records. Every read is one sentence of a query algebra, compiled under the
+reader's grant; a clause whose required scope no plane covers is refused before any store
+opens. Until now two principals held grants: the local model (the Ambassador) and the owner's own
+surfaces. Both read the notes.
+
+An agent run by someone else, or on another machine, should be able to ask about the code, the
+papers and the conversations without reading the notes. The request is least privilege
+\citep{saltzer1975protection}: a principal holds the authority its task needs and no more. In a
+capability system \citep{dennis1966semantics} that is a smaller capability, and here it is a
+grant. The contributions are:
+\begin{itemize}
+  \item a grant \str{GUEST} and a role \str{guest} that resolves to it, with its properties proved
+        in Lean (row SCO-9 of the store's laws ledger);
+  \item an MCP surface \citep{mcp2025} for the role, with two tools, \texttt{query} and
+        \texttt{overview}, and refusals that echo no quoted text;
+  \item a leak found by an adversarial battery, an overt reference from an admitted stratum to an
+        excluded one, and its repair in the universe builder;
+  \item a noninterference test: the guest cannot tell two stores apart that differ only in what
+        its grant excludes.
+\end{itemize}
+
+\section{Background and related work}
+
+\paragraph{Scopes and grants.}
+A scope is a point $(\Sigma, E, T, A)$ of a product lattice: a downward-closed set of strata
+$\Sigma$ in a refinement forest (\str{mirror\_authored} below \str{mirror},
+\str{dialogue\_transcript} and \str{dialogue\_artifact} below \str{dialogue},
+\str{reference\_repo} below \str{reference}), a set of edge fibers $E \subseteq \{F, D, C\}$
+(citation, version, causal), a clock and window $T$, and an authority $A$ (read or propose, a
+write bit, a world reach). The order is componentwise. A grant is a list of scopes, one per
+clock, because windows on different clocks have no meet. A sentence's clauses each require a
+scope; the sentence is admissible under a grant iff each requirement lies under some plane
+(QSA-5).
+
+\paragraph{Clearances.}
+Rows carry provenance classes, and a read is made under a clearance, a set of classes; a read
+under a clearance returns rows of those classes only (PLN-1), and a reader cannot distinguish
+states that differ outside its clearance through the shared vector plane (PLN-2, BRG-5). These
+are Goguen and Meseguer's noninterference \citep{goguen1982security} for one store, in the
+lattice model of information flow \citep{denning1976lattice}; language-based treatments type the
+same property \citep{volpano1996sound,sabelfeld2003language}.
+
+\paragraph{The universe.}
+A sentence is evaluated on its \emph{support}: the nodes of the strata its admitted clauses read,
+the nearest units to its texts in the indexed strata, and the citation and causal neighbourhoods
+of its anchors. Nothing outside the admitted strata is loaded as a node.
+
+\section{Theory}
+
+\begin{definition}[The guest's grant]
+Let $\operatorname{cl}(S) = S \cup \{c \ne \str{exhaust} : \operatorname{parent}(c) \in S\}$. The
+guest's grant is the list of two planes
+\begin{align*}
+  p_1 &= \bigl(\operatorname{cl}\{\str{dialogue}, \str{reference}, \str{curated},
+          \str{observed}\},\ \{F, D\},\ (\text{projection events}, \top),\ \text{read}\bigr),\\
+  p_2 &= \bigl(\operatorname{cl}\{\str{reference}, \str{dialogue}\},\ \{F, C\},\
+          (\text{commits}, \top),\ \text{read}\bigr),
+\end{align*}
+where \emph{read} is the least authority: no propose, no write bit, no world reach. It is the
+local model's first two planes over these strata, without the third plane, which reads the
+notes' version chains.
+\end{definition}
+
+\begin{theorem}[SCO-9]\label{thm:guest}
+Let $M = \{\str{mirror}, \str{mirror\_authored}, \str{interpreted}\}$.
+\begin{enumerate}
+  \item The grant is one the code accepts: no plane names the foundation, and none reaches the
+        world (\lean{guest\_grantOk}).
+  \item $\Sigma_{p} \cap M = \emptyset$ for both planes (\lean{guest\_reads\_no\_note}).
+  \item Every scope $r$ with $\Sigma_r \cap M \ne \emptyset$ lies under no plane, so a clause that
+        requires it is refused (\lean{guest\_refuses\_note}).
+  \item No command is admitted (\lean{guest\_admits\_no\_command}).
+  \item No sentence under \texttt{assume} is admitted (\lean{Sentence.guest\_no\_assume}).
+\end{enumerate}
+\end{theorem}
+
+\begin{proof}[Proof sketch]
+(1) and (2) are finite checks, closed by evaluation (\lean{decide}); for (2) the closure adds
+\str{dialogue\_transcript}, \str{dialogue\_artifact} and \str{reference\_repo}, whose parents are
+in the set, and nothing whose parent is \str{mirror}. (3) $r \sqsubseteq p$ requires
+$\Sigma_r \subseteq \Sigma_p$, which (2) contradicts. (4) A command requires the write bit, and a
+grant whose planes all lack it admits none (ING-1, \lean{readonly\_admits\_no\_command}). (5) A
+clause under \texttt{assume} requires the overlay stratum, so an admitting grant names it on some
+plane (QSA-5, \lean{admissible\_assume\_overlay}); neither plane does. Lean 4 checks each statement
+\citep{demoura2021lean4,mathlib2020}; the store's comparator judges the five against their
+statements in \texttt{formal/Spec}, and six independent kernels replay the library.
+\end{proof}
+
+The theorem bounds what a sentence may \emph{require}. What it may \emph{return} depends also on
+the data in the admitted strata.
+
+\begin{definition}[Views and noninterference]
+For a grant $g$ and a store state $\sigma$, let $\operatorname{ans}_g(s, \sigma)$ be the answer to
+sentence $s$: its hits, notes and plan, or its refusal. Two states are $g$-equivalent,
+$\sigma \sim_g \sigma'$, when they hold the same rows in every stratum $g$ names, and the same
+edges among nodes of those strata. The grant is noninterfering when
+$\sigma \sim_g \sigma' \Rightarrow \operatorname{ans}_g(s, \sigma) = \operatorname{ans}_g(s,
+\sigma')$ for every $s$.
+\end{definition}
+
+A causal edge $(t, v)$ joins a transcript turn $t$ to a file $v$ the turn's action wrote. When $v$
+is a note, the edge is a fact of the transcript stratum that names a node of the mirror. In the
+lattice model its label is the join $\ell(t) \sqcup \ell(v) = \str{dialogue\_transcript} \sqcup
+\str{mirror}$, which the guest's clearance does not dominate. Two $g$-equivalent states may differ
+in such edges, so an answer that shows them, or counts them, interferes.
+
+\section{Concepts and intuition}
+
+Admission is a check on requirements. A clause over the notes is refused, and the universe never
+loads a note as a node. The leak was not a note: it was a \emph{reference} to a note held by a row
+the guest may read. The causal store records, for every action of an agent session, the path it
+produced. A session that edited a note recorded the note's path, and the path carries the note's
+name. The store already named such an endpoint, when the sentence did not read the mirror, as a
+node of the transcript stratum: honest for the local model, whose grant reads the mirror anyway,
+and a leak for any grant that does not. \texttt{witness} of the edge returned the same path.
+
+The repair keys on the grant rather than the sentence. A grant's strata are the union of its
+planes'. When they hold no stratum of the mirror, the reader may not see a mirror node named, so
+an edge that ends in the vault is withheld whole: not named by a placeholder, not counted, its
+content-addressed id withheld with it. A placeholder per edge or a count would be a function of the
+excluded data. The answer still says that such edges are withheld, in one sentence whose words do
+not depend on whether any were.
+
+\section{Implementation}
+
+\Cref{alg:hide} is the change to the universe builder. The grant's strata are computed once per
+sentence by the surface; a grant that reads the mirror builds the same universe as before, by the
+same call.
+
+\begin{algorithm}
+\caption{Withholding the mirror from a reader whose grant does not name it.}\label{alg:hide}
+\begin{algorithmic}[1]
+\Require a plan $P$, the reader's grant $g$, the stores
+\State $\mathit{hide} \gets \operatorname{strata}(g) \cap \{\str{mirror}, \str{mirror\_authored}\} = \emptyset$
+\Function{Hidden}{$x$}
+  \State \Return $\mathit{hide} \wedge x$ is an absolute or home path $\wedge$ the vault is an ancestor of $x$
+\EndFunction
+\If{not $\mathit{hide}$} build the note graph \Comment{the dialogue otherwise loads under its own clearance}
+\EndIf
+\State index the causal edges $(t, v)$ with $\neg\Call{Hidden}{v}$ \Comment{whole edges, ids with them}
+\State expand citation neighbours $v$ with $\neg\Call{Hidden}{v}$
+\State $\operatorname{witness}(e) \gets \bot$ when $e$ is a causal edge to a hidden $v$, or an attestation and $\mathit{hide}$
+\If{$\mathit{hide}$ and $P$ walks $C$ or witnesses} add the fixed withholding note \EndIf
+\end{algorithmic}
+\end{algorithm}
+
+The role \str{guest} resolves to the grant at the ingress and holds no spool, so a request is
+refused when it is compiled and could not be spooled. The surface is the store's MCP server with
+\texttt{--role guest}: it seals the core against network egress, as the local model's server
+does, and serves \texttt{query} and \texttt{overview}. The overview counts catalog entries of the
+classes the grant's strata hold and the curated chunks; the local model's totals of vector rows,
+relation edges and versions each count the notes and are not shown. The \texttt{status} tool is not
+served, since it lists the owner's open tasks and running jobs. A refusal reaches the guest with
+its class and its reason, every quoted run replaced by its length, and for a scope refusal the
+strata the grant reads.
+
+\section{Evaluation}
+
+\paragraph{The fixture.}
+A store on real stores (the vector plane, the catalog, the version and relation stores, the
+attestations, the causal store and the chat log) holds a note whose path, title and body carry a
+canary token made at run time, landed by the store's own ingress; an interpreted relation from the
+note to an authored dialogue turn; an authored and an observed dialogue turn; a transcript turn
+whose causal edges point at the note and at a repository file; a paper; a code atom; and a
+citation graph at one cut. The test is \texttt{tests/adversarial/test\_guest\_leaks.py}.
+
+\paragraph{The battery.}
+It has 71 sentences: every verb (\texttt{near} with and without \texttt{over}, \texttt{diffuse},
+\texttt{reach} over $F$, $C$ and $D$ in both directions, \texttt{relate}, \texttt{trace},
+\texttt{walk} with paths over $S$, $F$, $C$ and $D$, \texttt{witness} of the note's edge, of the
+file's edge and of the note's landing, \texttt{read}), \texttt{assume}, the adjectives and
+connectives (\texttt{within}, \texttt{over}, \texttt{as of}, \texttt{top}, \texttt{atleast},
+\texttt{far}, \texttt{not}, \texttt{and}, \texttt{or}, \texttt{minus}, \texttt{then}) and four
+requests. Twenty name the note by its path or title. Each is asked through the MCP surface with
+and without the trace.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrr}
+\toprule
+& before the repair & after \\
+\midrule
+sentences admitted and answered & 34 & 30 \\
+admitted, no hits & 3 & 7 \\
+refused (31 scope, 2 lookup, 1 script) & 34 & 34 \\
+sentences whose output carries the canary & 5 & 0 \\
+\bottomrule
+\end{tabular}
+\caption{The guest's battery on the fixture store, without the trace (with it, the counts are the
+same). ``Before'' is the same code with the withholding switched off. The five leaks:
+\texttt{reach C} and \texttt{walk \dots\ via C} from the turn, over strata that hold the
+transcript (four sentences), and \texttt{witness} of the note's edge. The four sentences that
+move from answered to no hits are the two witnesses of the note's edge and landing, and the two
+whose only hit was the note's path.}\label{tab:battery}
+\end{table}
+
+\paragraph{Results.}
+After the repair no output carries the canary, as a path, a title, a text, a count or a refusal,
+and every sentence that names the note is refused (\cref{tab:battery}). The admitted strata
+answer: \texttt{near} over all four returns the dialogue turns, the code file and the paper;
+\texttt{read} returns a dialogue turn, a transcript turn, the paper and the file; \texttt{reach C}
+from the turn over \str{reference} returns the file and not the note. Over a second store whose
+note, relation, landing and vault edge differ, all 142 guest outputs and the overview are equal,
+byte for byte, once the names the asker typed are normalized. As a control, the local model asked
+the same 71 sentences receives the canary in 31 answers, through \texttt{near},
+\texttt{reach C}, \texttt{witness}, \texttt{relate} and \texttt{read} among others, so the battery
+reaches the channels it is meant to close. The default server keeps the local model's tool table
+and instructions, and the store's deterministic test tier passes (3{,}589 tests). The commands are
+in the repository: \texttt{uv run pytest tests/adversarial/test\_guest\_leaks.py} and
+\texttt{sh formal/check.sh}.
+
+\section{Limitations}
+
+The grant bounds strata, not what admitted text says. A chat turn, a capture or an assistant reply
+that quoted a note is a dialogue row, and the guest reads it; keeping such quotations out needs a
+narrower grant (reference and curated alone) or a filtered dialogue. The withholding is code,
+held by tests, not by a theorem: the Lean model states what a grant admits, not what the universe
+builder returns. The isolation is in the process: the guest's server opens the stores under the
+account it runs as, and an untrusted party should also be separated by the operating system.
+Response times may depend on the size of the excluded strata. The vault test is lexical: a path
+written through a link the resolver cannot see would not be recognized.
+
+\section{Future work}
+
+The cleaner repair labels each edge at the store with the join of its endpoints' strata, so that
+every reader, not only the universe builder, applies the rule; the noninterference statement could
+then be proved over a model of the stores, as PLN-2 is for the vector plane. A dialogue filtered of
+turns that quote notes would let a guest read conversations without trusting their contents.
+
+\section{Conclusion}
+
+A second principal for an external agent is a small grant: two planes, read-only, over four
+strata. Its refusals are a finite check and are proved. The adversarial battery found that the
+check was not enough, because an admitted row named an excluded node; withholding those
+references whole makes the guest's answers independent of the notes, and a two-store test holds
+that in place.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
