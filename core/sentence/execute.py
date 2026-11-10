@@ -137,6 +137,10 @@ class Universe:
     # so. A universe built by hand has neither: every node's vector is known.
     pending: frozenset[int] = frozenset()
     lexical: Callable[[str], np.ndarray] | None = None
+    # The lite profile (dn-palace-lite): the nodes among `pending` that keep no vector at all,
+    # since the instance embeds nothing or their source keeps none. They are ranked as the pending
+    # are; what differs is what an answer says: no vector will come, so none is waited for.
+    unembedded: frozenset[int] = frozenset()
 
     def __len__(self) -> int:
         return len(self.notes)
@@ -246,6 +250,37 @@ def _git(root: Path, *args: str) -> bytes | None:
     return out.stdout if out.returncode == 0 else None
 
 
+def _window(text: str, chunk: int | None, window: int) -> tuple[str, int, int, int]:
+    """A window of `window` chunks of `REPO_CHUNK_LINES` lines around `chunk` (from the start when
+    absent): the text, its first and last chunk, and the chunk count."""
+    lines = text.splitlines(keepends=True)
+    n = max(1, -(-len(lines) // REPO_CHUNK_LINES))
+    first = min(0 if chunk is None else max(0, int(chunk) - 2), n - 1)
+    last = min(n, first + max(1, window)) - 1
+    return ("".join(lines[first * REPO_CHUNK_LINES:(last + 1) * REPO_CHUNK_LINES]), first, last,
+            n)
+
+
+def _read_landed_file(engine: QueryEngine, ref: str, chunk: int | None, *,
+                      window: int) -> Mapping[str, object] | None:
+    """A repository source's file as it landed (dn-palace-lite): the active item of the reference
+    stratum at the ref, read from the raw store by its digest, a window of it as a repo file's.
+    None when no such item is landed, so the ref is read as git's blob instead."""
+    try:
+        entry = engine._get("catalog").get(ref)
+    except KeyError:                                  # an engine without the catalog
+        return None
+    if entry is None or not entry.active or str(entry.provenance) != "code":
+        return None
+    from core.kernel.stores.rawstore import RawStore
+
+    data = RawStore(engine.config.paths.raw_store).get(entry.digest)
+    body, first, last, n = _window(data.decode("utf-8", errors="replace"), chunk, window)
+    return {"ref": ref, "title": str(entry.title), "provenance": "code",
+            "stratum": "reference", "digest": str(entry.digest),
+            "chunks": f"{first}–{last} of {n}", "text": body[:REPO_MAX_CHARS]}
+
+
 def _read_repo_file(ref: str, chunk: int | None, *, window: int,
                     cut: str | None) -> Mapping[str, object] | None:
     """A repo-relative path, a node of the reference graph, read as git's blob in the tree at the
@@ -338,7 +373,9 @@ def read_ref(engine: QueryEngine, ref: str, chunk: int | None, *, window: int,
         return {"ref": ref, "title": f"{ref} ({speaker})", "provenance": "observed",
                 "stratum": "transcript", "speaker": speaker, "text": str(row.get("text", ""))}
     if "/" in ref and not ref.startswith(("/", "~", "dialogue/")):
-        return _read_repo_file(ref, chunk, window=window, cut=cut)
+        landed = _read_landed_file(engine, ref, chunk, window=window)
+        return landed if landed is not None else _read_repo_file(ref, chunk, window=window,
+                                                                 cut=cut)
     entry = VaultCatalog(cfg.paths.vault_catalog).get(ref)
     if entry is None or not entry.active:
         return None
@@ -613,23 +650,28 @@ class Evaluator:
         pend = sorted(carrier & self.u.pending)
         if not pend:
             return ""
+        none = len(carrier & self.u.unembedded)
+        # all pending: two-phase ingestion's words; some keep no vector (dn-palace-lite): which
+        status = ("are pending (landed, their vectors not yet derived)" if not none
+                  else f"have no vector ({_vectorless(len(pend) - none, none)})")
+        noun = "pending nodes" if not none else "nodes without a vector"
         lex = self.u.lexical(text) if self.u.lexical is not None else None
         if lex is None:
             self.notes.append(
-                f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes are pending "
-                "(landed, their vectors not yet derived) and no lexical index is open: they "
-                "score nothing here and are reported, never guessed")
-            return f"; {len(pend)} pending nodes score nothing (no lexical index)"
+                f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes {status} and "
+                "no lexical index is open: they score nothing here and are reported, never "
+                "guessed")
+            return f"; {len(pend)} {noun} score nothing (no lexical index)"
         for i in pend:
             scores[i] = float(np.clip(lex[i], 0.0, 1.0))
         matched = sum(1 for i in pend if scores[i] > 0)
         self.notes.append(
-            f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes are pending "
-            "(landed, their vectors not yet derived); they are ranked by the lexical index, "
+            f"near {text!r}: {len(pend)} of the clause's {len(carrier)} nodes {status}; they are "
+            f"ranked by the lexical index, "
             f"{matched} of them sharing a term with the text, each labelled `ranked_by`, on a "
             "scale of their own beside the vectors' cosines; VEC-1's certificate covers the "
             f"{len(carrier) - len(pend)} with vectors")
-        return (f"; {len(pend)} pending nodes ranked by the lexical index "
+        return (f"; {len(pend)} {noun} ranked by the lexical index "
                 f"({matched} share a term), labelled")
 
     def eval(self, node: Node) -> Value:
@@ -1139,12 +1181,21 @@ def _region_order(value: RegionV) -> list[int]:
     return sorted(value.members, key=key)
 
 
+def _vectorless(pending: int, none: int) -> str:
+    """What a clause's nodes without a vector are: pending (the drain derives them), or keeping
+    none (the instance embeds nothing, or their source keeps none)."""
+    parts = ([f"{pending} pending, their vectors not yet derived"] if pending else []) \
+        + ([f"{none} keeping none"] if none else [])
+    return "; ".join(parts)
+
+
 def _chain_strata(c: Chain, strata: Mapping[str, str]) -> str:
     """The strata a chain runs through, in the order it enters them (`transcript+reference`):
     a chain from a turn over the files it wrote is not the mirror's."""
     out: list[str] = []
     for node in (c.start, *(v for _, v in c.steps)):
-        name = strata.get(node, "mirror")
+        # a version chain's node is `<ref>@<version>` (`trace`): its stratum is its ref's
+        name = strata.get(node) or strata.get(node.rpartition("@")[0], "mirror")
         if name not in out:
             out.append(name)
     return "+".join(out)
@@ -1154,7 +1205,11 @@ def _hit(u: Universe, j: int, *, score: float | None = None,
          detail: dict[str, Any] | None = None) -> Hit:
     n = u.notes[j]
     node_detail = dict(n.get("detail") or {})
-    if score is not None and j in u.pending:
+    scored = score is not None or "score" in (detail or {})     # a field's, or a region's
+    if scored and j in u.unembedded:
+        # a scored hit that keeps no vector was ranked by the lexical index (dn-palace-lite)
+        node_detail["ranked_by"] = "lexical: the item keeps no vector"
+    elif score is not None and j in u.pending:
         # a scored hit whose vector is pending was ranked by the lexical index (ING-21)
         node_detail["ranked_by"] = "lexical: the vector is pending"
     return Hit(ref=str(n.get("source_path", "")), title=str(n.get("title", "")),
