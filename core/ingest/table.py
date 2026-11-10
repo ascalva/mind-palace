@@ -33,6 +33,7 @@ AUTHORED_SOLO = Provenance.AUTHORED_SOLO.value
 AUTHORED_DIALOGUE = Provenance.AUTHORED_DIALOGUE.value
 OBSERVED = Provenance.OBSERVED.value
 CURATED = Provenance.CURATED.value
+CODE_LABEL = Provenance.CODE.value
 
 MAX_ITEM_BYTES = 16 << 20           # one item a source yields
 MAX_HANDOFF_BYTES = 256 << 20       # a structured source's file
@@ -57,12 +58,16 @@ class Source:
     documents, each read as a structured source's document; one it `consume`s is removed once a
     plan has landed every item it yields (the inbox's record, whose bytes the raw store then
     holds). A `stream` source is a directory of items in sequence that an edge reader appends to
-    (`core/ingest/stream.py`), read a batch past its cursor (dn-corpus-instance §5.2)."""
+    (`core/ingest/stream.py`), read a batch past its cursor (dn-corpus-instance §5.2). A
+    `repository` source is a git repository's files at a ref, read through git's object store
+    (`core/ingest/repository.py`), each item at `<space><path in the repository>`
+    (dn-palace-lite). A source that does not `embed` keeps no vectors: its items land with their
+    lexical units and no plane row, and nothing derives one later (`Writer.keeps_vectors`)."""
 
     name: str
-    kind: str                                   # "dir" | "file" | "records" | "stream"
-    location: Path                              # the directory, or the file
-    format: str                                 # "markdown" | "json"
+    kind: str                       # "dir" | "file" | "records" | "stream" | "repository"
+    location: Path                              # the directory, the file, or the repository
+    format: str                                 # "markdown" | "json" | "git"
     readers: frozenset[str]
     patterns: tuple[str, ...] = ()              # dir: the scope, relative to the location
     exclude: frozenset[str] = frozenset()       # dir: directories excluded, in any case
@@ -79,6 +84,9 @@ class Source:
     identity: str | None = None                 # the property an item declares its identity in
     title_of: Callable[[Mapping[str, Any]], str] | None = None   # json: an item's title
     consume: bool = False                       # records: a document removed once it has landed
+    embed: bool = True                          # its items keep vectors (dn-palace-lite)
+    ref: str = ""                               # repository: the ref whose tree is its files
+    mark: Path | None = None                    # repository: where the commit it landed is kept
 
     def in_scope(self, path: Path) -> bool:
         """Whether a path is one of a directory source's items, existing or not: under the
@@ -248,6 +256,9 @@ PLACES: Mapping[str, Place] = {
                       action="capture"),
     "curated": Place("curated", Stratum.CURATED, _classes(Stratum.CURATED), versions=False,
                      action="ingest_curated"),
+    # the repositories' files (dn-palace-lite): the reference stratum, a version chain per file
+    "reference": Place("reference", Stratum.REFERENCE, _classes(Stratum.REFERENCE),
+                       versions=True, action="ingest_code"),
 }
 JOBS: Mapping[str, Job] = {
     "dream": Job("dream", "dream", (Stratum.INTERPRETED,), propose=True),
@@ -397,8 +408,31 @@ def _corpus_source(cfg: Config, name: str) -> Source:
         title_of=lambda it: str(it.get("title") or it["id"]))
 
 
+# The code of the instance's repositories (dn-palace-lite): one repository source a repository
+# `[ingestion.code]` names, its files at its ref, each at `code/<name>/<path>`, labelled code, the
+# reference stratum's class. Present only while the code lands lexically (`lexical_code`): with the
+# code embed lane on, the code is the lane's, as it was.
+CODE = "code"
+CODE_SPACE = "code/"
+
+
+def repository_mark(cfg: Config, name: str) -> Path:
+    """Where a repository source records the commit whose files it last landed whole."""
+    return Path(cfg.paths.data_dir) / "code" / f"{name}.synced"
+
+
+def _repository_source(cfg: Config, repo: Any) -> Source:
+    """A repository's files at its ref, read through git, each item labelled code, keeping no
+    vector. Only the operator's role opens it: the daemon's own sync and the owner's CLI."""
+    return Source(name=f"{CODE}/{repo.name}", kind="repository", location=Path(repo.path),
+                  format="git", readers=frozenset({"cli"}), label=CODE_LABEL,
+                  labels=frozenset({CODE_LABEL}), space=f"{CODE_SPACE}{repo.name}/",
+                  embed=False, ref=repo.ref, mark=repository_mark(cfg, repo.name))
+
+
 def build_table(cfg: Config) -> Table:
     """This palace's table, from its configuration."""
+    from core.kernel.config.loader import lexical_code
     from core.relations import RELATIONS
 
     vault = Path(str(cfg.ingestion.vault.path)).expanduser()
@@ -419,6 +453,8 @@ def build_table(cfg: Config) -> Table:
         INBOX: _inbox_source(cfg),
         **({f"{CORPUS}/{n}": _corpus_source(cfg, n) for n in cfg.ingestion.corpus.sources}
            if cfg.ingestion.corpus.enabled else {}),
+        **({f"{CODE}/{r.name}": _repository_source(cfg, r)
+            for r in cfg.ingestion.code.repositories} if lexical_code(cfg) else {}),
     }
 
     places, jobs = PLACES, JOBS

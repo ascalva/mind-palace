@@ -625,23 +625,35 @@ def prune(cfg: Config, *, now: float | None = None, max_age_s: float = PRUNE_AFT
 
 def build_stores(cfg: Config, enqueue: Callable[..., int] | None = None) -> Any:
     """The stores the writer lands into, opened by the daemon, the one writer. The lexical index
-    is opened under `[embedding] lazy` alone (dn-two-phase-ingestion D6), so an instance that
-    embeds synchronously writes nothing it did not write before."""
+    is opened when the instance lands lazily, embeds nothing, or has a source that keeps no
+    vectors (`needs_lexical`; dn-two-phase-ingestion D6, dn-palace-lite), so an instance that
+    embeds every item synchronously writes nothing it did not write before. An instance that
+    embeds nothing builds no embedder and opens no plane: the writer is handed `NoPlane`."""
     from core.attestation import build_attestor
-    from core.ingest.embed import build_embedder
     from core.ingest.writer import Stores
+    from core.kernel.config.loader import needs_lexical
     from core.kernel.stores.rawstore import RawStore
     from core.stores.catalog import VaultCatalog
     from core.stores.edges import open_edge_store
     from core.stores.lexical import open_lexical_store
-    from core.stores.vectorstore import open_vector_store
     from core.stores.versions import open_version_store
 
-    return Stores(raw=RawStore(cfg.paths.raw_store), plane=open_vector_store(cfg),
-                  embedder=build_embedder(cfg), catalog=VaultCatalog(cfg.paths.vault_catalog),
+    plane: Any = None
+    embedder: Any = None
+    if cfg.embedding.enabled:
+        from core.ingest.embed import build_embedder
+        from core.stores.vectorstore import open_vector_store
+
+        plane, embedder = open_vector_store(cfg), build_embedder(cfg)
+    else:
+        from core.stores.noplane import NoPlane
+
+        plane = NoPlane()
+    return Stores(raw=RawStore(cfg.paths.raw_store), plane=plane,
+                  embedder=embedder, catalog=VaultCatalog(cfg.paths.vault_catalog),
                   versions=open_version_store(cfg), attestor=build_attestor(cfg),
                   edges=open_edge_store(cfg), enqueue=enqueue,
-                  lexical=open_lexical_store(cfg) if cfg.embedding.lazy else None)
+                  lexical=open_lexical_store(cfg) if needs_lexical(cfg) else None)
 
 
 def reader(cfg: Config, role: str) -> Callable[[str], list[Any]]:
@@ -724,7 +736,8 @@ def perform(do: ast.Do, cfg: Config, role: str, *, stores: Any,
     plan = Evaluator(v, role, meter, library=library or load).run(script, args, kwargs, name=name)
     reads = frozenset().union(*(classes_of(s.sigma.strata) for s in grant_for(role).scopes))
     writer = Writer(table, role, stores, has=v.has, meter=meter, request=request, reads=reads,
-                    batch=batch, lazy=bool(cfg.embedding.lazy) if lazy is None else lazy)
+                    batch=batch, lazy=bool(cfg.embedding.lazy) if lazy is None else lazy,
+                    embedding=bool(cfg.embedding.enabled))
     cut_before = getattr(stores.embedder, "cut", None)
     outcomes = writer.land(plan)
     if hasattr(v, "landed"):

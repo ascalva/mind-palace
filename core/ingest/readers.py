@@ -13,7 +13,10 @@ syncs and the owner's CLI), never for a request a role spoke. A structured sourc
 give a label other than the observed one (a dialogue reader's handoff, the inbox's record) is read
 only as the daemon trusts it (`core/ingest/files.py`), so no other account plants an item its rule
 would label as the owner's. A records source is a directory of such documents; one the table marks
-as consumed loses a document once a plan has landed every item it yields.
+as consumed loses a document once a plan has landed every item it yields. A repository source is a
+git repository's files at a ref, read as blobs (`core/ingest/repository.py`), each item at the
+source's space plus its path in the repository; once a plan has stored every file it listed, the
+commit is recorded as landed, the mark its staleness is told by.
 """
 
 from __future__ import annotations
@@ -28,7 +31,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from core.ingest import stream
+from core.ingest import repository, stream
 from core.ingest.files import check_dir, read_bounded, written_by_one
 from core.ingest.table import (
     MAX_HANDOFF_BYTES,
@@ -78,6 +81,38 @@ class Listing:
         return (self._read(p) for p in self._paths)
 
 
+class RepositoryListing:
+    """A repository source's files at its ref in path order, listed at once and read a batch of
+    blobs at a time by one git process each. A script reads a listing more than once (its paths,
+    then its items), so the records of the first whole pass are kept for the next, and handed to
+    `done` (the view marks the commit landed once the plan stores every one of them)."""
+
+    BATCH = 256
+
+    def __init__(self, entries: Sequence[repository.Entry],
+                 read: Callable[[Sequence[repository.Entry]], list[Record]],
+                 done: Callable[[list[Record]], None]) -> None:
+        self._entries = entries
+        self._read = read
+        self._done = done
+        self._records: list[Record] | None = None
+
+    def __len__(self) -> int:
+        return len(self._entries)
+
+    def __iter__(self) -> Iterator[Record]:
+        if self._records is not None:
+            yield from self._records
+            return
+        read: list[Record] = []
+        for i in range(0, len(self._entries), self.BATCH):
+            batch = self._read(self._entries[i:i + self.BATCH])
+            read.extend(batch)
+            yield from batch
+        self._records = read
+        self._done(read)
+
+
 class PalaceView:
     """The palace as one evaluation reads it, under one role. `catalog` is the place's index of
     rows (`VaultCatalog` or a fake); `query` evaluates a read sentence under the role's grant;
@@ -100,6 +135,11 @@ class PalaceView:
         # cursor moves past them once the plan that stores them has landed
         self._batches: dict[str, tuple[int, list[str]]] = {}
         self._stream_paths: dict[str, frozenset[str]] = {}
+        # a repository source's tree as listed: its commit and its files by path in the repository;
+        # and the items of each whose every file a script read, so the commit is marked once the
+        # plan has stored them all
+        self._trees: dict[str, tuple[str, dict[str, repository.Entry]]] = {}
+        self._listed: dict[str, list[str]] = {}
 
     def _listdir(self, d: Path) -> frozenset[str]:
         """A directory's names, listed once an evaluation."""
@@ -121,12 +161,22 @@ class PalaceView:
             raise ScriptError(f"source({name!r}): no such source")
         if self.role not in s.readers:
             raise ScriptError(f"source({name!r}): the role {self.role!r} may not open it")
+        if s.kind == "repository":
+            # what a script names it by is its space: `stored(…, under: it)` is its items
+            return Handle(name, s.space.rstrip("/"))
         return Handle(name, str(s.location))
 
-    def files(self, h: Handle) -> Listing:
+    def files(self, h: Handle) -> Listing | RepositoryListing:
         """The source's items in path order, each read and parsed only when the evaluator asks for
         the next, so the meter stops a read at the item that ran the budget out."""
         s = self._source(h)
+        if s.kind == "repository":
+            _, entries = self._tree(s)
+
+            def done(records: list[Record], name: str = s.name) -> None:
+                self._listed[name] = [str(r["path"]) for r in records]
+            return RepositoryListing(list(entries.values()), lambda batch: self._blobs(s, batch),
+                                     done)
         if s.kind != "dir":
             raise ScriptError(f"files({h.name!r}): a directory source; use items(…)")
         seen: dict[str, Path] = {}
@@ -149,6 +199,12 @@ class PalaceView:
 
     def file(self, h: Handle, path: str) -> Record:
         s = self._source(h)
+        if s.kind == "repository":
+            entry = self._tree(s)[1].get(self._relative(s, path))
+            if entry is None:
+                raise ScriptError(f"file({h.name!r}, {path!r}): not a file of the source at "
+                                  f"{s.ref}")
+            return self._blobs(s, [entry])[0]
         if s.kind != "dir":
             raise ScriptError(f"file({h.name!r}, …): a directory source")
         p = self._named(s, path)
@@ -159,6 +215,8 @@ class PalaceView:
 
     def exists(self, h: Handle, path: str) -> bool:
         s = self._source(h)
+        if s.kind == "repository":
+            return self._relative(s, path) in self._tree(s)[1]
         if s.kind == "dir":
             try:
                 p = self._named(s, path)
@@ -178,11 +236,62 @@ class PalaceView:
         s = self.table.owner(path)
         if s is None:
             return False
+        if s.kind == "repository":
+            return self._relative(s, path) in self._tree(s)[1]
         if s.kind == "dir":
             return _exists_as(s, path, self._listdir)
         if s.kind == "stream":
             return s.owns(path)
         return any(str(r["path"]) == path for r in self._read_items(s))
+
+    # a repository's files -------------------------------------------------------------------
+
+    def _tree(self, s: Source) -> tuple[str, dict[str, repository.Entry]]:
+        """The repository's commit at the source's ref and its files, listed once an evaluation."""
+        if s.name not in self._trees:
+            try:
+                commit = repository.commit_of(s.location, s.ref)
+                entries = repository.tree(s.location, commit)
+            except repository.RepositoryError as err:
+                raise ScriptError(f"{s.name}: {err}") from None
+            self._trees[s.name] = (commit, {e.path: e for e in entries})
+        return self._trees[s.name]
+
+    @staticmethod
+    def _relative(s: Source, path: str) -> str:
+        """A path as the repository names it: an item's path less the source's space."""
+        return path.removeprefix(s.space)
+
+    def _blobs(self, s: Source, entries: Sequence[repository.Entry]) -> list[Record]:
+        """Records of some files of the tree: a blob over the item cap is still an item, one the
+        writer refuses (R1), read never; a blob that is not text is no item."""
+        label = s.label or OBSERVED
+        small = [e.blob for e in entries if e.size <= MAX_ITEM_BYTES]
+        try:
+            data = dict(repository.read_blobs(s.location, small))
+        except repository.RepositoryError as err:
+            raise ScriptError(f"{s.name}: {err}") from None
+        out = []
+        for entry in entries:
+            path = s.space + entry.path
+            origin = Origin("item", s.name, path, entry.path)
+
+            def o(v: str, origin: Origin = origin) -> OStr:
+                return OStr(v, label, origin)
+
+            digest: OStr | None = None
+            if entry.size > MAX_ITEM_BYTES:
+                content = Content(b"", label, origin, oversize=entry.size)
+            else:
+                blob = data[entry.blob]
+                if not repository.is_text(blob):
+                    continue
+                content = Content(blob, label, origin)
+                digest = o(hashlib.sha256(blob).hexdigest())
+            out.append(Record({"path": o(path), "content": content, "digest": digest,
+                               "title": o(entry.path), "properties": Record({}), "tags": [],
+                               "links": []}))
+        return out
 
     def _markdown(self, s: Source, p: Path) -> Record:
         label = s.label or OBSERVED
@@ -373,6 +482,12 @@ class PalaceView:
             # a stream's cursor moves past a batch only when the plan stored every item of it
             if paths and all(p in stored for p in paths):
                 stream.write_cursor(self.table.sources[name].location, last)
+        for name, items in self._listed.items():
+            # a repository's commit is landed once the plan stored every item of its tree
+            source = self.table.sources[name]
+            if source.mark is not None and all(p in stored for p in items):
+                _write_mark(source.mark, {"commit": self._trees[name][0], "ref": source.ref,
+                                          "files": len(items)})
         for name, files in self._files.items():
             if not self.table.sources[name].consume:
                 continue
@@ -414,6 +529,27 @@ def _may_author(s: Source) -> bool:
     declares, and an undeclared range counts as one that may."""
     labels = {s.label} if s.label is not None else set(s.labels)
     return not labels or bool(labels - {OBSERVED})
+
+
+def _write_mark(mark: Path, doc: dict[str, Any]) -> None:
+    """Record what a repository source landed, with the time, atomically."""
+    from datetime import UTC, datetime
+
+    mark.parent.mkdir(parents=True, exist_ok=True)
+    tmp = mark.with_suffix(".tmp")
+    tmp.write_text(json.dumps({**doc, "at": datetime.now(UTC).isoformat(timespec="seconds")}))
+    tmp.replace(mark)
+
+
+def read_mark(mark: Path | None) -> dict[str, Any] | None:
+    """What a repository source last landed, or None when it never landed whole."""
+    if mark is None or not mark.is_file():
+        return None
+    try:
+        doc = json.loads(mark.read_text())
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
 
 
 def _consume(f: Path, key: tuple[int, int]) -> None:
