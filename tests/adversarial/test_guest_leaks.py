@@ -16,8 +16,9 @@ withholding is what closes the causal and witness channels.
 
 The causal and citation stores may also hold the note's path as a file system or an action log
 spells it (another letter case, another Unicode normal form, a relative path, a URI, a bare file
-name), and paths that are not the repo's. Adding such edges to a palace changes no guest output,
-and `witness` of each answers nothing; the Ambassador sees every one."""
+name, a file name that is a glob's pattern), and paths that are not the repo's. Adding such edges
+to a palace changes no guest output, and `witness` of each answers nothing; the Ambassador sees
+every one."""
 
 from __future__ import annotations
 
@@ -45,6 +46,7 @@ from core.query import AMBASSADOR, GUEST, OPERATOR, QueryEngine
 from core.sentence import compile_sentence
 from core.sentence.surface import SENTENCE_MAX, QueryLog, run_query
 from core.sentence.types import IllScopedSentence
+from core.sentence.universe import _doc_path
 from core.stores.causal_edges import CausalEdge, open_causal_edge_store
 from core.stores.chatlog import ChatUtterance, open_chatlog_store
 from core.stores.vectorstore import LAYER_CODE_AST
@@ -536,6 +538,12 @@ def _spellings(f: Fixture) -> dict[str, tuple[str, str]]:
     name = Path(f.note).name
     # a vault file under a `docs/design-notes/` folder: the projector keeps its file name alone
     kind, doc = _classify_file_write(str(vault / "docs" / "design-notes" / name))
+    # and one there whose name is a glob's pattern for one of the repo's findings: looked up as
+    # a pattern the name is that finding, a file git tracks
+    finding = min((Path(REPO_ROOT) / "docs" / "findings").glob("finding-*.md")).stem
+    _, pattern = _classify_file_write(str(
+        vault / "docs" / "design-notes" / f"{finding[:8]}[{f.canary}{finding[8]}]{finding[9:]}.md"))
+    assert _doc_path(pattern) == f"docs/findings/{finding}.md"
     out = {
         "case": ("file", f.note.replace(str(vault), str(vault.parent / vault.name.upper()))),
         "nfd": ("file", unicodedata.normalize("NFD", f.note)),
@@ -543,10 +551,11 @@ def _spellings(f: Fixture) -> dict[str, tuple[str, str]]:
         "relative, elsewhere": ("file", f"{vault.parent.name}/{vault.name}/{name}"),
         "uri": ("file", f"file://{f.note}"),
         "doc": (_WRITE_KIND_TO_DST[kind], doc),
+        "doc, a pattern": (_WRITE_KIND_TO_DST[kind], pattern),
         "untracked": ("file", f"{REPO_ROOT}/data/{f.canary}-untracked.md"),
         "outside": ("file", str(f.root.parent / "elsewhere" / f"{f.canary}-outside.txt")),
     }
-    assert out["doc"] == ("doc", name) and len({dst for _, dst in out.values()} | {f.note}) == 9
+    assert out["doc"] == ("doc", name) and len({dst for _, dst in out.values()} | {f.note}) == 10
     assert all(f.canary in dst for _, dst in out.values())
     return out
 
@@ -559,7 +568,7 @@ def _answers(server: Any, sentences: list[str]) -> list[tuple[bool, str]]:
 
 def test_an_edge_is_shown_only_when_it_ends_at_a_commit_or_a_tracked_file(
         spelled: Fixture) -> None:
-    """The universe's allow list (dn-guest-principal §5). The causal store gains eight edges from
+    """The universe's allow list (dn-guest-principal §5). The causal store gains nine edges from
     the fixture's turn, and the citation graph four from a repo file to the note's path, as it
     is and in three spellings that are no repo-relative path. Asked the battery, each new edge's
     id and each new endpoint by its own name, the guest answers what it answered before they
