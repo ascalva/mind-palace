@@ -239,6 +239,9 @@ class _Builder:
         self.census: dict[str, float] = {}       # a paper's full-backbone degree, by the index
         self._cited_of: dict[str, set[str]] = {}  # the citation graph's neighbours, per node read
         self.pending: list[str] = []      # the nodes landed without a vector yet (two-phase)
+        # the nodes that keep no vector at all: the instance embeds nothing, or their source keeps
+        # none (dn-palace-lite); ranked by the lexical index as the pending are, and said so
+        self.unembedded: list[str] = []
 
     # stores --------------------------------------------------------------------------------------
     def store(self, name: str) -> Any:
@@ -246,9 +249,24 @@ class _Builder:
 
     def embed(self, text: str) -> np.ndarray:
         if text not in self._embeds:
+            if not self.embeds:
+                # the lite profile: no embedder exists, so a text has no vector (dn-palace-lite);
+                # the zero vector scores nothing, and the lexical index ranks what a clause reads
+                self._embeds[text] = np.zeros(int(self.e.config.embedding.dim))
+                return self._embeds[text]
             v = _unit(self.store("embedder").embed_query(text))
             self._embeds[text] = v if v is not None else np.zeros(int(self.e.config.embedding.dim))
         return self._embeds[text]
+
+    @property
+    def embeds(self) -> bool:
+        """Whether the instance embeds at all (`[embedding] enabled`)."""
+        return bool(self.e.config.embedding.enabled)
+
+    def _vectorless(self, ref: str) -> None:
+        """Mark a node as one that keeps no vector, ranked by the lexical index."""
+        if ref not in self.unembedded:
+            self.unembedded.append(ref)
 
     # nodes ---------------------------------------------------------------------------------------
     def add(self, node: _Node) -> _Node:
@@ -316,7 +334,7 @@ class _Builder:
         embeds synchronously, so its universes are what they were."""
         from core.ingest.derive import pending
 
-        if not bool(self.e.config.embedding.lazy):
+        if not bool(self.e.config.embedding.lazy) and self.embeds:
             return
         lexical = self.lexical_index()
         if lexical is None:
@@ -329,6 +347,11 @@ class _Builder:
             prov = str(e.provenance)
             label = stratum_of_provenance(prov) or "mirror"
             if label not in ("mirror", "dialogue") or not self.admits(label, prov):
+                continue
+            if not self.embeds:              # nothing is pending: no vector will ever come
+                self.add(_Node(e.source_path, label, e.title, e.digest, prov, None,
+                               {"vector": "none: the instance embeds nothing"}))
+                self._vectorless(e.source_path)
                 continue
             have = self.nodes.get(e.source_path)
             if have is None:
@@ -345,7 +368,8 @@ class _Builder:
         (the vector index cannot reach them): at most `support`, added without a vector."""
         from core.kernel.provenance import Provenance
 
-        if not bool(self.e.config.embedding.lazy) or not self.admits("curated", "curated"):
+        if (not bool(self.e.config.embedding.lazy) and self.embeds) \
+                or not self.admits("curated", "curated"):
             return 0
         lexical = self.lexical_index()
         if lexical is None:
@@ -366,14 +390,61 @@ class _Builder:
             e = waiting[hit.source_path]
             if hit.source_path in self.nodes:
                 continue
-            self.add(_Node(e.source_path, "curated", e.title, e.digest, "curated", None,
-                           {"pending": "no vector yet"}))
-            self.pending.append(e.source_path)
+            if not self.embeds:
+                self.add(_Node(e.source_path, "curated", e.title, e.digest, "curated", None,
+                               {"vector": "none: the instance embeds nothing"}))
+                self._vectorless(e.source_path)
+            else:
+                self.add(_Node(e.source_path, "curated", e.title, e.digest, "curated", None,
+                               {"pending": "no vector yet"}))
+                self.pending.append(e.source_path)
             added += 1
         if added:
-            self.notes.append(f"curated: {added} pending papers from the lexical index for "
-                              f"{why!r} (their vectors are not yet derived)")
+            why_none = ("the instance embeds nothing" if not self.embeds
+                        else "their vectors are not yet derived")
+            self.notes.append(f"curated: {added} papers from the lexical index for {why!r} "
+                              f"({why_none})")
         return added
+
+    def seed_reference_lexical(self, text: str, why: str) -> int:
+        """The reference stratum's items that keep no vector (a repository source's files,
+        dn-palace-lite) a `near` text reaches, by the lexical index: the files of its `support`
+        best units, added without a vector, ranked by the index and said so. An instance whose
+        index holds no such unit (its code, if any, is the embed lane's) adds nothing here."""
+        from core.kernel.provenance import Provenance
+
+        if not self.admits("reference", "code"):
+            return 0
+        lexical = self.lexical_index()
+        if lexical is None:
+            return 0
+        hits = lexical.search(text, k=self.p.support, classes=[Provenance.CODE])
+        files: list[str] = []
+        for hit in hits:
+            if hit.source_path in files:
+                continue
+            files.append(hit.source_path)
+            self.add(_Node(hit.source_path, "reference", hit.title, hit.digest, "code", None,
+                           {"chunk": hit.chunk_index, "vector": "none: the source keeps none"}))
+            self._vectorless(hit.source_path)
+        if hits:
+            self.notes.append(f"reference: {len(files)} files from the {len(hits)} best lexical "
+                              f"units for {why!r} (the index's top {self.p.support}; the files "
+                              "keep no vectors)")
+        return len(files)
+
+    def seed_item(self, atom: str) -> None:
+        """An anchor that is a landed item of the reference stratum (a repository source's file):
+        its node, with the digest and title the catalog holds, and no vector."""
+        try:
+            entry = self.store("catalog").get(atom)
+        except KeyError:                      # an engine without the catalog
+            return
+        if entry is None or not entry.active or str(entry.provenance) != "code":
+            return
+        self.add(_Node(atom, "reference", str(entry.title), str(entry.digest), "code", None,
+                       {"vector": "none: the source keeps none"}))
+        self._vectorless(atom)
 
     # the indexed strata --------------------------------------------------------------------------
     def seed_curated(self, vec: np.ndarray, why: str) -> int:
@@ -402,7 +473,7 @@ class _Builder:
     def seed_code(self, vec: np.ndarray, why: str) -> int:
         from core.stores.memberships import resolve_occupancies
 
-        if not self.admits("reference", "code"):
+        if not self.admits("reference", "code") or not self.embeds:
             return 0
         rows = self.store("vectors").search(list(map(float, vec)), k=self.p.support,
                                             clearance=CODE_READ)
@@ -700,6 +771,7 @@ class _Builder:
                 self.seed_curated(node.vector, atom)
             return
         if is_repo_path(atom) and self.admits("reference", "code"):
+            self.seed_item(atom)
             self.seed_typed(atom, radius, frozenset({Rel.F}) | (self.moves & {Rel.C}))
 
     def wire_reference(self) -> None:
@@ -808,21 +880,29 @@ class _Builder:
                                "outside the repo and the vault: named in the transcript's "
                                "stratum, not readable")
         missing.append("D moves at the note grain: the version chains are per note (use trace)")
-        pending = frozenset(i for i, n in enumerate(order) if n.ref in set(self.pending))
+        waiting = frozenset(i for i, n in enumerate(order) if n.ref in set(self.pending))
+        unembedded = frozenset(i for i, n in enumerate(order) if n.ref in set(self.unembedded))
+        pending = waiting | unembedded
         lexical = self._lexical_scores(order, pending)
-        if pending:
-            named = ", ".join(order[i].ref for i in sorted(pending)[:5])
-            more = f" and {len(pending) - 5} more" if len(pending) > 5 else ""
+        if waiting:
+            named = ", ".join(order[i].ref for i in sorted(waiting)[:5])
+            more = f" and {len(waiting) - 5} more" if len(waiting) > 5 else ""
             missing.append(
-                f"pending: {len(pending)} items landed without a vector yet (the embed drain "
+                f"pending: {len(waiting)} items landed without a vector yet (the embed drain "
                 f"derives them); a semantic clause ranks them by the lexical index and says so, "
                 f"and S has no edge at them: {named}{more}")
+        if unembedded:
+            whose = ("the instance embeds nothing" if not self.embeds
+                     else "their source keeps no vectors")
+            missing.append(
+                f"no vector: {len(unembedded)} items keep none ({whose}); a semantic clause ranks "
+                "them by the lexical index and says so, and S has no edge at them")
         return Universe(notes=notes, vectors=mat, weights=weights,
                         edges={Rel.F: self.f_edges, Rel.D: {}, Rel.C: self.c_edges},
                         relations=relations,
                         embed=embed, history=history, witness=witness, cut=self.cut,
                         missing=tuple(missing), text=text, degrees=degrees,
-                        pending=pending, lexical=lexical)
+                        pending=pending, lexical=lexical, unembedded=unembedded)
 
     def _lexical_scores(self, order: list[_Node],
                         pending: frozenset[int]) -> Callable[[str], np.ndarray] | None:
@@ -868,6 +948,7 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
             b.seed_lexical(text, text)
         if strata & REFERENCE_NAMES:
             b.seed_code(b.embed(text), text)
+            b.seed_reference_lexical(text, text)
     for atom, radius in seeds.anchors:
         b.seed_anchor(atom, radius)
     b.wire_reference()

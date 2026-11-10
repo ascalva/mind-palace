@@ -402,7 +402,13 @@ class QueryEngine:
     def _get(self, name: str) -> Any:
         if name not in self._cache:
             cfg = self.config
-            if name == "vectors":
+            if name in ("vectors", "curated") and not cfg.embedding.enabled:
+                # an instance that embeds nothing has no plane: an empty one that never fills
+                # stands in for both, and no store is opened (dn-palace-lite)
+                from core.stores.noplane import NoPlane
+
+                self._cache[name] = NoPlane()
+            elif name == "vectors":
                 from core.stores.vectorstore import open_vector_store
 
                 self._cache[name] = open_vector_store(cfg)
@@ -447,12 +453,14 @@ class QueryEngine:
 
                 self._cache[name] = open_membership_store(cfg)
             elif name == "lexical":
-                # the lexical index (dn-two-phase-ingestion D2): None for an instance that embeds
-                # synchronously and never built one, so a read creates no store
+                # the lexical index (dn-two-phase-ingestion D2, dn-palace-lite): None for an
+                # instance that embeds every item synchronously and never built one, so a read
+                # creates no store
+                from core.kernel.config.loader import needs_lexical
                 from core.stores.lexical import lexical_path, open_lexical_store
 
                 self._cache[name] = (open_lexical_store(cfg)
-                                     if cfg.embedding.lazy or lexical_path(cfg).exists()
+                                     if needs_lexical(cfg) or lexical_path(cfg).exists()
                                      else None)
             else:
                 raise KeyError(name)
