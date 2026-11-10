@@ -11,6 +11,10 @@ code, not by the prompt, and the plan rides with every answer; writes are only t
 grant's W_Σ allows — dialogue capture (provenance fixed by role, never by the text) and
 interpreted relation edges. Long operations (dream, relate, sync) wake models and run on demand.
 
+`--role guest` serves an external agent instead (dn-guest-principal): `query` under the read-only
+`GUEST` grant, over the dialogue, the repo's code and docs, the papers and the observed records,
+never the notes or their interpretations, and `overview`; no write tool, no request, no `status`.
+
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
 `tools/list`, `tools/call`; anything printed by an operation is captured and returned as the tool's
 text, so stdout carries protocol messages only. Diagnostics go to stderr.
@@ -33,6 +37,34 @@ SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
 # them — Open WebUI appends them to the system message whenever the palace tools are on — loads it
 # on every chat with no prompt to paste. One text for every client and for eval/ambassador_e2e.py.
 INSTRUCTIONS = (Path(__file__).with_name("brief.md")).read_text(encoding="utf-8").strip()
+# The guest's surface (`palace_mcp.py --role guest`, dn-guest-principal) has instructions of its
+# own: the brief speaks of tools the guest does not have.
+GUEST_INSTRUCTIONS = (
+    "A read-only view of a mind-palace instance. Ask with query: a sentence of the query algebra, "
+    "not keywords, over the strata this grant reads: the dialogue (chat turns, transcripts and the "
+    "documents written in them), reference (the repository's code and docs), curated (papers) and "
+    "observed. Name them with over, as in near \"<text>\" over dialogue, reference, curated, "
+    "observed: near, diffuse S and a causal walk's endpoints read the owner's notes unless over "
+    "names other strata, and a clause over the notes or the interpretations derived from them is "
+    "refused. So are assume, the version chains (trace, reach D) and every do request. Verbs: "
+    "near, diffuse S from, reach F|C from, walk from <ref> via <regex over S, F, C>, witness, "
+    "read \"<ref>\" (a repo path, transcript/<session>/<turn>, a dialogue ref, reference:<paper>). "
+    "overview counts what this grant reads and shows the grant."
+)
+
+
+def _planes(grant: Any) -> list[dict[str, Any]]:
+    """A grant's planes as `overview` shows them."""
+    return [
+        {
+            "strata": sorted(s.sigma.strata),
+            "edges": sorted(s.edges.fibers),
+            "clock": s.time.clock.value,
+            "write": bool(s.authority.store_write),
+        }
+        for s in grant.scopes
+    ]
+
 
 class Ambassador:
     """Tool implementations. Stores and the launcher open lazily, once per process."""
@@ -74,21 +106,12 @@ class Ambassador:
             e.provenance for e in VaultCatalog(cfg.paths.vault_catalog).active_entries()
         )
         edges = Counter(e.rel_type for e in self.engine._get("edges").all())
-        planes = [
-            {
-                "strata": sorted(s.sigma.strata),
-                "edges": sorted(s.edges.fibers),
-                "clock": s.time.clock.value,
-                "write": bool(s.authority.store_write),
-            }
-            for s in AMBASSADOR.scopes
-        ]
         out: dict[str, Any] = {
             "catalog_by_provenance": dict(catalog),
             "vector_rows": self.engine._get("vectors").count(),
             "relation_edges": dict(edges),
             "versions": self.engine._get("versions").count(),
-            "your_grant": planes,
+            "your_grant": _planes(AMBASSADOR),
         }
         if not cfg.embedding.enabled:     # the lite profile: say so, and what ranks instead
             out["embedding"] = "off: this instance embeds nothing; near ranks by the lexical index"
@@ -256,6 +279,67 @@ def code_sources(cfg: Any) -> list[dict[str, Any]]:
     return out
 
 
+# What a scope refusal tells the guest would fix it: the grant's strata, named with `over`.
+GUEST_SCOPE_HINT = (
+    "; the guest grant reads dialogue, reference, curated and observed (name them with `over`), "
+    "never the mirror or the interpreted stratum, and has no overlay for `assume`, no version "
+    "plane for `trace` or `reach D`, and no write bit for `do`"
+)
+
+
+class GuestRefusal(PermissionError):
+    """A refusal as the guest reads it: its class, then its reason with every quoted run replaced
+    by its length (`redact_reason`, the log's redaction), so no refusal echoes a name, a path or a
+    text, the asker's own included; a scope refusal adds what the grant reads."""
+
+    def __init__(self, kind: str, reason: str) -> None:
+        from core.sentence.surface import redact_reason
+
+        super().__init__(f"{kind}: {redact_reason(reason)}"
+                         + (GUEST_SCOPE_HINT if kind == "scope" else ""))
+
+
+class Guest:
+    """The guest's tools (dn-guest-principal): the one read under `GUEST`, and counts over the
+    strata it reads. No write tool, no request, and no `status`, which lists the owner's tasks."""
+
+    def __init__(self) -> None:
+        from core.query import QueryEngine
+
+        self.engine = QueryEngine()
+
+    def query(self, sentence: str, trace: bool = False) -> dict[str, Any]:
+        """A sentence under `GUEST`, logged as `mcp`/`guest`. The universe withholds what the
+        stores say of the notes (`hide_mirror`); a refusal is a `GuestRefusal`."""
+        from core.query import GUEST
+        from core.sentence.surface import ask_logged, refusal_class
+
+        try:
+            return ask_logged(sentence, GUEST, surface="mcp", role="guest", engine=self.engine,
+                              trace=bool(trace)).to_dict()
+        except Exception as e:
+            raise GuestRefusal(refusal_class(e) or "error", str(e)) from None
+
+    def overview(self) -> dict[str, Any]:
+        """The catalog's active entries of the classes the grant's strata hold, the curated
+        store's chunks, and the grant. Nothing of the mirror or the interpreted stratum is
+        counted, not even in a total."""
+        from collections import Counter
+
+        from core.kernel.clearance import classes_of
+        from core.query import GUEST
+        from core.stores.catalog import VaultCatalog
+
+        admitted = {str(p) for p in classes_of(GUEST.strata)}
+        entries = VaultCatalog(self.engine.config.paths.vault_catalog).active_entries()
+        catalog = Counter(str(e.provenance) for e in entries if str(e.provenance) in admitted)
+        return {
+            "catalog_by_provenance": dict(catalog),
+            "literature_chunks": self.engine._get("curated").count(),
+            "your_grant": _planes(GUEST),
+        }
+
+
 def _launch_agents() -> list[dict[str, str]]:
     """The stack's LaunchAgents: running (pid) or idle, and the last exit status."""
     import subprocess
@@ -390,15 +474,49 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     ),
 ]
 
+# The guest's table: the one read and the counts, nothing that writes, requests or reads the
+# owner's tasks (dn-guest-principal).
+GUEST_TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
+    (
+        "query",
+        "The one read, under a read-only grant over dialogue, reference (the repository's code and "
+        "docs), curated (papers) and observed: a sentence of the query algebra, not keywords. "
+        'Verbs: near "text" | diffuse S from <ref> [beta b] | reach F|C from <ref> [depth n] '
+        "[back|forward] | walk from <ref> [to <ref>] via <regex over S,F,C> | witness \"<edge "
+        'id>" | read "<ref>" [chunk n]. Connectives and, or, minus, then; adjectives within '
+        "<region>, over <strata>; top k, atleast t, far, not. Name the strata with over: "
+        'near "x" over dialogue, reference, curated, observed. A refusal names what the grant '
+        "reads; trace: true shows the work.",
+        TOOLS[0][2],
+        "query",
+    ),
+    (
+        "overview",
+        "Counts over the strata this grant reads; your grant.",
+        _schema({}, []),
+        "overview",
+    ),
+]
+
+ROLES = ("ambassador", "guest")      # the principals this server can speak for
+
 
 class Server:
-    def __init__(self) -> None:
-        self._amb: Ambassador | None = None
+    """The protocol, for one principal: the Ambassador's surface by default, or the guest's
+    (`role="guest"`: `GUEST_TOOLS`, `GUEST_INSTRUCTIONS`, the `Guest` tools)."""
+
+    def __init__(self, role: str = "ambassador") -> None:
+        if role not in ROLES:
+            raise ValueError(f"role is one of {', '.join(ROLES)}, not {role!r}")
+        self.role = role
+        self.tools = GUEST_TOOLS if role == "guest" else TOOLS
+        self.instructions = GUEST_INSTRUCTIONS if role == "guest" else INSTRUCTIONS
+        self._amb: Ambassador | Guest | None = None
 
     @property
-    def amb(self) -> Ambassador:
+    def amb(self) -> Ambassador | Guest:
         if self._amb is None:
-            self._amb = Ambassador()
+            self._amb = Guest() if self.role == "guest" else Ambassador()
         return self._amb
 
     def handle(self, msg: dict[str, Any]) -> dict[str, Any] | None:
@@ -413,7 +531,7 @@ class Server:
                     "protocolVersion": client,
                     "serverInfo": SERVER_INFO,
                     "capabilities": {"tools": {"listChanged": False}},
-                    "instructions": INSTRUCTIONS,
+                    "instructions": self.instructions,
                 },
             )
         if method == "ping":
@@ -423,7 +541,8 @@ class Server:
                 mid,
                 {
                     "tools": [
-                        {"name": n, "description": d, "inputSchema": s} for n, d, s, _ in TOOLS
+                        {"name": n, "description": d, "inputSchema": s}
+                        for n, d, s, _ in self.tools
                     ]
                 },
             )
@@ -431,7 +550,7 @@ class Server:
             return _ok(mid, {method.split("/")[0]: []})
         if method == "tools/call":
             params = msg.get("params") or {}
-            spec = next((t for t in TOOLS if t[0] == params.get("name")), None)
+            spec = next((t for t in self.tools if t[0] == params.get("name")), None)
             if spec is None:
                 return _err(mid, -32602, f"unknown tool {params.get('name')!r}")
             try:
@@ -458,9 +577,10 @@ def _err(mid: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
 
 
-def serve(stdin: Any = None, stdout: Any = None) -> None:
+def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -> None:
+    """Speak MCP on stdio for `server`, the Ambassador's surface when none is given."""
     stdin, stdout = stdin or sys.stdin, stdout or sys.stdout
-    server = Server()
+    server = server if server is not None else Server()
     for line in stdin:
         if not line.strip():
             continue
