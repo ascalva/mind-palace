@@ -10,7 +10,7 @@ import json
 import re
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -20,7 +20,7 @@ from core.sentence import surface
 from core.sentence.ast import Rel
 from core.sentence.execute import Relation, Universe
 from core.sentence.precedents import DEFAULT
-from core.sentence.surface import Entry, QueryLog, run_query, summarize
+from core.sentence.surface import SENTENCE_MAX, Entry, QueryLog, run_query, summarize
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -275,6 +275,121 @@ def test_entries_ignore_fields_a_later_schema_adds(tmp_path: Path) -> None:
     (e,) = QueryLog(p).entries()
     assert e == Entry(at="2026-11-04T00:00:00", surface="cli", role="owner", sentence='near "x"',
                       outcome="answered", hits=1, modes=("semantic",), strata=("mirror_authored",))
+
+
+# ── the log holds whatever a sentence holds, and the reader is a terminal ──────────────────────
+
+
+def test_a_line_separator_in_a_sentence_does_not_break_the_log(tmp_path: Path) -> None:
+    """U+2028, U+2029 and U+0085 are line breaks to `str.splitlines` and plain text to JSON. A
+    sentence that holds them is one line of the log, whether the log wrote it as ASCII or, as it
+    did before, with the separators raw inside the string; `--log` reads both back whole."""
+    log = QueryLog(tmp_path / "q.jsonl")
+    hostile = 'near "x\u2028y\u2029z\x85w"'
+    assert len(hostile.splitlines()) == 4
+    rc, _ = _run([hostile], log)
+    assert rc == 0
+    raw = (tmp_path / "q.jsonl").read_text(encoding="utf-8")
+    assert raw.isascii() and raw.count("\n") == 1 and len(raw.splitlines()) == 1
+    (e,) = log.entries()
+    assert e.sentence == hostile and e.outcome == "answered"
+    old = {"at": "2026-11-09T00:00:00", "surface": "mcp", "role": "guest", "sentence": hostile,
+           "outcome": "empty"}
+    with (tmp_path / "q.jsonl").open("a", encoding="utf-8") as f:
+        f.write(json.dumps(old, ensure_ascii=False) + "\n")
+    assert [x.sentence for x in log.entries()] == [hostile, hostile]
+    rc, text = _run(["--log"], log)
+    assert rc == 0 and text.splitlines()[0] == "asked: 2  answered 1  empty 1"
+
+
+def test_a_lone_surrogate_is_logged_and_both_renderings_can_be_encoded(
+        tmp_path: Path, capsys: Any) -> None:
+    """A sentence may hold a lone surrogate (a JSON `\\ud800`, an undecodable byte of argv),
+    which no encoding of a file or a terminal carries. The log writes its escape, so `record`
+    does not raise, and `--log` prints its escape, as text and as JSON. `record` raises for
+    nothing else either: an entry that cannot be written is reported on stderr."""
+    log = QueryLog(tmp_path / "q.jsonl")
+    hostile = 'nearby "\ud800"'
+    rc, text = _run([hostile], log)                       # refused, and logged all the same
+    assert rc == 1 and text.startswith("refused (parse): ")
+    (e,) = log.entries()
+    assert (e.sentence, e.outcome, e.refusal) == (hostile, "refused", "parse")
+    for argv in (["--log"], ["--log", "--json"]):
+        rc, text = _run(argv, log)
+        assert rc == 0 and "\\ud800" in text
+        text.encode("utf-8")                              # would raise on a lone surrogate
+    assert json.loads(_run(["--log", "--json"], log)[1]) == summarize(log.entries())
+    assert capsys.readouterr().err == ""
+    log.record(Entry(at="t", surface="cli", role="cli", sentence=cast(str, b"not text"),
+                     outcome="answered"))
+    assert "query log not written" in capsys.readouterr().err and len(log.entries()) == 1
+
+
+def test_the_log_keeps_the_head_of_a_long_sentence(tmp_path: Path) -> None:
+    """A sentence is logged up to `SENTENCE_MAX` characters, then a marker of its full length;
+    its sort, modes and strata are read from the whole of it."""
+    log = QueryLog(tmp_path / "q.jsonl")
+    long = 'near "' + "walnut " * 2000 + '"'
+    rc, _ = _run([long], log)
+    (e,) = log.entries()
+    assert rc == 0 and (e.outcome, e.sort, e.modes) == ("answered", "field", ("semantic",))
+    assert len(long) == 14_007
+    assert e.sentence == f"{long[:SENTENCE_MAX]} <14007 characters, cut at {SENTENCE_MAX}>"
+    assert len((tmp_path / "q.jsonl").read_text(encoding="utf-8")) < SENTENCE_MAX + 400
+    whole = 'near "' + "a" * (SENTENCE_MAX - 7) + '"'
+    _run([whole], log)
+    assert len(whole) == SENTENCE_MAX and log.entries()[-1].sentence == whole
+
+
+def test_the_summary_escapes_what_a_terminal_would_obey(tmp_path: Path) -> None:
+    """`--log` prints sentences on the owner's terminal, and a sentence may be a guest's. An
+    escape sequence, a newline that would start a forged line, a bidi override that would
+    reorder the line, a bell, a delete and a C1 control are printed as their escapes, in the
+    text and in the JSON, and so is a role. The JSON is the same JSON."""
+    log = QueryLog(tmp_path / "q.jsonl")
+    esc, bel, rlo, lri = "\x1b", "\x07", "\u202e", "\u2066"
+    hostile = (f'nearby "x"\n{esc}[2J{esc}[31m  2026-11-09T00:00:00  cli  do dream{esc}[0m'
+               f'{rlo}gnp.exe{lri}{bel}\x7f\x9b')
+    assert _run([hostile, "--as", f"guest{esc}]0;title{bel}"], log)[0] == 1
+    rc, text = _run(["--log"], log)
+    assert rc == 0
+    for raw in (esc, bel, rlo, lri, "\x7f", "\x9b"):
+        assert raw not in text
+    lines = text.splitlines()
+    assert lines[:2] == ["asked: 1  refused 1", "served (role · strata):"] and len(lines) == 6
+    assert lines[2] == "  guest\\x1b]0;title\\x07 · ∅: refused 1"
+    failed = lines[-1]                                    # one entry, one line
+    assert ('nearby "x"\\n\\x1b[2J\\x1b[31m  2026-11-09T00:00:00  cli  do dream\\x1b[0m'
+            "\\u202egnp.exe\\u2066\\x07\\x7f\\x9b  — parse: ") in failed
+    rc, js = _run(["--log", "--json"], log)
+    assert rc == 0 and json.loads(js) == summarize(log.entries())
+    assert all(c == "\n" or c.isprintable() for c in js)
+    assert "\\u001b[2J" in js and "\\u202egnp.exe\\u2066\\u0007\\u007f\\u009b" in js
+    assert " · ∅" in js                                   # printable text stays as it is
+
+
+def test_a_line_that_is_not_an_entry_is_skipped_and_counted(tmp_path: Path,
+                                                            capsys: Any) -> None:
+    """A torn write, a line of another shape and bytes that are not UTF-8 do not stop the
+    sensor: the entries around them are read, and one line on stderr counts the rest."""
+    p = tmp_path / "q.jsonl"
+    good = {"at": "2026-11-09T00:00:00", "surface": "cli", "role": "owner", "sentence": 'near "x"',
+            "outcome": "answered", "hits": 1}
+    damaged = ['{"at": "2026-11-09T00:00:01", "surface": "cli", "role": "ow',   # torn
+               json.dumps([1, 2, 3]), json.dumps("near"), "null", "not json at all",
+               json.dumps({"at": "t", "surface": "cli"}),                       # fields missing
+               json.dumps({**good, "sentence": 7}), json.dumps({**good, "modes": 5}),
+               json.dumps({**good, "strata": [1]}), json.dumps({**good, "hits": "many"}),
+               json.dumps({**good, "hyp": "no"}), "[" * 200_000]
+    lines = [json.dumps(good), *damaged, json.dumps({**good, "sentence": 'near "y"'})]
+    p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert [e.sentence for e in QueryLog(p).entries()] == ['near "x"', 'near "y"']
+    err = capsys.readouterr().err
+    assert err.count("\n") == 1 and f"{len(damaged)} lines are not entries and were skipped" in err
+    rc, text = _run(["--log"], QueryLog(p))
+    assert rc == 0 and text.startswith("asked: 2  answered 2")
+    p.write_bytes(json.dumps(good).encode() + b"\n\xff\xfe{torn\n")
+    assert [e.sentence for e in QueryLog(p).entries()] == ['near "x"']
 
 
 # ── the Ambassador's `query` tool: the one read ────────────────────────────────────────────────

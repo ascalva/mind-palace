@@ -22,6 +22,7 @@ and `witness` of each answers nothing; the Ambassador sees every one."""
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import os
 import subprocess
@@ -42,7 +43,7 @@ from core.kernel.provenance import Provenance
 from core.kernel.scope import Privilege, Stratum, StratumScope, WorldReach
 from core.query import AMBASSADOR, GUEST, OPERATOR, QueryEngine
 from core.sentence import compile_sentence
-from core.sentence.surface import QueryLog
+from core.sentence.surface import SENTENCE_MAX, QueryLog, run_query
 from core.sentence.types import IllScopedSentence
 from core.stores.causal_edges import CausalEdge, open_causal_edge_store
 from core.stores.chatlog import ChatUtterance, open_chatlog_store
@@ -599,6 +600,45 @@ def test_an_edge_is_shown_only_when_it_ends_at_a_commit_or_a_tracked_file(
     assert {h["detail"].get("witness") for h in json.loads(text)["hits"]} >= set(ids.values())
     error, text = _call(amb, "query", sentence=f'reach F from "{CODE}"')
     assert {h["ref"] for h in json.loads(text)["hits"]} >= set(cited)
+
+
+# ── the query log, which the owner reads on a terminal ─────────────────────────────────────────
+
+
+def test_a_guests_sentence_cannot_break_the_log_or_write_into_its_reader(
+        palaces: tuple[Fixture, Fixture], base: Path) -> None:
+    """dn-guest-principal §8. A guest's sentences enter the instance's query log, and
+    `palace query --log` prints the failed ones on the owner's terminal. A sentence with a line
+    separator, with an escape sequence and a forged line, with a bidi override, with a lone
+    surrogate and one of 300,000 characters each take one ASCII line of the log, the long one
+    cut; the log reads back whole, and both renderings print every such character escaped."""
+    a, _ = palaces
+    guest = _server(a, "guest")
+    esc = "\x1b"
+    hostile = ['near "x\u2028y" over dialogue',
+               f'near "x" over dialogue\n{esc}[2J{esc}[31mFAKE: the owner approved{esc}[0m',
+               'nearby "walnut" \u202eeugolaid revo',
+               'near "\ud800" over dialogue',
+               'near "' + "A" * 300_000 + '" over mirror']
+    for sentence in hostile:
+        _call(guest, "query", sentence=sentence)
+    raw = (base / "q.jsonl").read_text(encoding="utf-8")
+    assert raw.isascii() and len(raw.splitlines()) == len(hostile) == raw.count("\n")
+    assert len(raw) < len(hostile) * (SENTENCE_MAX + 1000)
+    log = QueryLog(base / "q.jsonl")
+    entries = log.entries()
+    assert [e.role for e in entries] == ["guest"] * len(hostile)
+    assert [e.sentence for e in entries][:4] == hostile[:4]
+    assert entries[4].sentence.endswith(f"<300019 characters, cut at {SENTENCE_MAX}>")
+    for flags in ([], ["--json"]):
+        out = io.StringIO()
+        assert run_query(["--log", *flags], out=out, log=log) == 0
+        text = out.getvalue()
+        text.encode("utf-8")                              # no lone surrogate reaches the terminal
+        assert all(c == "\n" or c.isprintable() for c in text)
+        assert not any(line.lstrip().startswith("FAKE") for line in text.splitlines())
+        assert "FAKE: the owner approved" in text         # escaped in place, not dropped
+    assert json.loads(text)["asked"] == len(hostile)
 
 
 def test_overview_counts_only_what_the_grant_reads_and_status_is_absent(

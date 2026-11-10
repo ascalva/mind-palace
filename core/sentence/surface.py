@@ -10,10 +10,14 @@ the role that asked, the strata its clauses read, the modes, and the outcome: `a
 `unsupported`) and its reason, or `requested` for a command the ingress spooled. The log holds no
 note text: a sentence is the asker's own words and the hits are counted, never named; a command's
 string literals, which may be corpus text (`do capture "…"`), are logged as their lengths
-(`redact_command`). `summarize` reads the log back as the sensor the brainstorm asked for — which
-strata serve which roles, which translations fail — and `palace query --log` renders it. A sensor
-never breaks the instrument: a log that cannot be written is reported on stderr and the answer is
-returned anyway.
+(`redact_command`). A sentence is whatever its asker typed, and the asker may be a guest: the log
+keeps its first `SENTENCE_MAX` characters, and a line is ASCII, every other character written as
+its JSON escape, so nothing a sentence holds can end a line. `summarize` reads the log back as the
+sensor the brainstorm asked for — which strata serve which roles, which translations fail — and
+`palace query --log` renders it, each character that is not printable as its escape, since the
+reader is a terminal. A sensor never breaks the instrument: a log that cannot be written is
+reported on stderr and the answer is returned anyway, and a line that is not an entry is skipped
+and counted.
 
 `run_query` is `palace query` (scripts/palace.py): read-only, under `sentence_grant()` — the
 Ambassador's grant with the hypothetical overlay the owner granted on 2026-11-04 (the note's
@@ -24,6 +28,7 @@ grants nothing: a command the CLI speaks goes to the ingress as the role `cli`, 
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import time
@@ -52,6 +57,7 @@ from core.sentence.types import (
 
 LOG_NAME = "query_log.jsonl"
 REASON_MAX = 240   # a refusal's reason, truncated: the log is a sensor, not a transcript
+SENTENCE_MAX = 4096   # a sentence, cut at this many characters with a marker of its full length
 MAX_COMMAND_BYTES = 32 * 1024     # the ingress's cap (`core/ingest/ingress.py`), checked first
 USAGE = ('usage: palace query "<sentence>" [--json] [--no-plan] [--trace] [--as <role>]\n'
          "       palace query --log [--json]      the sensor: strata by role, failed translations")
@@ -82,30 +88,67 @@ class Entry:
 _FIELDS = {f.name for f in fields(Entry)}
 
 
+def _read_entry(line: str) -> Entry | None:
+    """One line of the log as an `Entry`, or `None` when it is not one: not JSON, not an object,
+    a field missing, or a field of another type. A field a later schema added is ignored."""
+    try:
+        row = json.loads(line)
+        if not isinstance(row, dict):
+            return None
+        d = {k: v for k, v in row.items() if k in _FIELDS}
+        d["modes"], d["strata"] = tuple(d.get("modes", ())), tuple(d.get("strata", ()))
+        entry = Entry(**d)
+    except (TypeError, ValueError, RecursionError):
+        return None
+    texts = (entry.at, entry.surface, entry.role, entry.sentence, entry.outcome, entry.refusal,
+             entry.reason, entry.sort, *entry.modes, *entry.strata)
+    counts = isinstance(entry.hits, int) and isinstance(entry.ms, int)
+    if not (all(isinstance(t, str) for t in texts) and counts and isinstance(entry.hyp, bool)):
+        return None
+    return entry
+
+
 @dataclass(frozen=True)
 class QueryLog:
-    """An append-only JSON-lines file under the data dir; one `Entry` per sentence asked."""
+    """An append-only JSON-lines file under the data dir; one `Entry` per sentence asked. A line
+    is ASCII, every other character written as its JSON escape, and ends at `\\n`, the one
+    separator: a sentence may hold any character, a line or paragraph separator or a lone
+    surrogate among them, and none of them ends a line or fails to encode."""
 
     path: Path
 
     def record(self, entry: Entry) -> None:
+        """Append one entry. It cannot raise: the sensor never breaks the instrument, so a log
+        that cannot be written is reported on stderr and the answer is returned anyway."""
         try:
+            line = json.dumps(asdict(entry), ensure_ascii=True)
             self.path.parent.mkdir(parents=True, exist_ok=True)
             with self.path.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
-        except OSError as e:   # the sensor never breaks the instrument
-            print(f"query log not written ({self.path}): {e}", file=sys.stderr)
+                f.write(line + "\n")
+        except Exception as e:
+            with contextlib.suppress(Exception):
+                print(f"query log not written ({self.path}): {e}", file=sys.stderr)
 
     def entries(self) -> list[Entry]:
+        """The entries, oldest first. The file is split at `\\n` alone: `str.splitlines` also
+        splits at U+2028, U+2029 and U+0085, which a line written before the log was ASCII may
+        hold inside a sentence. A line that is not an entry, torn or of another shape, is
+        skipped, and one line on stderr says how many were."""
         if not self.path.exists():
             return []
         out: list[Entry] = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
+        skipped = 0
+        for line in self.path.read_bytes().decode("utf-8", errors="replace").split("\n"):
             if not line.strip():
                 continue
-            d = {k: v for k, v in json.loads(line).items() if k in _FIELDS}
-            d["modes"], d["strata"] = tuple(d.get("modes", ())), tuple(d.get("strata", ()))
-            out.append(Entry(**d))
+            entry = _read_entry(line)
+            if entry is None:
+                skipped += 1
+            else:
+                out.append(entry)
+        if skipped:
+            print(f"query log ({self.path}): {skipped} lines are not entries and were skipped",
+                  file=sys.stderr)
         return out
 
 
@@ -283,9 +326,13 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
 
 def _entry(text: str, surface: str, role: str, started: float, plan: Plan | None,
            precedents: Precedents, **rest: Any) -> Entry:
+    """The log's entry for `text`: its shape read from the whole text, the sentence itself kept
+    up to `SENTENCE_MAX` characters and followed, when it was longer, by its full length."""
     sort, modes, strata = _shape(text, plan, precedents)
+    kept = text if len(text) <= SENTENCE_MAX else (
+        f"{text[:SENTENCE_MAX]} <{len(text)} characters, cut at {SENTENCE_MAX}>")
     return Entry(at=datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds"),
-                 surface=surface, role=role, sentence=text, sort=sort, modes=modes, strata=strata,
+                 surface=surface, role=role, sentence=kept, sort=sort, modes=modes, strata=strata,
                  ms=int((time.perf_counter() - started) * 1000), **rest)
 
 
@@ -327,7 +374,26 @@ def summarize(entries: Iterable[Entry]) -> dict[str, Any]:
     }
 
 
+def _escaped(line: str) -> str:
+    """`line` with each character that is not printable written as its escape (`\\x1b`, `\\n`,
+    `\\u202e`): a control, a line or paragraph separator, a bidi or other format mark, a lone
+    surrogate."""
+    return "".join(c if c.isprintable() else c.encode("unicode_escape").decode("ascii")
+                   for c in line)
+
+
+def _json_text(obj: Any) -> str:
+    """`obj` as indented JSON for a terminal. Text outside ASCII stays readable, and each
+    character that is not printable, the indentation's own line breaks aside, is written as its
+    JSON escape: the output is the same JSON and holds no control, separator or lone surrogate."""
+    text = json.dumps(obj, ensure_ascii=False, indent=1)
+    return "".join(c if c == "\n" or c.isprintable() else json.dumps(c)[1:-1] for c in text)
+
+
 def render_summary(s: Mapping[str, Any]) -> str:
+    """The sensor's summary as lines for a terminal. A sentence, a role and a reason are text
+    someone typed, a guest among them, so every line is escaped (`_escaped`): an entry stays on
+    its own line and writes no control sequence into the terminal that prints it."""
     counts = "  ".join(f"{k} {v}" for k, v in s["outcomes"].items())
     lines = [f"asked: {s['asked']}  {counts}".rstrip()]
     if s["served"]:
@@ -339,7 +405,7 @@ def render_summary(s: Mapping[str, Any]) -> str:
     if s["failed"]:
         lines.append("failed translations (last 10):")
         lines += [f"  {f['at']}  {f['role']}  {f['sentence']}  — {f['why']}" for f in s["failed"]]
-    return "\n".join(lines)
+    return "\n".join(map(_escaped, lines))
 
 
 # ── rendering ──────────────────────────────────────────────────────────────────────────────────
@@ -412,8 +478,7 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
     as_json = "--json" in flags
     if "--log" in flags:
         s = summarize((log if log is not None else default_log()).entries())
-        print(json.dumps(s, ensure_ascii=False, indent=1) if as_json else render_summary(s),
-              file=out)
+        print(_json_text(s) if as_json else render_summary(s), file=out)
         return 0
     text = " ".join(words)
     try:
