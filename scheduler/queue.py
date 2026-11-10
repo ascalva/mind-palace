@@ -84,7 +84,9 @@ _IDEMPOTENT_KINDS = frozenset(
      "dialogue_sync", "inbox_capture",
      # the embed drain (dn-two-phase-ingestion, ING-20): idempotent at the plane, so the one row
      # the writer and the housekeeping enqueue folds every later request into it
-     "embed"})
+     "embed",
+     # the repositories' sync (dn-palace-lite): idempotent by the writer's UNCHANGED check
+     "repository_sync"})
 
 # The kinds a crash may leave RUNNING that `sweep_orphans` puts back in the queue rather than
 # failing: the idempotent kinds; the ingress's own kind (`core/ingest/ingress.py` INGRESS_KINDS),

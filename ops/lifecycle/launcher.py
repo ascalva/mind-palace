@@ -488,6 +488,7 @@ def build_components(cfg: Config) -> Components:
     from core.ingest.code_corpus import build_code_corpus_sync
     from core.integrator import build_integrator
     from core.interface import CoreInbox
+    from core.kernel.config.loader import lexical_code
     from core.librarian import build_librarian
     from core.models import Registry, TwoSlotLoader
     from core.models.ollama_client import OllamaClient
@@ -506,11 +507,13 @@ def build_components(cfg: Config) -> Components:
         CODE_BACKFILL_KIND,
         CODE_REBUILD_KIND,
         CODE_SYNC_KIND,
+        REPOSITORY_SYNC_KIND,
         code_backfill_handler,
         code_rebuild_handler,
         code_sync_handler,
         enqueue_code_backfill,
         enqueue_code_sync,
+        enqueue_repository_sync,
     )
     from scheduler.cron import (
         CHAT_EVENTS_KIND,
@@ -653,6 +656,12 @@ def build_components(cfg: Config) -> Components:
         # derived into the plane through the writer's own stores; registered always, ENQUEUED by
         # the writer after a lazy landing and by the housekeeping below under `[embedding] lazy`
         EMBED_KIND: embed_handler(cfg, stores=ingress_stores),
+        # the lexical code source (dn-palace-lite): each repository's files at its ref, landed by
+        # the writer with no plane row, in place of the code embed lane when the code keeps no
+        # vectors; ENQUEUED by the housekeeping and the catch-up below only then
+        REPOSITORY_SYNC_KIND: library_handler(
+            cfg, "sync_repository", [{"name": r.name} for r in cfg.ingestion.code.repositories],
+            stores=ingress_stores),
     }
     supervisor = Supervisor(queue=queue, loader=loader, handlers=handlers, telemetry=telemetry)
     # One watcher per watched dir: the owner's vault + the Claude Code transcripts (bp-069). Both
@@ -686,7 +695,9 @@ def build_components(cfg: Config) -> Components:
             enqueue_chat_events(queue, router)  # L1 action-log projection — its delayed rate
         if cfg.integrate.enabled:           # its own agent type — derives, never ingests (bp-071)
             enqueue_integrate(queue, router)  # C-fiber proven edges from L1 + the ledger
-        if cfg.ingestion.code.enabled:      # code embed lane, opt-in (bp-098 / note §2.7):
+        if lexical_code(cfg):               # the code keeps no vectors (dn-palace-lite): its
+            enqueue_repository_sync(queue, router)  # repositories land by the writer instead
+        elif cfg.ingestion.code.enabled:    # code embed lane, opt-in (bp-098 / note §2.7):
             enqueue_code_sync(queue, router)  # INCREMENTAL only; the heavy SEED is `code-seed`
         if cfg.embedding.lazy:              # two-phase ingestion: what landed without a vector
             enqueue_embed(queue, router)      # is derived at housekeeping cadence too (ING-20)
@@ -698,7 +709,9 @@ def build_components(cfg: Config) -> Components:
             enqueue_vault_sync(queue, router)  # reconcile the corpus; the Job return is discarded
         if cfg.ingestion.transcripts.enabled:
             enqueue_chat_sync(queue, router)  # startup backfill of every closed session (bp-068)
-        if cfg.ingestion.code.enabled and _code_backfill_incomplete(cfg, code_driver):
+        if lexical_code(cfg):
+            enqueue_repository_sync(queue, router)   # what moved while the daemon was down
+        elif cfg.ingestion.code.enabled and _code_backfill_incomplete(cfg, code_driver):
             enqueue_code_backfill(queue, router)   # history not yet fully embedded (bp-099 D1)
         enqueue_inbox_capture_if_waiting(queue, router, cfg)   # what a crash or `talk` left
 
@@ -828,6 +841,14 @@ class Launcher:
         # Ahead of preflight deliberately — an unrunnable state should not first cost the operator
         # preflight's uncosted 120 s Ollama probe (finding-0195). Same shape as `reset()`'s guard
         # (:1124), with liveness identity-checked so a recycled pid cannot brick start forever.
+        if not self.cfg.embedding.enabled:
+            # the lite profile (dn-palace-lite): the daemon wires the embedder's consumers (the
+            # librarian, the code embed lane, the airlock's ranking), and an instance that embeds
+            # nothing has none to wire, so it runs no daemon; its sources sync on demand
+            print(f"refusing to start — instance {self.cfg.instance.id!r} embeds nothing "
+                  "([embedding] enabled = false), and the daemon builds the embedder's consumers. "
+                  "Sync it on demand: `palace repo-sync`.")
+            return 1
         prev = self.runs.last()
         if prev is not None and prev.active and _supervisor_alive(prev):
             print(f"refusing to start — run #{prev.id} (pid {prev.pid}) is live. "
@@ -1715,6 +1736,42 @@ class Launcher:
         print(f"relate: {build_relation_detector(self.cfg, max_pairs=max_pairs).run()}")
         return 0
 
+    def repo_sync_now(self) -> int:
+        """The lexical code source, on demand (dn-palace-lite): each repository's files at its ref
+        landed by the writer, a changed file a new version, a file gone from the ref retired, no
+        plane row written and no embedder called. Refused beside a live daemon, whose scheduler
+        runs the same script as its `repository_sync` job, and while another writer holds the
+        instance's supervisor lock."""
+        from core.kernel.config.loader import lexical_code
+
+        if not lexical_code(self.cfg):
+            print("repo-sync: this instance's code is not a lexical source ([ingestion.code] "
+                  "enabled = true with embed = false, or [embedding] enabled = false)")
+            return 2
+        if self._refuse_if_live("repo-sync"):
+            return 1
+        from core.ingest import ingress
+        from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
+
+        lock = SupervisorLock(namespaces_of(self.cfg).supervisor_lock)
+        try:
+            lock.acquire()
+        except SupervisorLockHeld:
+            print("refusing repo-sync — another writer holds the instance's supervisor lock")
+            return 1
+        try:
+            stores = ingress.build_stores(self.cfg)
+            for repo in self.cfg.ingestion.code.repositories:
+                # a first sync is a plan of fresh stores on distinct paths, which lands a stage at
+                # a time (`Writer.land_batch`); a later one, which retires, lands effect by effect
+                receipt = ingress.run_library(self.cfg, "sync_repository", {"name": repo.name},
+                                              stores=stores, batch=True)
+                timing = f", seconds {receipt['timing']}" if receipt.get("timing") else ""
+                print(f"repo-sync ({repo.name} at {repo.ref}): {receipt['effects']}{timing}")
+        finally:
+            lock.release()
+        return 0
+
     def vault_sync_now(self) -> int:
         """One full vault-lane rescan, on demand: raw, vectors (chunk-level amendment), catalog,
         versions and attestations — the same lane the daemon's `vault_sync` job runs."""
@@ -1731,6 +1788,10 @@ class Launcher:
         every item pending, so this is also the re-embedding after a model change. The lexical
         backfill runs first, so this is also the re-derivation of a lexical index whose tokenizer
         changed."""
+        if not self.cfg.embedding.enabled:
+            print("embed: this instance embeds nothing ([embedding] enabled = false); there is "
+                  "nothing to derive")
+            return 0
         if self._refuse_if_live("embed"):
             return 1
         from core.ingest import ingress

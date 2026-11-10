@@ -47,7 +47,9 @@ _PINNED_KINDS = frozenset(
      # dialogue handoff and the inbox's capture call no chat model
      "script", "code_observe", "dialogue_sync", "inbox_capture",
      # the embed drain calls the embedder directly, like `code_sync`, and no chat model
-     "embed"})
+     "embed",
+     # the lexical code source's sync (dn-palace-lite): git and the writer, no model at all
+     "repository_sync"})
 
 
 @dataclass(frozen=True)

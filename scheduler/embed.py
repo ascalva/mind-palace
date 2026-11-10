@@ -38,6 +38,8 @@ def embed_handler(cfg: Config, *, stores: Callable[[], Any] | None = None) -> Ha
         return opened["s"]
 
     def handle(_job: Job) -> str:
+        if not cfg.embedding.enabled:     # the lite profile: nothing has, or will have, a vector
+            return "embed: this instance embeds nothing; there is nothing to derive"
         # the derived layers in order: the lexical units of any item the index lacks (all of
         # them after a tokenizer change, which resets the index first), then the vectors
         lexical = derive_lexical(the_stores())
