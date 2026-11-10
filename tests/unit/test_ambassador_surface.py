@@ -444,6 +444,31 @@ def test_a_process_with_no_stderr_drops_what_a_tool_prints(
     assert "Traceback" not in out.getvalue() and "about to fail" not in out.getvalue()
 
 
+def test_a_reply_no_encoding_carries_is_written_as_ascii() -> None:
+    """A sentence may hold a lone surrogate, and an answer repeats its sentence. The stream is
+    UTF-8, which has no encoding for one: the reply is written as ASCII, the same JSON, and the
+    server goes on to the next request. A reply the stream can encode is written as it was."""
+    from agents.ambassador import mcp
+
+    class Echo:
+        def query(self, sentence: str) -> dict[str, Any]:
+            return {"sentence": sentence}
+
+    server = mcp.Server()
+    server._amb = Echo()  # type: ignore[assignment]
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="utf-8")
+    hostile, plain = 'near "\ud800"', 'near "café ∅"'
+    mcp.serve(_calls(("query", {"sentence": hostile}), ("query", {"sentence": plain})), stream,
+              server)
+    first, second = raw.getvalue().decode("utf-8").splitlines()
+    assert first.isascii() and "\\ud800" in first
+    assert "café ∅" in second                       # not escaped: readable as before
+    for line, sentence in ((first, hostile), (second, plain)):
+        text = json.loads(line)["result"]["content"][0]["text"]
+        assert json.loads(text) == {"sentence": sentence}
+
+
 def test_the_opencode_reader_keeps_text_parts_of_top_level_sessions(tmp_path: Path) -> None:
     from edge.opencode_sessions import export_sessions
 
