@@ -1,0 +1,320 @@
+% A self-contained article for one pull request.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+% The measurements (docs/experiments/palace-lite-2026-11-09.md).
+\newcommand{\nfiles}{2{,}021}
+\newcommand{\nunits}{27{,}059}
+\newcommand{\tfull}{10.9}
+\newcommand{\rssfull}{271}
+\newcommand{\storemb}{111}
+\newcommand{\lexmb}{86}
+\newcommand{\tnoop}{2.5}
+\newcommand{\tincr}{2.6}
+\newcommand{\nchanged}{six}
+\newcommand{\hits}{8}
+\newcommand{\rghits}{all 11}
+\newcommand{\rgfiles}{8}
+\newcommand{\qwarm}{163}
+\newcommand{\rgms}{50}
+\newcommand{\mcpinit}{0.71}
+\newcommand{\mcpq}{1.30}
+\newcommand{\mcprss}{168}
+\newcommand{\runload}{with no other process above 30\% of a core and a one-minute load of 1.8 to 2.2}
+
+\title{A Palace Without Vectors: Lexical Ingestion of Source Repositories for a Coding Agent}
+\author{Alberto Serrano-Calva}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store that lands every item through one writer can make the embedding of an item a
+derived field, written after the item lands. We take the next step and make it optional: an
+instance may embed nothing at all, and within an instance that embeds, a single source may keep no
+vectors. The writer decides per item whether its plane rows are written before its key, deferred to
+a drain, or never written, and the query engine ranks every item without a vector by a BM25 index
+over the same chunks, labelling each such answer. The first deployment is a code instance that
+lands the files of a git repository at a ref, read through git's object store, for a coding agent
+to query over the Model Context Protocol. It ingests the \nfiles{} files of the store's own
+repository (\nunits{} lexical units) in \tfull{}~s with a peak resident memory of \rssfull{}~MB and
+\storemb{}~MB on disk, and re-syncs after a commit in \tincr{}~s. On eleven lookups with known
+answers it ranks a correct file in its top five for \hits{}; ripgrep's output holds a correct
+file for \rghits{} of them but prints a median of \rgfiles{} files to open. A query takes a median
+of \qwarm{}~ms warm, against \rgms{}~ms for ripgrep, and the server answers its first query
+\mcpq{}~s after it is spawned.
+\end{abstract}
+
+\section{Introduction}
+
+The store this article extends is a local, private knowledge store served to language models
+over the Model Context Protocol. It lands every item through one writer, in a fixed order with the
+idempotence key last, and computes over its items a vector plane of chunk embeddings, a lexical
+index, version chains, a citation graph between files, and signed relations between notes. A
+sentence algebra reads them: \code{near} ranks by similarity, \code{reach} and \code{walk} follow
+edges, \code{trace} follows versions, \code{read} returns text.
+
+Two-phase ingestion made an item complete without its vector: the vector is written afterwards by
+a drain, and a query that needs a vector not yet written ranks the item lexically and says so. Three
+costs remained for instances that need no vectors. The default instance's code was a snapshot,
+because its code lane embeds every changed file and was turned off; a coding agent asking the store
+about its own code read it as it was at the last snapshot, while a text search of the checkout read it as
+it is. A small device cannot run an embedding server beside the store. And an instance whose job is
+lookup has no use for the language model that runs the store's dreaming and relation passes.
+
+The contributions are:
+\begin{itemize}
+\item two switches, one per instance and one per source, under which items land with their lexical
+units, versions and attestations and no vector, with no embedder built and no plane opened when the
+whole instance embeds nothing (\cref{sec:profile});
+\item a source that is a git repository's tree at a ref, read through the object store, with a mark
+of the commit landed and hooks that keep it current (\cref{sec:repo});
+\item the behaviour of every verb of the algebra without vectors (\cref{sec:verbs});
+\item measurements of a code instance over the store's own repository against ripgrep
+(\cref{sec:eval}), and the design of a shared embedding service for the instances that do want
+vectors (\cref{sec:future}).
+\end{itemize}
+
+\section{Background}
+
+\paragraph{The writer.} A request is a script; evaluating it under a role yields a plan of effects
+(store, retire, link, run), and the one writer lands the plan effect by effect. A store lands its
+raw bytes, then its derived rows, then its version, its attestation and, last, its catalog key;
+the UNCHANGED check reads the key and a witness that the derived rows are held, so a landing
+interrupted anywhere converges when run again. Under two-phase ingestion the witness of a lazy
+store is its lexical units, and the drain later writes the plane rows of every item whose current
+version the plane does not hold. Keeping a derived field consistent with its source is the
+classical problem of materialized view maintenance \citep{gupta1995views}; here the view is the
+vector, and the question becomes whether it must exist at all.
+
+\paragraph{Lexical retrieval.} The lexical index holds, for every chunk of every current version,
+its term counts, and scores a query by BM25 \citep{robertson2009bm25},
+\begin{equation}
+  s(q,d) = \sum_{t\in q} \ln\!\Big(1+\frac{n-\mathit{df}_t+\tfrac12}{\mathit{df}_t+\tfrac12}\Big)
+  \cdot \frac{\mathit{tf}_{t,d}\,(k_1+1)}{\mathit{tf}_{t,d}+k_1\big(1-b+b\,\tfrac{|d|}{\overline{|d|}}\big)},
+\end{equation}
+with $k_1=1.2$ and $b=0.75$, the document frequencies read from the current units at query time.
+BM25 remains a strong baseline against dense retrieval, and a robust one out of domain
+\citep{karpukhin2020dpr,thakur2021beir}; on code, natural-language queries against identifiers are
+harder for both \citep{husain2019codesearchnet}.
+
+\section{The lite profile}\label{sec:profile}
+
+\begin{definition}
+For an item at path $p$ landed by a store of an instance $I$, with $S(p)$ the source whose space
+holds $p$ (none for a path no source owns),
+\begin{align*}
+  \mathrm{keeps}(p) &= I.\mathit{embeds} \wedge \big(S(p)=\bot \vee S(p).\mathit{embed}\big),\\
+  \mathrm{now}(p) &= \mathrm{keeps}(p) \wedge \neg\mathit{lazy}, \qquad
+  \mathrm{lexical}(p) = \mathit{lazy} \vee \neg\mathrm{keeps}(p).
+\end{align*}
+A store writes its plane rows before its key when $\mathrm{now}(p)$; its UNCHANGED witness is the
+lexical index when $\mathrm{lexical}(p)$, else the plane; and a plan asks for the drain only when it
+lands an item with $\mathit{lazy}\wedge\mathrm{keeps}(p)$.
+\end{definition}
+
+\Cref{alg:store} is the store's landing under these predicates. Only the shaded decisions are new:
+the order of the stages, the key last, is the writer's as it was.
+
+\begin{algorithm}[t]
+\caption{A store's landing}\label{alg:store}
+\begin{algorithmic}[1]
+\Procedure{Store}{$e$}
+  \State admit $e$ by the rules R1--R8; \textbf{if} UNCHANGED($e$) \textbf{return} unchanged
+  \State $r \gets$ raw bytes of $e$, and its chunks
+  \If{the lexical index is open} land the units of $r$ \EndIf
+  \If{$\mathrm{now}(e.\mathit{path})$} embed the atoms the plane lacks; land the plane rows \EndIf
+  \State record the version; attest; write the key \Comment{the key last}
+\EndProcedure
+\Function{Unchanged}{$e$}
+  \State \Return key active at $e$'s digest and label $\wedge$
+    $\big(\mathrm{lexical}(e.\mathit{path})$ ? units current : plane rows current$\big)$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\begin{proposition}\label{prop:none}
+In an instance with $I.\mathit{embeds}=\mathit{false}$, no landing, drain or query constructs an
+embedder or a vector store, and every landing is idempotent.
+\end{proposition}
+\begin{proof}[Sketch]
+$\mathrm{now}(p)$ is false for every $p$, so no store reaches the embedding step, and the price of a
+plan charges no embedding. The stores the writer and the query engine are handed hold an empty
+plane that refuses writes, and the factories that build an embedder or open a plane refuse for such
+an instance, so any path that reached them would fail rather than construct one. The test suite
+replaces the embedder's, the model client's and the vector store's constructors with ones that fail
+the test, then lands a repository and a vault and asks \code{near}, \code{read}, \code{reach} and
+\code{diffuse} of them.
+$\mathrm{lexical}(p)$ is true for every $p$, so the UNCHANGED witness is the lexical index, written
+before the key: a second landing of the same bytes finds key and units current and lands nothing,
+and an interrupted one finds the key absent and lands again.
+\end{proof}
+
+Within an instance that embeds, a source with $\mathit{embed}=\mathit{false}$ keeps no vectors
+while every other source keeps its own: the drain's pending set is computed over the plane's
+classes, and the code's class is not one of them, so the drain never derives what the source
+declined. The default instance's configuration is unchanged: both switches default to embedding,
+and an instance that embeds every item synchronously opens no lexical index.
+
+\section{A repository as a source}\label{sec:repo}
+
+A repository source is the tree of a commit that a ref names, read through git's object store
+\citep{chacon2014progit}: one \code{rev-parse}, one \code{ls-tree}, and one \code{cat-file
+--batch} process per batch of blobs. Its items are the tree's regular text files, at
+\code{code/<name>/<path>}, labelled \code{code}, landed in a place of the reference stratum that
+keeps a version chain per file. Nothing outside the tree is read: no untracked file, uncommitted
+edit, symlink target or data directory, and git is told never to fetch. The foundation's paths and
+the tool directories are not items. The sync script stores every file and retires every landed file
+the ref no longer has; once a plan has stored every file it listed, the commit is recorded as
+landed, and the store reports how many commits the ref has moved past it.
+
+A sync reads every blob of the tree, $O(B)$ for $B$ bytes, and lands only the files whose bytes
+changed, each with its new units, its next version and an attestation. Main moves only by a merge
+or a commit, so the repository's own hooks keep the instance current: after every merge or pull
+on main, and every commit there, the hook runs the sync if the instance has landed once.
+
+The code instance is a named instance with no embedder, no scheduled model, no vault, transcripts
+or dialogue, and its state under a root it declares outside every checkout: a named instance's
+state used to live inside the checkout that first ran it, where removing a worktree removed it.
+
+\section{The verbs without vectors}\label{sec:verbs}
+
+\begin{table}[t]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}lX@{}}
+\toprule
+verb & without a vector \\
+\midrule
+\code{near} & the clause's vectorless nodes ranked by BM25 on a scale of their own, each hit
+labelled \code{ranked\_by}; the notes count pending and vectorless nodes apart \\
+\code{diffuse S}, \code{via S} & the backbone $S$ (cosine $\ge\sigma$) has no edge at a
+vectorless node; the answer covers the nodes with vectors, and the notes say so \\
+\code{reach F}, \code{via F} & unchanged: the citation graph needs no vector \\
+\code{trace} & unchanged: one version per sync that changed the file \\
+\code{read} & unchanged: a landed file is read from the raw store by its digest \\
+\code{witness}, \code{relate} & unchanged \\
+combinators & unchanged: they compose the fields and regions above \\
+\bottomrule
+\end{tabularx}
+\caption{The algebra's verbs in an instance or source without vectors.}\label{tab:verbs}
+\end{table}
+
+\Cref{tab:verbs} lists what each verb reads and what it does when an item has no vector. The
+design rule is the two-phase one: a query never invents a vector. A node without one is ranked
+lexically and labelled, or it is reported; the label distinguishes a pending vector, which the
+drain will write, from an absent one, which nothing will.
+
+\section{Evaluation}\label{sec:eval}
+
+All runs are on one laptop (Apple M2 Pro, 32 GB), the store's own repository as the source,
+\runload{}. The lookups and their known answers are in the measurement record, with the
+script that repeats them.
+
+\paragraph{Ingestion.} The first sync of the repository at \code{main} lands \nfiles{} files as
+\nunits{} lexical units in \tfull{}~s, with a peak resident memory of \rssfull{}~MB; the
+instance's stores take \storemb{}~MB, of which the lexical index is \lexmb{}~MB. A second sync with
+no commit lands nothing in \tnoop{}~s. After one commit that touched \nchanged{} files the sync
+lands them in \tincr{}~s. The lexical stage is two thirds of a full ingestion, one transaction of
+27{,}000 units and 2.5 million postings; a sync that lands nothing spends 0.47~s in the writer and
+the rest starting the interpreter, evaluating the script and reading the tree through git. Times
+include the interpreter's start, as an operator or a hook meets them.
+
+\paragraph{Lookups.} \Cref{tab:lookups} compares the palace's top five with ripgrep for eleven
+questions. Ripgrep was given the pattern an agent would type; it filters rather than ranks, so its
+cost is the number of files an agent must then open.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lrrrc@{}}
+\toprule
+question & palace rank & palace ms & rg files & rg holds it \\
+\midrule
+where is \code{embed\_fitting} defined & 2 & 157 & 1 & yes \\
+where does the writer's UNCHANGED check live & 2 & 159 & 18 & yes \\
+which note describes landing without vectors & 1 & 322 & 1 & yes \\
+which laws govern the embed drain & miss & 282 & 14 & yes \\
+which files import \code{core.ingest.writer} & 2 & 272 & 8 & yes \\
+which code computes the spectral gap & miss & 105 & 6 & yes \\
+where is the BM25 term weight computed & 2 & 147 & 14 & yes \\
+where is the instance root resolved & 2 & 198 & 7 & yes \\
+which Lean file proves the script firewall & 3 & 163 & 3 & yes \\
+where is the supervisor lock taken & miss & 149 & 14 & yes \\
+which constant reciprocal rank fusion uses & 4 & 193 & 12 & yes \\
+\midrule
+median & & 163 & 8 & \\
+\bottomrule
+\end{tabular}
+\caption{Eleven lookups with answers declared before the run: the rank of the first correct file
+in the palace's top five, its warm latency, and the files ripgrep prints for the
+pattern an agent would type (median ripgrep time 50~ms).}\label{tab:lookups}
+\end{table}
+
+The palace ranks a correct file in its top five for \hits{} of the eleven lookups, ripgrep's
+output holds one for \rghits{}, and the median number of files ripgrep prints is \rgfiles{},
+from one for an exact definition to eighteen for a phrase. What outranks an answer in the palace is
+the text that talks about it most: a test, which names the identifiers it exercises more often than
+the module that defines them, then design notes and papers; the three misses are of that kind. One
+of them was declared as the module that computes the spectral gap; the palace's fifth hit is the
+Lean proof of the spectral-gap lemma, which a broader reading of the question would count. A
+file's history is a limit of the instance: \code{trace} gives the versions it landed, one for a
+file unchanged since its first sync, where \code{git log} gives nine commits.
+
+\paragraph{Serving.} Spawned as an MCP client spawns it, the server answers \code{initialize}
+after \mcpinit{}~s and its first query after \mcpq{}~s, with a peak resident memory of
+\mcprss{}~MB.
+
+\section{Limitations and future work}\label{sec:future}
+
+\paragraph{The lexical index on code.} The tokenizer splits identifiers at underscores, so a
+definition lookup matches every use of the identifier's words; a tokenizer that also keeps the
+whole identifier would sharpen it. The repository source has no citation graph yet: the code
+sensor that derives import edges does so for every commit of the history, which on the default
+instance is several gigabytes; observing the landed commit alone would give \code{reach F} its
+edges. \code{trace} shows the versions the instance landed, not the history before its first sync.
+
+\paragraph{A shared embedding service.} The instances that do want vectors should share one
+embedder through a queue in front of the server: three priority classes (an interactive query's
+text, a landing's chunks, a backfill), a higher class preempting at the batch boundary; within a
+class, deficit round robin over the instances \citep{shreedhar1996drr}, a fair queueing discipline
+\citep{demers1989fq}, so a corpus backfill cannot hold the embedder from another instance's
+landing; a bounded queue per class, past which a query is answered lexically, a landing lands
+lazily and a backfill retries later, so nothing blocks a writer; and the embedder's fingerprint on
+every request, so two instances never mix geometries.
+
+\paragraph{A slim install.} The profile needs SQLite, NumPy and git, and no vector store or model
+client, so those can become optional extras of the package, and a one-gigabyte device can run a
+code or notes instance with its own lexical index, asking the shared service for vectors when it
+wants them.
+
+\section{Conclusion}
+
+Making the vector derived made it deferrable; one more predicate in the writer makes it optional,
+per instance and per source, with the same landing order, the same idempotence and the same
+labelled fallback in the queries. A code instance built on it lands a repository in seconds with
+no model of any kind, stays current through the repository's hooks, and answers an agent's lookups
+with a ranked handful of files where a text search returns dozens.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
