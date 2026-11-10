@@ -1,0 +1,15 @@
+# A repository's files at its ref, into the reference stratum, each at `code/<name>/<path>`; a file
+# gone from the ref is retired. The source keeps no vectors (dn-palace-lite), so each file lands
+# with its lexical units, its version and its attestation, and no plane row.
+param name
+let repo = source("code/" + name)
+let present = files(repo)
+let here = paths(present)
+for f in present {
+    store f.content in "reference"
+}
+for e in stored("reference", under: repo) {
+    if e.path not in here {
+        retire e.path in "reference"
+    }
+}

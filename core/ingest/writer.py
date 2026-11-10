@@ -7,7 +7,9 @@ digest, the idempotence key the UNCHANGED check reads (for every place, the key 
 the plane holds the rows: the third review's finding 2). Under lazy embedding
 (dn-two-phase-ingestion, ING-19) a store lands complete without its plane rows: its lexical units
 take their place before the key, the UNCHANGED check reads them, and the embed drain derives the
-rows afterwards (`core/ingest/derive.py`). An effect the rules refuse lands nothing
+rows afterwards (`core/ingest/derive.py`). A store of a source that keeps no vectors, or of an
+instance that embeds nothing (dn-palace-lite), lands the same way and stays so: no plane row is
+written, no embedding is charged and no drain is asked for. An effect the rules refuse lands nothing
 and the rest of the plan lands; the outcome says which rule refused it. Before the first effect
 lands, the plan is priced (§E10): its writes, each store the UNCHANGED check would not skip and
 each other effect, and its embeds, the distinct atoms the plane does not hold, are charged to the
@@ -170,10 +172,35 @@ class Writer:
     # key, and the embed drain derives the plane rows afterwards; a reader that needs a vector
     # reports the item pending until then. Off, a store embeds before its key as it always did.
     lazy: bool = False
+    # Whether the instance embeds at all (`[embedding] enabled`, dn-palace-lite). Off, every store
+    # lands as a lazy one does and nothing derives its vector later: the instance has no plane.
+    # On, a store still lands so when its source keeps no vectors (`Source.embed`).
+    embedding: bool = True
     landed: list[Outcome] = field(default_factory=list)
     started: set[str] = field(default_factory=set)
     # seconds spent in each stage of the last batched landing (admit, derive, index, finish)
     timing: dict[str, float] = field(default_factory=dict)
+    _keeps: dict[str, bool] = field(default_factory=dict)
+
+    def keeps_vectors(self, path: str) -> bool:
+        """Whether the item at `path` has a vector at all: the instance embeds, and the source
+        that owns the path keeps vectors (a path no source owns, a script's own, does)."""
+        if not self.embedding:
+            return False
+        if path not in self._keeps:
+            owner = self.table.owner(path)
+            self._keeps[path] = owner is None or owner.embed
+        return self._keeps[path]
+
+    def embeds_now(self, path: str) -> bool:
+        """Whether a store at `path` writes its plane rows before its key: it has a vector, and
+        the landing is not lazy."""
+        return not self.lazy and self.keeps_vectors(path)
+
+    def lexical_witness(self, path: str) -> bool:
+        """Whether the lexical index, not the plane, is what a store at `path` is held by: the
+        landing is lazy, or the item has no vector."""
+        return self.lazy or not self.keeps_vectors(path)
 
     def land(self, plan: Sequence[Effect]) -> list[Outcome]:
         self.price(plan)
@@ -186,7 +213,8 @@ class Writer:
                 o = self.one(e)
                 self.landed.append(o)
                 out.append(o)
-        if self.lazy and any(o.effect == "store" and o.status == "landed" for o in out):
+        if self.lazy and any(o.effect == "store" and o.status == "landed"
+                             and self.keeps_vectors(o.path) for o in out):
             self.derive_later()
         return out
 
@@ -244,9 +272,9 @@ class Writer:
             # the lexical units of every store, one transaction, before any key (ING-7)
             lexical.land_many([(e.path, rec.digest, e.content.label, e.title, rec.chunks)
                                for _, e, _, rec in staged])
-        if not self.lazy:
-            index_batch([rec for _, _, _, rec in staged], self.stores.embedder,
-                        self.stores.plane)
+        embedded = [rec for _, e, _, rec in staged if self.embeds_now(e.path)]
+        if embedded:
+            index_batch(embedded, self.stores.embedder, self.stores.plane)
         lap("index")
         # what the ledger attests already, read once for the batch (a pass per store grows with
         # the ledger); each store then attests once, as `attest_once` does, its parents the
@@ -275,13 +303,13 @@ class Writer:
             return (0, 0)
         writes = sum(1 for e in plan if not (isinstance(e, StoreEff) and self.unchanged(e)))
         self.meter.charge("write", writes)
-        if self.lazy:
+        if self.lazy or not self.embedding:
             return (writes, 0)              # nothing is embedded now: the drain's work is its own
         ids: set[str] = set()
         chunked: set[str] = set()                 # the same bytes stored twice are chunked once
         for e in plan:
             if isinstance(e, StoreEff) and not e.content.oversize \
-                    and e.content.digest not in chunked:
+                    and e.content.digest not in chunked and self.embeds_now(e.path):
                 chunked.add(e.content.digest)
                 ids |= {plane_atom_id(c.text)
                         for c in derive_chunks(e.content.data, max_chars=self.max_chars,
@@ -339,8 +367,9 @@ class Writer:
         place = self.table.places.get(e.place)
         if place is None:
             raise Refused("R1", f"no place {e.place!r}")
-        if self.lazy and self.stores.lexical is None:
-            raise Refused("R1", "lazy embedding needs the lexical index open; nothing landed")
+        if self.lexical_witness(e.path) and self.stores.lexical is None:
+            raise Refused("R1", "a landing without a vector needs the lexical index open; "
+                                "nothing landed")
         c, path, label = e.content, e.path, e.content.label
         if c.oversize:
             raise Refused("R1", f"{path!r} is {c.oversize} bytes, more than an item may have; "
@@ -385,13 +414,14 @@ class Writer:
     def index(self, e: StoreEff, record: IngestRecord) -> None:
         """A store's middle step, between its raw object and its key: the lexical units when the
         index is open (a function of the bytes, written before the key like every other stage,
-        ING-7; under lazy embedding they are what `holds` reads), and the plane rows unless the
-        landing is lazy, when the drain derives them."""
+        ING-7; under lazy embedding, and for an item with no vector, they are what `holds`
+        reads), and the plane rows unless the landing is lazy, when the drain derives them, or
+        the item keeps no vector (`keeps_vectors`), when nothing does."""
         lexical = self.stores.lexical
         if lexical is not None:
             lexical.land(source_path=e.path, digest=record.digest, provenance=e.content.label,
                          title=e.title, chunks=record.chunks)
-        if not self.lazy:
+        if self.embeds_now(e.path):
             index_amendment(record, [], self.stores.embedder, self.stores.plane)
 
     def finish(self, e: StoreEff, adm: _Admitted, record: IngestRecord, *,
@@ -481,13 +511,14 @@ class Writer:
         raise Refused("R6", f"unknown naming {n.kind!r}")  # pragma: no cover
 
     def holds(self, path: str, data: bytes, label: str, digest: str) -> bool:
-        """Whether the plane holds a version's rows at `path`, current, or, under lazy embedding,
-        whether the lexical index holds its units current, the landing's own stage (the rows are
-        the drain's, and their absence is pending, not unlanded: ING-19): an empty one has none to
-        hold. (It asked `has_digest`, which a retired version's rows still answer.)"""
+        """Whether the plane holds a version's rows at `path`, current, or, under lazy embedding or
+        for an item with no vector, whether the lexical index holds its units current, the
+        landing's own stage (the rows are the drain's, or no one's, and their absence is not an
+        unlanded item: ING-19): an empty one has none to hold. (It asked `has_digest`, which a
+        retired version's rows still answer.)"""
         if not derive_chunks(data, max_chars=self.max_chars, overlap_chars=self.overlap_chars):
             return True
-        if self.lazy:
+        if self.lexical_witness(path):
             lexical = self.stores.lexical
             return lexical is not None and bool(lexical.holds_current(path, digest))
         clearance = HOLDS.get(label)

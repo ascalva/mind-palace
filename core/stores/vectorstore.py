@@ -986,5 +986,9 @@ def open_vector_store(config: Config | None = None) -> VectorStore:
     from core.kernel.config import get_config
 
     cfg = config or get_config()
+    if not cfg.embedding.enabled:    # the lite profile opens no plane (`core/stores/noplane.py`)
+        from core.stores.noplane import refuse
+
+        raise refuse("opening the vector plane")
     return VectorStore(path=cfg.paths.vector_store, dim=cfg.embedding.dim,
                        embedder=fingerprint_of(cfg))

@@ -130,6 +130,10 @@ def build_embedder(config: Config | None = None) -> Embedder:
     from core.models.inference import build_inference_client
 
     cfg = config or get_config()
+    if not cfg.embedding.enabled:          # the lite profile: no embedder exists (dn-palace-lite)
+        from core.stores.noplane import refuse
+
+        raise refuse("building the embedder")
     # The embedding ROLE picks its own backend (`[runtime] embedding_backend`), independently of
     # the chat tiers — that is what makes the embedder cutover a real, separately reversible step
     # (dn-local-model-runtime §2.6 P4). Default is `ollama`, so this returns exactly what it
