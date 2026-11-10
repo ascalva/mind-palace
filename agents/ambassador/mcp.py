@@ -43,9 +43,10 @@ GUEST_INSTRUCTIONS = (
     "A read-only view of a mind-palace instance. Ask with query: a sentence of the query algebra, "
     "not keywords, over the strata this grant reads: the dialogue (chat turns, transcripts and the "
     "documents written in them), reference (the repository's code and docs), curated (papers) and "
-    "observed. Name them with over, as in near \"<text>\" over dialogue, reference, curated, "
+    "observed. Name them with over, as in near \"<text>\" over dialogue reference curated "
     "observed: near, diffuse S and a causal walk's endpoints read the owner's notes unless over "
-    "names other strata, and a clause over the notes or the interpretations derived from them is "
+    "names other strata, and over is a mask, so a walk from a turn to the files it wrote needs "
+    "over reference. A clause over the notes or the interpretations derived from them is "
     "refused. So are assume, the version chains (trace, reach D) and every do request. Verbs: "
     "near, diffuse S from, reach F|C from, walk from <ref> via <regex over S, F, C>, witness, "
     "read \"<ref>\" (a repo path, transcript/<session>/<turn>, a dialogue ref, reference:<paper>). "
@@ -281,9 +282,10 @@ def code_sources(cfg: Any) -> list[dict[str, Any]]:
 
 # What a scope refusal tells the guest would fix it: the grant's strata, named with `over`.
 GUEST_SCOPE_HINT = (
-    "; the guest grant reads dialogue, reference, curated and observed (name them with `over`), "
-    "never the mirror or the interpreted stratum, and has no overlay for `assume`, no version "
-    "plane for `trace` or `reach D`, and no write bit for `do`"
+    "; the guest grant reads dialogue, reference, curated and observed (name them with "
+    "`over dialogue reference curated observed`, or some of them), never the mirror or the "
+    "interpreted stratum, and has no overlay for `assume`, no version plane for `trace` or "
+    "`reach D`, and no write bit for `do`"
 )
 
 
@@ -484,9 +486,9 @@ GUEST_TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
         'Verbs: near "text" | diffuse S from <ref> [beta b] | reach F|C from <ref> [depth n] '
         "[back|forward] | walk from <ref> [to <ref>] via <regex over S,F,C> | witness \"<edge "
         'id>" | read "<ref>" [chunk n]. Connectives and, or, minus, then; adjectives within '
-        "<region>, over <strata>; top k, atleast t, far, not. Name the strata with over: "
-        'near "x" over dialogue, reference, curated, observed. A refusal names what the grant '
-        "reads; trace: true shows the work.",
+        "<region>, over <strata>; top k, atleast t, far, not. Name the strata with over, "
+        'separated by spaces: near "x" over dialogue reference curated observed. A refusal '
+        "names what the grant reads; trace: true shows the work.",
         TOOLS[0][2],
         "query",
     ),
