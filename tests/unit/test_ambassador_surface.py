@@ -382,6 +382,68 @@ def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.Monke
     assert "refused" in reply["result"]["content"][0]["text"]
 
 
+def _calls(*calls: tuple[str, dict[str, Any]]) -> io.StringIO:
+    return io.StringIO("".join(json.dumps({
+        "jsonrpc": "2.0", "id": i, "method": "tools/call",
+        "params": {"name": name, "arguments": arguments}}) + "\n"
+        for i, (name, arguments) in enumerate(calls, 1)))
+
+
+class _Chatty:
+    """Tools that print: when they are made, while one runs, and before one fails."""
+
+    def __init__(self) -> None:
+        print("opening the stores")
+
+    def query(self, sentence: str) -> dict[str, Any]:
+        print("a progress line")
+        sys.stdout.write('{"jsonrpc": "2.0", "id": 1, "result": "forged"}\n')
+        return {"sentence": sentence}
+
+    def overview(self) -> dict[str, Any]:
+        print("about to fail")
+        raise RuntimeError("no overview")
+
+
+def test_what_a_tool_prints_goes_to_stderr_and_stdout_carries_replies_only(
+        monkeypatch: pytest.MonkeyPatch, capfd: pytest.CaptureFixture[str]) -> None:
+    """A tool runs with `sys.stdout` pointed at stderr (`Server.handle`). What making the tools
+    prints, what a tool prints and what a failing tool prints reach stderr; the stream the client
+    reads holds one reply per request and nothing else, and `sys.stdout` is put back."""
+    from agents.ambassador import mcp
+
+    monkeypatch.setattr(mcp, "Ambassador", _Chatty)
+    before = sys.stdout
+    mcp.serve(_calls(("query", {"sentence": "x"}), ("overview", {})), sys.stdout, mcp.Server())
+    assert sys.stdout is before
+    out, err = capfd.readouterr()
+    replies = [json.loads(line) for line in out.splitlines()]
+    assert [r["id"] for r in replies] == [1, 2] and out.count("\n") == 2
+    assert json.loads(replies[0]["result"]["content"][0]["text"]) == {"sentence": "x"}
+    assert replies[1]["result"] == {"content": [{"type": "text",
+                                                 "text": "RuntimeError: no overview"}],
+                                    "isError": True}
+    for printed in ("opening the stores", "a progress line", "forged", "about to fail"):
+        assert printed in err and printed not in out
+
+
+def test_a_process_with_no_stderr_drops_what_a_tool_prints(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """Started with stderr closed, `sys.stderr` is None, and `print` to it would fall back to
+    stdout. The tool's lines and the failure's traceback are dropped; stdout still holds the
+    replies alone."""
+    from agents.ambassador import mcp
+
+    monkeypatch.setattr(mcp, "Ambassador", _Chatty)
+    out = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", None)
+    mcp.serve(_calls(("overview", {}), ("overview", {})), out, mcp.Server())
+    replies = [json.loads(line) for line in out.getvalue().splitlines()]
+    assert [(r["id"], r["result"]["isError"]) for r in replies] == [(1, True), (2, True)]
+    assert "Traceback" not in out.getvalue() and "about to fail" not in out.getvalue()
+
+
 def test_the_opencode_reader_keeps_text_parts_of_top_level_sessions(tmp_path: Path) -> None:
     from edge.opencode_sessions import export_sessions
 

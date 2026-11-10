@@ -16,8 +16,9 @@ interpreted relation edges. Long operations (dream, relate, sync) wake models an
 never the notes or their interpretations, and `overview`; no write tool, no request, no `status`.
 
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
-`tools/list`, `tools/call`; anything printed by an operation is captured and returned as the tool's
-text, so stdout carries protocol messages only. Diagnostics go to stderr.
+`tools/list`, `tools/call`. A tool runs with `sys.stdout` pointed at stderr (`Server.handle`), so
+what an operation or a library under it prints joins the diagnostics on stderr and stdout carries
+protocol messages only. The client that spawned the process holds both streams.
 """
 
 from __future__ import annotations
@@ -640,19 +641,25 @@ class Server:
             spec = next((t for t in self.tools if t[0] == params.get("name")), None)
             if spec is None:
                 return _err(mid, -32602, f"unknown tool {params.get('name')!r}")
-            try:
-                result = getattr(self.amb, spec[3])(**(params.get("arguments") or {}))
-                text = json.dumps(result, ensure_ascii=False, default=str)
-                return _ok(mid, {"content": [{"type": "text", "text": text}], "isError": False})
-            except Exception as e:  # a refused or failed call is a result, not a crash
-                print(traceback.format_exc(), file=sys.stderr)
-                return _ok(
-                    mid,
-                    {
-                        "content": [{"type": "text", "text": f"{type(e).__name__}: {e}"}],
-                        "isError": True,
-                    },
-                )
+            # The tools are made, and the tool runs, with `sys.stdout` pointed at stderr: a line
+            # printed to stdout in there would be read by the client as a protocol message. The
+            # diagnostic is printed in here as well, so a process started with no stderr drops
+            # it; outside, `print` to a stderr that is None would fall back to stdout.
+            with contextlib.redirect_stdout(sys.stderr):
+                try:
+                    result = getattr(self.amb, spec[3])(**(params.get("arguments") or {}))
+                    text = json.dumps(result, ensure_ascii=False, default=str)
+                    return _ok(mid, {"content": [{"type": "text", "text": text}],
+                                     "isError": False})
+                except Exception as e:  # a refused or failed call is a result, not a crash
+                    print(traceback.format_exc(), file=sys.stderr)
+                    return _ok(
+                        mid,
+                        {
+                            "content": [{"type": "text", "text": f"{type(e).__name__}: {e}"}],
+                            "isError": True,
+                        },
+                    )
         return _err(mid, -32601, f"method not found: {method}")
 
 
