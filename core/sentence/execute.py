@@ -250,6 +250,26 @@ def _git(root: Path, *args: str) -> bytes | None:
     return out.stdout if out.returncode == 0 else None
 
 
+def is_commit_sha(text: str) -> bool:
+    """Whether `text` is, whole, a hex sha as git prints or abbreviates one."""
+    return _SHA.fullmatch(text) is not None
+
+
+def tracked_paths(root: Path) -> frozenset[str]:
+    """The paths git tracks in the checkout at `root`, read from the tree at HEAD and spelled as
+    git spells them (repo-relative, `/` between components). The empty set when git fails, is
+    absent, or times out, so a caller that names only tracked paths then names none. A name that
+    is not UTF-8 is left out: no string spells it."""
+    out = _git(root, "ls-tree", "-r", "-z", "--name-only", "HEAD")
+    names: set[str] = set()
+    for raw in (out or b"").split(b"\0"):
+        try:
+            names.add(raw.decode("utf-8"))
+        except UnicodeDecodeError:
+            continue
+    return frozenset(names - {""})
+
+
 def _window(text: str, chunk: int | None, window: int) -> tuple[str, int, int, int]:
     """A window of `window` chunks of `REPO_CHUNK_LINES` lines around `chunk` (from the start when
     absent): the text, its first and last chunk, and the chunk count."""
