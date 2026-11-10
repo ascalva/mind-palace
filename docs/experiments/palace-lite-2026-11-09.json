@@ -1,0 +1,303 @@
+{
+ "full": {
+  "wall_s": 10.94,
+  "peak_rss_mb": 271.0,
+  "effects": "{'landed': 2015}",
+  "stages_s": "{'admit': 0.273, 'derive': 0.991, 'index': 7.352, 'finish': 0.687}"
+ },
+ "noop": {
+  "wall_s": 2.53,
+  "peak_rss_mb": 215.4,
+  "effects": "{'unchanged': 2015}",
+  "stages_s": "{'admit': 0.474, 'derive': 0.0, 'index': 0.0, 'finish': 0.0}"
+ },
+ "incremental": {
+  "wall_s": 2.61,
+  "peak_rss_mb": 217.0,
+  "effects": "{'unchanged': 2010, 'landed': 6}",
+  "stages_s": "{'admit': 0.488, 'derive': 0.005, 'index': 0.08, 'finish': 0.005}"
+ },
+ "to_head": {
+  "wall_s": 2.58,
+  "peak_rss_mb": 219.8,
+  "effects": "{'unchanged': 2015, 'landed': 6}",
+  "stages_s": "{'admit': 0.473, 'derive': 0.003, 'index': 0.063, 'finish': 0.005}"
+ },
+ "store_mb": {
+  "attestations.sqlite": 1.56,
+  "code": 0.0,
+  "edges.sqlite": 0.02,
+  "lexical.sqlite": 86.57,
+  "lexical.sqlite-shm": 0.03,
+  "lexical.sqlite-wal": 0.0,
+  "query_log.jsonl": 0.0,
+  "raw": 22.38,
+  "reference_edges.sqlite": 0.03,
+  "runs.sqlite": 0.01,
+  "supervisor.lock": 0.0,
+  "tasks.sqlite": 0.02,
+  "vault_catalog.sqlite": 0.88,
+  "vault_catalog.sqlite-shm": 0.03,
+  "vault_catalog.sqlite-wal": 0.0,
+  "versions.sqlite": 0.55
+ },
+ "store_total_mb": 112.1,
+ "items_active": 2021,
+ "lexical_units": 27235,
+ "lexical_units_current": 27059,
+ "postings": 2496241,
+ "terms": 46239,
+ "raw_mb": 22.4,
+ "lookups": {
+  "lookups": [
+   {
+    "id": "define",
+    "question": "where is `embed_fitting` defined",
+    "palace_top": [
+     "tests/unit/test_embedder_fit.py",
+     "core/ingest/embed.py",
+     "tests/integration/test_two_phase_ingestion.py",
+     "core/ingest/derive.py",
+     "core/ingest/ingress.py"
+    ],
+    "palace_rank": 2,
+    "palace_cold_ms": 707.040874985978,
+    "palace_warm_ms": 156.56500007025898,
+    "rg_files": 1,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 50.448874942958355
+   },
+   {
+    "id": "unchanged",
+    "question": "where does the writer's UNCHANGED check live",
+    "palace_top": [
+     "docs/design-notes/dn-two-phase-ingestion.md",
+     "core/ingest/writer.py",
+     "docs/build-plans/bp-082/journal.md",
+     "eval/ingress_gas.py",
+     "tests/integration/test_factory_mint.py"
+    ],
+    "palace_rank": 2,
+    "palace_cold_ms": 161.2649168819189,
+    "palace_warm_ms": 158.65491703152657,
+    "rg_files": 18,
+    "rg_hit": true,
+    "rg_rank": 4,
+    "rg_ms": 50.44266697950661
+   },
+   {
+    "id": "note",
+    "question": "which note describes landing without vectors",
+    "palace_top": [
+     "docs/design-notes/dn-two-phase-ingestion.md",
+     "papers/2026-11-07-two-phase-ingestion/paper.tex",
+     "formal/Palace/Derived/Defs.lean",
+     "formal/Spec/Derived.lean",
+     "README.md"
+    ],
+    "palace_rank": 1,
+    "palace_cold_ms": 330.87029214948416,
+    "palace_warm_ms": 321.59133395180106,
+    "rg_files": 1,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 8.185707964003086
+   },
+   {
+    "id": "laws",
+    "question": "which laws govern the embed drain",
+    "palace_top": [
+     "docs/design-notes/dn-two-phase-ingestion.md",
+     "formal/Spec/Derived.lean",
+     "formal/Palace/Derived.lean",
+     "ops/lifecycle/launcher.py",
+     "papers/2026-11-07-two-phase-ingestion/paper.tex"
+    ],
+    "palace_rank": null,
+    "palace_cold_ms": 291.51158407330513,
+    "palace_warm_ms": 282.1265000384301,
+    "rg_files": 14,
+    "rg_hit": true,
+    "rg_rank": 5,
+    "rg_ms": 52.83058318309486
+   },
+   {
+    "id": "imports",
+    "question": "which files import core.ingest.writer",
+    "palace_top": [
+     "core/ingest/writer.py",
+     "core/ingest/ingress.py",
+     "core/ingest/derive.py",
+     "eval/ingress_gas.py",
+     "tests/integration/test_ingress_scripts.py"
+    ],
+    "palace_rank": 2,
+    "palace_cold_ms": 274.5367500465363,
+    "palace_warm_ms": 272.24324992857873,
+    "rg_files": 8,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 52.47145798057318
+   },
+   {
+    "id": "spectral",
+    "question": "which code computes the spectral gap",
+    "palace_top": [
+     "tests/unit/test_lexical_index.py",
+     "docs/LAWS.md",
+     "papers/2026-11-07-scale-study/paper.tex",
+     "papers/2026-11-07-graph-dynamics/paper.tex",
+     "formal/Palace/Gap.lean"
+    ],
+    "palace_rank": null,
+    "palace_cold_ms": 109.54366717487574,
+    "palace_warm_ms": 105.32041708938777,
+    "rg_files": 6,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 29.690958093851805
+   },
+   {
+    "id": "bm25",
+    "question": "where is the BM25 term weight computed",
+    "palace_top": [
+     "tests/unit/test_lexical_index.py",
+     "core/ingest/lexical.py",
+     "core/stores/lexical.py",
+     "papers/2026-11-07-two-phase-ingestion/refs.bib",
+     "papers/2026-11-07-two-phase-ingestion/paper.tex"
+    ],
+    "palace_rank": 2,
+    "palace_cold_ms": 154.9561668653041,
+    "palace_warm_ms": 147.1958749461919,
+    "rg_files": 14,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 52.48079192824662
+   },
+   {
+    "id": "root",
+    "question": "where is the instance root resolved",
+    "palace_top": [
+     "tests/unit/test_install_root.py",
+     "core/kernel/config/root.py",
+     "papers/2026-11-07-profiling-and-packaging/paper.tex",
+     "tests/integration/test_ouroboros_only_tools.py",
+     "core/kernel/config/loader.py"
+    ],
+    "palace_rank": 2,
+    "palace_cold_ms": 224.47087499313056,
+    "palace_warm_ms": 197.67195917665958,
+    "rg_files": 7,
+    "rg_hit": true,
+    "rg_rank": 2,
+    "rg_ms": 54.08595805056393
+   },
+   {
+    "id": "lean",
+    "question": "which Lean file proves the script firewall",
+    "palace_top": [
+     "papers/2026-11-07-ingress-language/paper.tex",
+     "formal/Spec/Script.lean",
+     "formal/Palace/Script.lean",
+     "docs/build-plans/bp-110/journal.md",
+     "docs/findings/finding-0185.md"
+    ],
+    "palace_rank": 3,
+    "palace_cold_ms": 168.01349981687963,
+    "palace_warm_ms": 163.2045421283692,
+    "rg_files": 3,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 9.132000152021646
+   },
+   {
+    "id": "lock",
+    "question": "where is the supervisor lock taken",
+    "palace_top": [
+     "tests/unit/test_supervisor_lock.py",
+     "docs/build-plans/bp-108/plan.md",
+     "tests/unit/test_instance_identity.py",
+     "tests/unit/test_restart_trustworthy.py",
+     "scripts/watch.py"
+    ],
+    "palace_rank": null,
+    "palace_cold_ms": 157.0644578896463,
+    "palace_warm_ms": 148.80112512037158,
+    "rg_files": 14,
+    "rg_hit": true,
+    "rg_rank": 5,
+    "rg_ms": 50.39691715501249
+   },
+   {
+    "id": "rrf",
+    "question": "which constant does reciprocal rank fusion use",
+    "palace_top": [
+     "papers/2026-11-07-two-phase-ingestion/paper.tex",
+     "papers/2026-11-07-corpus-stage1/paper.tex",
+     "tests/unit/test_lexical_index.py",
+     "core/ingest/lexical.py",
+     "papers/2026-11-07-two-phase-ingestion/refs.bib"
+    ],
+    "palace_rank": 4,
+    "palace_cold_ms": 198.44724982976913,
+    "palace_warm_ms": 192.61200004257262,
+    "rg_files": 12,
+    "rg_hit": true,
+    "rg_rank": 1,
+    "rg_ms": 52.527416963130236
+   }
+  ],
+  "history": {
+   "id": "history",
+   "question": "the commit history of core/ingest/writer.py",
+   "palace_versions": 1,
+   "palace_ms": 9.0,
+   "git_commits": 9,
+   "git_ms": 23.8
+  },
+  "palace_hits_at_5": 8,
+  "rg_hits": 11,
+  "n": 11,
+  "rg_files_median": 8,
+  "palace_warm_ms_median": 163.2,
+  "rg_ms_median": 50.4
+ },
+ "mcp": {
+  "initialize": 0.711,
+  "query_1": 1.304,
+  "query_2": 1.481,
+  "peak_rss_mb": 168.141
+ },
+ "load": [
+  "full-start 19:28:22 load { 2.15 3.25 3.43 }",
+  "full-end 19:28:33 load { 2.04 3.17 3.40 }",
+  "noop-end 19:28:36 load { 2.04 3.17 3.40 }",
+  "incr-end 19:28:38 load { 1.96 3.13 3.39 }",
+  "head-end 19:28:41 load { 1.96 3.13 3.39 }",
+  "lookups-end 19:28:58 load { 1.82 3.04 3.35 }",
+  "mcp-end 19:29:06 load { 1.77 2.99 3.33 }"
+ ],
+ "real_instance": {
+  "wall_s": 10.86,
+  "peak_rss_mb": 271.0,
+  "files": 2021,
+  "commit": "2b500e5e",
+  "du_mb": 126,
+  "stages_s": {
+   "admit": 0.261,
+   "derive": 0.96,
+   "index": 7.456,
+   "finish": 0.611
+  },
+  "load": "1.78 2.91 3.29 before, 1.74 2.87 3.27 after"
+ },
+ "machine": "Apple M2 Pro, 32 GB, macOS; Python 3.15; ripgrep 15.2.0; git via the system's",
+ "source": {
+  "repository": "this repository, a local clone",
+  "full_at": "a91ec39e",
+  "incremental_commit": "6b8d472b (6 files changed or added)",
+  "head": "2b500e5e"
+ }
+}
