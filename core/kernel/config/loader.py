@@ -225,6 +225,12 @@ class EmbeddingConfig:
     lazy: bool = False
     batch: int = 64
     streams: int = 1
+    # The lite profile (dn-palace-lite). `enabled = False` is an instance that embeds nothing: no
+    # embedder is built, no vector plane is opened, no embed drain runs, and every item lands
+    # complete without a vector, its lexical units written before its key, as a lazy landing lands
+    # it (ING-19). A clause that needs a vector reports that none exist; `near` ranks by the
+    # lexical index and says so. `lazy` has nothing to defer then, so it is not read.
+    enabled: bool = True
 
     def __post_init__(self) -> None:
         if self.batch < 1:
@@ -415,6 +421,82 @@ class CodeIngestConfig:
     enabled: bool = False
     max_chars: int = 1200
     overlap_chars: int = 150
+    # Whether the code is embedded (dn-palace-lite). True is the code embed lane as it was
+    # (`code_sync`, the plane's code atoms). False lands each repository's files at its ref
+    # through the ingress instead, as items of the reference stratum with their lexical units,
+    # versions and attestations and no plane row, and starts no embed lane: the source keeps no
+    # vectors while the instance's other sources keep theirs. An instance that embeds nothing
+    # (`[embedding] enabled = false`) lands its code that way whatever this says.
+    embed: bool = True
+    # The repositories the lexical code source reads, each at a ref of its own, an item at
+    # `code/<name>/<path in the repository>`. None declared is the instance's own checkout at
+    # `main`, named after its directory.
+    repositories: tuple[RepositoryConfig, ...] = ()
+
+
+@dataclass(frozen=True)
+class RepositoryConfig:
+    """One repository of the lexical code source: its name (one path segment of its items'
+    space, `code/<name>/`), where it is, and the ref whose tree is its current files. It is read
+    through git's object store at the ref, never through its working tree, so no untracked file,
+    uncommitted edit or data directory beside it is ever read."""
+
+    name: str
+    path: Path
+    ref: str = "main"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not _INSTANCE_ID.fullmatch(self.name):
+            raise ValueError(f"[ingestion.code] repository {self.name!r} is not a source name: a "
+                             f"lowercase letter followed by up to 31 lowercase letters, digits or "
+                             f"hyphens")
+        if not self.ref or self.ref.startswith("-") or any(c.isspace() for c in self.ref):
+            raise ValueError(f"[ingestion.code] repository {self.name!r}: ref {self.ref!r} is not "
+                             f"a ref git can name")
+
+
+def lexical_code(cfg: Config) -> bool:
+    """Whether this instance's code lands lexically through the ingress: its code ingestion is on,
+    and either the code source keeps no vectors or the instance embeds nothing."""
+    code = cfg.ingestion.code
+    return code.enabled and (not code.embed or not cfg.embedding.enabled)
+
+
+def needs_lexical(cfg: Config) -> bool:
+    """Whether the instance keeps a lexical index: it lands lazily, it embeds nothing, or a source
+    of it keeps no vectors. An instance that embeds every item synchronously keeps none, so it
+    writes nothing it did not write before two-phase ingestion."""
+    return bool(cfg.embedding.lazy) or not cfg.embedding.enabled or lexical_code(cfg)
+
+
+def _repositories(section: dict[str, Any], root: Path) -> tuple[RepositoryConfig, ...]:
+    """The repositories `[ingestion.code]` declares (`[[ingestion.code.repositories]]`), a path
+    `~`-expanded and a relative one under the instance's root; none declared is the checkout,
+    named after its directory."""
+    declared = section.get("repositories") or []
+    if not isinstance(declared, list) or not all(isinstance(r, dict) for r in declared):
+        raise ValueError("[ingestion.code] repositories is a list of tables "
+                         "([[ingestion.code.repositories]], each a name, a path and a ref)")
+    if not declared:
+        name = REPO_ROOT.name.casefold()
+        return (RepositoryConfig(name if _INSTANCE_ID.fullmatch(name) else "checkout",
+                                 REPO_ROOT, "main"),)
+    out = []
+    for r in declared:
+        extra = sorted(set(r) - {"name", "path", "ref"})
+        if extra:
+            raise ValueError(f"[ingestion.code] a repository holds a name, a path and a ref; "
+                             f"refusing the unknown key(s) {extra}")
+        if "path" not in r:
+            raise ValueError(f"[ingestion.code] repository {r.get('name')!r} names no path")
+        path = Path(str(r["path"])).expanduser()
+        out.append(RepositoryConfig(str(r.get("name", "")),
+                                    path if path.is_absolute() else root / path,
+                                    str(r.get("ref", "main"))))
+    names = [r.name for r in out]
+    if len(set(names)) != len(names):
+        raise ValueError(f"[ingestion.code] repositories repeat a name: {names}")
+    return tuple(out)
 
 
 @dataclass(frozen=True)
@@ -593,7 +675,7 @@ class InstanceConfig:
     namespace the instance holds is derived from that id:
 
         namespace          Ouroboros                     named instance <id>
-        root               <repo>                        <repo>/instances/<id>
+        root               <repo>                        <repo>/instances/<id>, or [instance] root
         data dir, stores   <repo>/data/…                 <root>/data/…
         ingestion spool    <repo>/data/handoff           <root>/data/handoff
         supervisor lock    <repo>/data/supervisor.lock   <root>/data/supervisor.lock
@@ -604,6 +686,7 @@ class InstanceConfig:
         vault source       ~/.mind-palace/vault          declared, else <root>/vault and off
         transcripts        ~/.claude/projects/<repo>     declared, else <root>/transcripts and off
         code agent         the checkout                  off unless its overlay turns it on
+        code repositories  the checkout, at `main`       declared, else the checkout (read by git)
         dialogue lanes     openwebui, opencode           none
         airlock in S3      as its overlay names it       as its overlay names it
         exhaust lane       ~/.mind-palace/exhaust        <root>/exhaust, moved only within root
@@ -611,17 +694,25 @@ class InstanceConfig:
         Vault server       [secrets] addr                its overlay's own; none if it names none
 
     A declared source may lie anywhere but at, inside or around what another instance writes, or
-    anything the default instance reads or writes.
+    anything the default instance reads or writes. A code repository is read through git's object
+    store at its ref, never through its working tree, so it reads nothing an instance writes.
 
     `<repo>` is the root the root rule gives (`core/kernel/config/root.py`): the checkout the code
     runs from, or `MIND_PALACE_ROOT` for an installed copy, which from a checkout may name only that
     checkout. So Ouroboros's paths from a checkout are what they were, and a named instance's state
     stays under the root its process resolved, beside the instances declared there.
+
+    A named instance may instead hold a root of its own, `[instance] root` (dn-palace-lite): an
+    absolute directory inside no git working tree, so its state outlives the checkout or worktree
+    a process happened to run from. Every namespace derives from that root exactly as from the
+    default one, and the sharing checks hold against it unchanged.
+
     `namespaces_of` reads them off a built Config, and `shared` says what two instances hold in
     common. The map is injective: distinct ids give disjoint namespaces, none of them Ouroboros's.
     """
 
     id: str = OUROBOROS
+    home: Path | None = None        # a named instance's declared root (`[instance] root`)
 
     def __post_init__(self) -> None:
         # The map is defined on well-formed ids only: built from `../x`, `root` would climb out of
@@ -629,6 +720,8 @@ class InstanceConfig:
         # other caller too.
         if not isinstance(self.id, str) or not _INSTANCE_ID.fullmatch(self.id):
             raise ValueError(f"not an instance id: {self.id!r}")
+        if self.home is not None and (not self.named or not Path(self.home).is_absolute()):
+            raise ValueError(f"a declared root is a named instance's, and absolute: {self.home!r}")
 
     @property
     def named(self) -> bool:
@@ -638,7 +731,10 @@ class InstanceConfig:
     @property
     def root(self) -> Path:
         """What this instance's relative data paths resolve against: the repo root for Ouroboros,
-        so `data/` is where it always was, and `<repo>/instances/<id>` for a named instance."""
+        so `data/` is where it always was, and `<repo>/instances/<id>` for a named instance, or
+        the root it declares."""
+        if self.home is not None:
+            return Path(self.home)
         return REPO_ROOT / _INSTANCES / self.id if self.named else REPO_ROOT
 
     @property
@@ -1038,17 +1134,19 @@ def _read(path: Path) -> dict[str, Any]:
 def _declared_id(table: object, source: str) -> str | None:
     """The id an `[instance]` table declares, or None when there is no table or no id in it.
 
-    The table holds `id` and nothing else, so any other key refuses: the loader would ignore it,
-    and a setting that looks applied but never took is the failure every refusal here exists for.
+    The table holds `id` and, for a named instance, `root` (`_declared_root`), so any other key
+    refuses: the loader would ignore it, and a setting that looks applied but never took is the
+    failure every refusal here exists for.
     """
     if table is None:
         return None
     if not isinstance(table, dict):
-        raise InstanceOverlayError(f"{source}: [instance] must be a table holding one key, id.")
-    extra = sorted(set(table) - {"id"})
+        raise InstanceOverlayError(f"{source}: [instance] must be a table holding an id.")
+    extra = sorted(set(table) - {"id", "root"})
     if extra:
         raise InstanceOverlayError(
-            f"{source}: [instance] holds one key, id; refusing the unknown key(s) {extra}.")
+            f"{source}: [instance] holds an id and a named instance's root; refusing the unknown "
+            f"key(s) {extra}.")
     if "id" not in table:
         return None
     iid = table["id"]
@@ -1074,18 +1172,59 @@ def _named_instance(declared: dict[str, Any], source: Path) -> InstanceConfig:
             f"{source}: [instance] id = {OUROBOROS!r} is the default chain's, the live instance. "
             f"Refusing to load a second {OUROBOROS!r}: give this instance its own id, or unset "
             f"{OVERLAY_ENV} to load the default chain.")
-    return InstanceConfig(iid)
+    return InstanceConfig(iid, _declared_root(declared.get("instance"), source))
+
+
+def _working_tree_of(path: Path) -> Path | None:
+    """The git working tree a path lies in (the nearest of it and its ancestors holding `.git`, a
+    checkout's directory or a worktree's file), or None."""
+    for p in (path, *path.parents):
+        if os.path.lexists(p / ".git"):
+            return p
+    return None
+
+
+def _declared_root(table: object, source: Path) -> Path | None:
+    """The root a named overlay declares (`[instance] root`), or None to keep the derived one.
+
+    The point of a declared root is a home the instance's state keeps whichever checkout or
+    worktree a process runs from, so it is absolute (`~` expands) and lies inside no git working
+    tree: a worktree is removed when its branch merges, and the state inside it would go with it.
+    The sharing checks (`_refuse_shared`) then hold against it as against a derived root."""
+    if not isinstance(table, dict) or "root" not in table:
+        return None
+    given = table["root"]
+    if not isinstance(given, str) or not given.strip():
+        raise InstanceOverlayError(f"{source}: [instance] root = {given!r} names no directory.")
+    root = Path(given).expanduser()
+    if not root.is_absolute():
+        raise InstanceOverlayError(
+            f"{source}: [instance] root = {given!r} is relative, so it would move with the "
+            f"working directory. Give the root as an absolute path (or one starting with ~).")
+    tree = _working_tree_of(Path(os.path.realpath(root)))
+    if tree is not None:
+        raise InstanceOverlayError(
+            f"{source}: [instance] root = {given!r} lies inside the git working tree {tree}. An "
+            f"instance's declared root lies outside every checkout and worktree, so its state "
+            f"outlives them; refusing.")
+    return root
 
 
 def _ouroboros_instance(raw: dict[str, Any], source: str) -> InstanceConfig:
     """The default chain is Ouroboros, and so is a file `load_config` reads by path. Its
-    `[instance]` may restate that; another id would rename the live instance in place."""
+    `[instance]` may restate that; another id would rename the live instance in place, and a root
+    would move it (Ouroboros's root is its checkout's)."""
     iid = _declared_id(raw.get("instance"), source)
     if iid is not None and iid != OUROBOROS:
         raise InstanceOverlayError(
             f"{source}: [instance] id = {iid!r}, but this configuration is {OUROBOROS!r}. "
             f"Another instance is loaded from its own overlay, {OVERLAY_ENV}=<path>; refusing to "
             f"load {OUROBOROS!r} under another id.")
+    table = raw.get("instance")
+    if isinstance(table, dict) and "root" in table:
+        raise InstanceOverlayError(
+            f"{source}: [instance] root is a named instance's; {OUROBOROS!r} keeps the "
+            f"checkout's root. Refusing to move the live instance.")
     return InstanceConfig()
 
 
@@ -1354,6 +1493,9 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
                 enabled=bool(ci.get("enabled", False)),
                 max_chars=int(ci.get("max_chars", 1200)),
                 overlap_chars=int(ci.get("overlap_chars", 150)),
+                embed=bool(ci.get("embed", True)),
+                # read only when the code is on: an instance with no code source has none
+                repositories=_repositories(ci, root) if ci.get("enabled", False) else (),
             ),
             corpus=CorpusIngestConfig(
                 enabled=bool(co.get("enabled", False)),
@@ -1374,6 +1516,7 @@ def _build(raw: dict[str, Any], instance: InstanceConfig) -> Config:
             lazy=bool(e.get("lazy", False)),
             batch=int(e.get("batch", 64)),
             streams=int(e.get("streams", 1)),
+            enabled=bool(e.get("enabled", True)),
         ),
         dreaming=DreamingConfig(
             similarity_threshold=float(dr["similarity_threshold"]),
