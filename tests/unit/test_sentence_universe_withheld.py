@@ -21,7 +21,7 @@ from core.kernel.config import get_config
 from core.query import AMBASSADOR_OVERLAY, GUEST, QueryEngine
 from core.sentence import compile_sentence, execute
 from core.sentence.precedents import DEFAULT
-from core.sentence.universe import _Builder, build
+from core.sentence.universe import _Builder, _doc_path, build
 from tests.unit.test_sentence_universe import (
     _Causal,
     _cedge,
@@ -177,6 +177,13 @@ def test_only_a_commit_or_a_tracked_file_is_named(repo: Path, tmp_path: Path,
     ]
     for dst, kind in withheld:
         assert not b._named(dst, kind), (dst, kind)
+    # a doc's id is read as a name, never as a pattern. The projector records a file under any
+    # `docs/design-notes/` folder by its file name, and a file name may hold a glob's characters:
+    # each of these, looked up as the glob it is, finds the one tracked finding, and is not named
+    for pattern in ("finding-*", "finding-000?.md", "finding-0007[-]seven.md",
+                    "finding-0007*[the private plan].md"):
+        assert _doc_path(pattern) == "docs/findings/finding-0007-seven.md"
+        assert not b._named(pattern, "doc"), pattern
     assert b._named_of[(f"{repo}/core/x.py", "file")] is True      # judged once per endpoint
     # the vault is asked first: a file git tracks is not named when it lies in the vault
     inner = _builder(repo / "docs")
@@ -226,10 +233,10 @@ def _engine(repo: Path, vault: Path, monkeypatch: pytest.MonkeyPatch, causal: li
 
 def test_the_universe_shows_the_named_edges_and_withholds_the_rest_whole(
         repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """One turn with fourteen proven edges. The reader without the mirror is shown the four that
+    """One turn with fifteen proven edges. The reader without the mirror is shown the four that
     end at a tracked file, a tracked doc or a commit: as hits, in the counts and by `witness`.
     The others are not counted, and `witness` of their ids answers as for an id the store does
-    not hold. The reader with the mirror is shown all fourteen, as before."""
+    not hold. The reader with the mirror is shown all fifteen, as before."""
     vault = tmp_path / "vault"
     vault.mkdir()
     shown = {"e-file": ("file", f"{repo}/core/x.py"), "e-doc": ("doc", "dn-kept.md"),
@@ -242,6 +249,7 @@ def test_the_universe_shows_the_named_edges_and_withholds_the_rest_whole(
               "h-uri": ("file", f"file://{repo}/core/x.py"),
               "h-draft": ("doc", "dn-draft.md"),
               "h-name": ("doc", "plan-0.md"),
+              "h-pattern": ("doc", "finding-0007*[the private plan].md"),
               "h-word": ("commit", "not-a-sha"),
               "h-kind": ("artifact", f"{repo}/core/x.py")}
     edges = [_cedge(eid, "s1", 3, dst, dst_type=kind, order=i)
@@ -275,7 +283,7 @@ def test_the_universe_shows_the_named_edges_and_withholds_the_rest_whole(
     # a grant that reads the mirror builds what it built before: every edge, every record
     wide = compile_sentence(sentence, AMBASSADOR_OVERLAY)
     w = build(cast(QueryEngine, engine), wide)
-    assert any("causal: 14 proven edges from 1 transcript turns" in m for m in w.missing)
+    assert any("causal: 15 proven edges from 1 transcript turns" in m for m in w.missing)
     assert not any(m.startswith(WITHHELD) for m in w.missing)
     for eid, (_kind, dst) in {**shown, **hidden}.items():
         record = w.witness(eid)

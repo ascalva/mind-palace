@@ -639,10 +639,11 @@ class _Builder:
         (`_in_vault`) and resolves to a repo-relative path git tracks in this checkout at HEAD
         (`_tracked`), from a doc's id (`_doc_path`) or from an absolute path under a checkout of
         this repo (`_endpoint`). A relative path, one under `~`, a URI, a path outside the repo,
-        an untracked or deleted file, a doc's id that is not one tracked file and an endpoint of
-        an unknown type are not named, nor is one that cannot be judged. An edge that is not named
-        is withheld whole, its id with it, as if the store did not hold it: what the reader sees
-        does not depend on it (dn-guest-principal §5)."""
+        an untracked or deleted file, a doc's id that is not one tracked file or that holds a
+        glob's characters, and an endpoint of an unknown type are not named, nor is one that
+        cannot be judged. An edge that is not named is withheld whole, its id with it, as if the
+        store did not hold it: what the reader sees does not depend on it (dn-guest-principal
+        §5)."""
         key = (dst, dst_type)
         if key not in self._named_of:
             try:
@@ -659,7 +660,10 @@ class _Builder:
             return False
         rel: str | None = None
         if dst_type == "doc" and "/" not in dst:
-            rel = _doc_path(dst)
+            # `_doc_path` finds a finding's or a plan's file with a glob, and the id of a file
+            # under a `docs/design-notes/` folder is its name, whatever the folder is in: a name
+            # that holds a glob's characters could match one tracked doc and be shown as its id
+            rel = None if any(c in dst for c in "*?[") else _doc_path(dst)
         elif dst_type in ("file", "doc") and Path(dst).is_absolute():
             node = self._endpoint(dst, dst_type)
             rel = node.ref if node.stratum == "reference" else None
