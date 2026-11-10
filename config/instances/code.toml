@@ -1,0 +1,63 @@
+# The CODE instance: source repositories for a coding agent to query, with no embedder and no
+# language model (docs/design-notes/dn-palace-lite.md).
+#
+# Selected by `MIND_PALACE_OVERLAY=config/instances/code.toml`. A named overlay replaces the whole
+# per-machine chain, so nothing of Ouroboros's `ouroboros.toml` or `levers.toml` reaches this
+# instance (DI-2). Its state lives under its own root, outside every checkout and worktree, so it
+# outlives the one a process happens to run from; it declares no vault, no transcripts and no
+# dialogue, so it reads none of the default instance's sources.
+#
+# The repositories below are read through git's object store at their ref, never their working
+# tree. `palace repo-sync` lands each one's files as items of the reference stratum, a changed file
+# a new version and a file gone from the ref retired, with their lexical units and no vector; a
+# second run after no commit lands nothing. No daemon runs for this instance: it embeds nothing,
+# and nothing in it wakes a model.
+#
+#   MIND_PALACE_OVERLAY=config/instances/code.toml uv run scripts/palace.py repo-sync
+#   MIND_PALACE_OVERLAY=config/instances/code.toml uv run scripts/palace.py query 'near "x" over reference'
+#   MIND_PALACE_OVERLAY=config/instances/code.toml uv run python scripts/palace_mcp.py
+
+[instance]
+id = "code"
+root = "~/.mind-palace/instances/code"
+
+# No embedder: no plane is opened, no drain runs, and `near` ranks by the lexical index, saying so.
+[embedding]
+enabled = false
+
+[dreaming]
+scheduled = false                   # no language model: nothing dreams, relates or curates
+
+[ingestion.vault]
+enabled = false
+[ingestion.transcripts]
+enabled = false
+
+[ingestion.code]
+enabled = true
+embed = false
+
+# One table per repository; add another to read more. An item is `code/<name>/<path>`.
+[[ingestion.code.repositories]]
+name = "mind-palace"
+path = "~/mind-palace"
+ref = "main"
+
+[integrate]
+enabled = false
+
+[backup]
+enabled = false
+
+[secrets]
+enabled = false
+
+[attestation]
+enabled = false
+
+[selfmod]
+enabled = false
+unattended_enabled = false
+
+[effectors]
+enabled = false
