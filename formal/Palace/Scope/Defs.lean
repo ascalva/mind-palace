@@ -408,6 +408,14 @@ def overlayGrant (g : List Scope) : List Scope := g.map Scope.nameOverlay
 grant of 2026-11-04 to the sentence surfaces. -/
 def ambassadorOverlay : List Scope := overlayGrant ambassador
 
+/-- The guest's grant `GUEST`: the Ambassador's first two planes over the strata a guest reads
+(the dialogue, the reference stratum, the curated papers, the observed records), read-only, with
+no world reach; `grant_for` resolves the role `guest` to it (`core/ingest/ingress.py`). -/
+def guest : List Scope :=
+  [⟨close {.dialogue, .reference, .curated, .observed}, {.F, .D}, ⟨.projectionEvent, .all⟩,
+      ⟨0, 0, 0⟩, 1, none⟩,
+    ⟨close {.reference, .dialogue}, {.F, .C}, ⟨.commit, .all⟩, ⟨0, 0, 0⟩, 1, none⟩]
+
 /-! ## Clearances (`core/kernel/clearance.py`) -/
 
 /-- `Provenance`: the record classes. -/

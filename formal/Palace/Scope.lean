@@ -966,6 +966,28 @@ theorem search_reference_history (authored : Bool) :
   revert authored
   decide
 
+/-! ## The guest's grant (`core/query.py::GUEST`) -/
+
+/-- **SCO-9** The guest's grant is one `Grant` accepts: no plane names the foundation, and none
+reaches the world. -/
+theorem guest_grantOk : GrantOk guest := by
+  decide
+
+/-- **SCO-9** No plane of the guest's grant names the mirror, its authored refinement or the
+interpreted stratum, closure included: not the owner's notes, nor the readings derived from
+them. -/
+theorem guest_reads_no_note :
+    ∀ p ∈ guest, Disjoint p.sigma {.mirror, .mirrorAuthored, .interpreted} := by
+  decide
+
+/-- **SCO-9** So a scope that reads any of the three lies under no plane of the guest's grant: a
+clause that requires one is refused. -/
+theorem guest_refuses_note (r : Scope) {s : Stratum}
+    (hs : s ∈ ({.mirror, .mirrorAuthored, .interpreted} : Finset Stratum)) (hr : s ∈ r.sigma) :
+    ¬ admits guest r := by
+  rintro ⟨p, hp, hle⟩
+  exact disjoint_left.1 (guest_reads_no_note p hp) (hle.1 hr) hs
+
 /-! ## Roles and conformance -/
 
 /-- Every role is zone-admissible by construction, at any strata and any executor reach. -/

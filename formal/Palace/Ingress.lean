@@ -1148,4 +1148,11 @@ theorem ambassador_refuses_commit_command :
   · exact absurd hle.2.2.2.2.1 (by decide)
   · exact absurd hle.2.2.1.1 (by decide)
 
+open Palace.Query in
+/-- **SCO-9** No plane of the guest's grant carries the write bit, so it admits no command
+(ING-1). -/
+theorem guest_admits_no_command {Rg H : Type*} (c : Clause) (hc : IsCommand c) :
+    ¬ Sentence.Admissible CQ.guest (Sentence.clause c : Sentence Rg H) :=
+  readonly_admits_no_command CQ.guest (by decide) c hc
+
 end Palace.Ingress

@@ -55,6 +55,13 @@ theorem ambassador_refuses_commit_command :
     ¬ CQ.admits CQ.ambassador (commandScope {.reference} .commit) :=
   sorry
 
+open Palace.Query in
+/-- **SCO-9** No plane of the guest's grant carries the write bit, so it admits no command
+(ING-1). -/
+theorem guest_admits_no_command {Rg H : Type*} (c : Clause) (hc : IsCommand c) :
+    ¬ Sentence.Admissible CQ.guest (Sentence.clause c : Sentence Rg H) :=
+  sorry
+
 /-- **ING-7** With the key written last, a fresh run interrupted after any step converges: the next
 run lands exactly the uninterrupted run's state. -/
 theorem ingest_prefix_converges (x : Source R D G) (s : State R D G) (hs : Fresh x s) (k : ℕ) :

@@ -106,6 +106,11 @@ theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
     ¬ Admissible CQ.ambassador (.assume h s) :=
   sorry
 
+/-- **SCO-9** so the guest's grant admits no hypothetical (QSA-5). -/
+theorem guest_no_assume (h : H) (s : Sentence Rg H) :
+    ¬ Admissible CQ.guest (.assume h s) :=
+  sorry
+
 /-- **QSA-5** every sentence admissible under a grant is admissible under the grant with the
 overlay named: the owner's grant widens, never narrows. -/
 theorem admissible_overlayGrant_of_admissible {s : Sentence Rg H} (h : Admissible g s) :

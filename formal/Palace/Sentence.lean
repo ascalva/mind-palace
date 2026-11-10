@@ -222,6 +222,17 @@ theorem ambassador_no_assume (h : H) (s : Sentence Rg H) :
   obtain ⟨p, hp, hmem⟩ := admissible_assume_overlay ha
   exact ambassador_no_overlay p hp hmem
 
+/-- The guest's two planes name the overlay on none. -/
+theorem guest_no_overlay : ∀ p ∈ CQ.guest, CQ.Stratum.hypothetical ∉ p.sigma := by
+  decide
+
+/-- **SCO-9** so the guest's grant admits no hypothetical (QSA-5). -/
+theorem guest_no_assume (h : H) (s : Sentence Rg H) :
+    ¬ Admissible CQ.guest (.assume h s) := by
+  intro ha
+  obtain ⟨p, hp, hmem⟩ := admissible_assume_overlay ha
+  exact guest_no_overlay p hp hmem
+
 /-- A scope under a plane stays under the plane with the overlay named. -/
 theorem le_nameOverlay_of_le {r p : CQ.Scope} (h : r.Le p) : r.Le p.nameOverlay := by
   obtain ⟨h₁, h₂, h₃, h₄⟩ := h
