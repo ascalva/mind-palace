@@ -196,9 +196,13 @@ def _command_word(text: str) -> str:
 
 
 def redact_reason(reason: str) -> str:
-    """A refusal's reason as the log keeps it for a command: every quoted run replaced by its
-    length, since a refusal may name a conversation or a text. A reason's own apostrophe opens
-    a run too, so the log may keep less of a reason than it says, never more."""
+    """A refusal's reason as the log keeps it for a command: every run between two ASCII quotes
+    replaced by its length, since a refusal may name a conversation or a text. The runs are paired
+    by position, not by meaning. A reason's own apostrophe opens a run too and closes at the next
+    quote, so the log may keep less of a reason than it says, and what the reason quoted after
+    that apostrophe can be left in clear; text quoted in any other way is kept as it is. It hides
+    the words an asker quoted in a sentence. It does not hide what a reason quotes from a store:
+    a surface that must not pass that on says a fixed sentence instead of the reason."""
     return _redact(reason)
 
 

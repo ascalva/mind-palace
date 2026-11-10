@@ -29,7 +29,10 @@ import sys
 import traceback
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from core.query import QueryEngine
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "mind-palace", "version": "0.1.0"}
@@ -289,57 +292,139 @@ GUEST_SCOPE_HINT = (
 )
 
 
+# What a refusal raised while a sentence ran tells the guest, by class: one fixed sentence each.
+# The reason raised there may quote what a store holds, so it is never passed on (`_refused`).
+GUEST_RAN = {
+    "lookup": (
+        "a name in the sentence was not found in the strata this grant reads, or what it names "
+        "cannot be read as text: spell a ref as an answer's `ref` is spelled (a repo path from "
+        "the repository's root such as `core/query.py`, `transcript/<session>/<turn>`, a dialogue "
+        "ref, `reference:<paper>`), name with `over` the strata a title is to be found in, and "
+        "ask `near \"<text>\" over dialogue reference curated observed` for refs to start from"
+    ),
+    "ambiguous": (
+        "a name in the sentence fits more than one node of the strata this grant reads, or more "
+        "than one commit; write the ref in full in place of a title, and more of the sha after "
+        "`as of`"
+    ),
+    "unsupported": (
+        "the sentence compiles and the stores cannot answer it as written: `as of` takes a "
+        "commit the citation graph holds a cut at, and a verb walks only the relations recorded "
+        "for the nodes it names; drop `as of` or change the relation"
+    ),
+    "scope": (
+        "a ref in the sentence names something outside the strata its clauses read: a transcript "
+        "turn is read by walking C or under `over dialogue_transcript`, and `read` returns a "
+        "record only of the stratum its ref's spelling names"
+    ),
+    "sort": "the sentence's sorts did not compose when it ran; give each connective the sorts "
+            "its grammar takes",
+    "parse": "the sentence could not be read when it ran; write one sentence of the query "
+             "algebra",
+    "busy": "the instance is busy and took no request; ask again later",
+    "error": (
+        "the sentence failed while it ran, for a reason this surface does not show; the "
+        "instance's query log keeps it for the owner"
+    ),
+}
+# What `overview` tells the guest when it fails, whatever failed.
+GUEST_OVERVIEW_FAILED = ("the overview could not be counted on this instance, for a reason this "
+                         "surface does not show; `query` may still answer")
+
+
 class GuestRefusal(PermissionError):
-    """A refusal as the guest reads it: its class, then its reason with every quoted run replaced
-    by its length (`redact_reason`, the log's redaction), so no refusal echoes a name, a path or a
-    text, the asker's own included; a scope refusal adds what the grant reads."""
+    """A refusal as the guest reads it: its class, then what the surface says of it, one of two
+    texts (`_refused` chooses). A sentence the compiler refuses is told the compiler's reason
+    with every quoted run replaced by its length (`redact_reason`): compiling reads the sentence
+    and the grant and no store, so that reason holds the asker's own words and nothing a store
+    holds. A sentence refused while it ran against the stores is told one fixed sentence for its
+    class (`GUEST_RAN`), never the reason, which may quote what a store holds and which the
+    redaction, pairing quotes by position, does not reliably hide. A scope refusal of either
+    kind adds what the grant reads."""
 
-    def __init__(self, kind: str, reason: str) -> None:
-        from core.sentence.surface import redact_reason
+    def __init__(self, kind: str, said: str) -> None:
+        super().__init__(f"{kind}: {said}" + (GUEST_SCOPE_HINT if kind == "scope" else ""))
 
-        super().__init__(f"{kind}: {redact_reason(reason)}"
-                         + (GUEST_SCOPE_HINT if kind == "scope" else ""))
+
+def _refused(sentence: Any, e: BaseException) -> GuestRefusal:
+    """The refusal the guest reads for `e`, which asking `sentence` raised. The sentence is
+    compiled again, alone: that reads the sentence and the grant and no store. If the compiler
+    refuses it, the refusal is the compiler's, and the guest reads its class and its reason,
+    redacted. If it compiles, `e` came from running it against the stores, and the guest reads
+    `e`'s class and that class's fixed sentence; `e`'s own words are never shown. Whatever fails
+    in here is an `error`, said in the fixed sentence."""
+    kind = "error"
+    try:
+        from core.query import GUEST
+        from core.sentence.plan import compile_sentence
+        from core.sentence.surface import is_command, redact_reason, refusal_class
+
+        kind = refusal_class(e) or "error"
+        try:
+            compile_sentence(sentence, GUEST, role="guest" if is_command(sentence) else None)
+        except Exception as c:
+            return GuestRefusal(refusal_class(c) or "error", redact_reason(str(c)))
+    except Exception:
+        kind = "error"
+    return GuestRefusal(kind, GUEST_RAN.get(kind, GUEST_RAN["error"]))
 
 
 class Guest:
     """The guest's tools (dn-guest-principal): the one read under `GUEST`, and counts over the
-    strata it reads. No write tool, no request, and no `status`, which lists the owner's tasks."""
+    strata it reads. No write tool, no request, and no `status`, which lists the owner's tasks.
+    A tool's body raises `GuestRefusal` and nothing else, whatever fails in it: the engine is
+    built on first use, inside the body, so a configuration or a store that cannot be opened is
+    a refusal too."""
 
     def __init__(self) -> None:
-        from core.query import QueryEngine
+        self._engine: QueryEngine | None = None
 
-        self.engine = QueryEngine()
+    @property
+    def engine(self) -> QueryEngine:
+        if self._engine is None:
+            from core.query import QueryEngine
+
+            self._engine = QueryEngine()
+        return self._engine
+
+    @engine.setter
+    def engine(self, engine: QueryEngine) -> None:
+        self._engine = engine
 
     def query(self, sentence: str, trace: bool = False) -> dict[str, Any]:
         """A sentence under `GUEST`, logged as `mcp`/`guest`. The universe withholds what the
-        stores say of the notes (`hide_mirror`); a refusal is a `GuestRefusal`."""
-        from core.query import GUEST
-        from core.sentence.surface import ask_logged, refusal_class
-
+        stores say of the notes (`hide_mirror`); a refusal is a `GuestRefusal`, its text chosen
+        by `_refused`."""
         try:
+            from core.query import GUEST
+            from core.sentence.surface import ask_logged
+
             return ask_logged(sentence, GUEST, surface="mcp", role="guest", engine=self.engine,
                               trace=bool(trace)).to_dict()
         except Exception as e:
-            raise GuestRefusal(refusal_class(e) or "error", str(e)) from None
+            raise _refused(sentence, e) from None
 
     def overview(self) -> dict[str, Any]:
         """The catalog's active entries of the classes the grant's strata hold, the curated
         store's chunks, and the grant. Nothing of the mirror or the interpreted stratum is
-        counted, not even in a total."""
-        from collections import Counter
+        counted, not even in a total. A failure is a `GuestRefusal` of one fixed sentence."""
+        try:
+            from collections import Counter
 
-        from core.kernel.clearance import classes_of
-        from core.query import GUEST
-        from core.stores.catalog import VaultCatalog
+            from core.kernel.clearance import classes_of
+            from core.query import GUEST
+            from core.stores.catalog import VaultCatalog
 
-        admitted = {str(p) for p in classes_of(GUEST.strata)}
-        entries = VaultCatalog(self.engine.config.paths.vault_catalog).active_entries()
-        catalog = Counter(str(e.provenance) for e in entries if str(e.provenance) in admitted)
-        return {
-            "catalog_by_provenance": dict(catalog),
-            "literature_chunks": self.engine._get("curated").count(),
-            "your_grant": _planes(GUEST),
-        }
+            admitted = {str(p) for p in classes_of(GUEST.strata)}
+            entries = VaultCatalog(self.engine.config.paths.vault_catalog).active_entries()
+            catalog = Counter(str(e.provenance) for e in entries if str(e.provenance) in admitted)
+            return {
+                "catalog_by_provenance": dict(catalog),
+                "literature_chunks": self.engine._get("curated").count(),
+                "your_grant": _planes(GUEST),
+            }
+        except Exception:
+            raise GuestRefusal("error", GUEST_OVERVIEW_FAILED) from None
 
 
 def _launch_agents() -> list[dict[str, str]]:

@@ -192,6 +192,19 @@ def _call(server: Any, tool: str, **arguments: Any) -> tuple[bool, str]:
     return reply["result"]["isError"], reply["result"]["content"][0]["text"]
 
 
+class _Failing:
+    """A store whose every read raises `error`."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def __getattr__(self, name: str) -> Any:
+        def fail(*args: Any, **kwargs: Any) -> Any:
+            raise self.error
+
+        return fail
+
+
 def _battery(f: Fixture) -> list[tuple[str, str]]:
     """Every verb and connective, as (sentence, expected): `answered` (admitted, with hits),
     `admitted` (with or without hits), `empty` (admitted, no hits) or `refused`. Every sentence
@@ -355,18 +368,113 @@ def test_no_guest_output_carries_the_canary(palaces: tuple[Fixture, Fixture]) ->
 
 
 def test_refusals_name_the_fix_and_echo_nothing(palaces: tuple[Fixture, Fixture]) -> None:
+    from agents.ambassador import mcp
+
     a, _ = palaces
     guest = _server(a, "guest")
     error, text = _call(guest, "query", sentence='near "walnut orchard"')
     assert error and "scope:" in text and "mirror_authored" in text
     assert "`over dialogue reference curated observed`" in text
+    # refused while it ran (the title is no node of the dialogue): the class and its one
+    # sentence, which says how a ref is spelled and is the same whatever name was asked for
     error, text = _call(guest, "query", sentence=f'diffuse S from "{a.title}" over dialogue')
-    assert error and text.startswith("GuestRefusal: lookup:") and a.title not in text
-    assert f'"<{len(a.title)}>"' in text                     # the asker's own words, as a length
+    assert (error, text) == (True, "GuestRefusal: lookup: " + mcp.GUEST_RAN["lookup"])
+    assert "transcript/<session>/<turn>" in text and "not found in the strata" in text
+    assert _call(guest, "query",
+                 sentence='diffuse S from "no such name" over dialogue') == (True, text)
     error, text = _call(guest, "query", sentence=f'read "{a.note}"')
     assert error and "scope:" in text and a.note not in text
     error, text = _call(guest, "query", sentence=f'do capture(text: "{a.canary}")')
     assert error and a.canary not in text and "no write bit for `do`" in text
+
+
+def test_a_refusal_says_the_compilers_reason_or_its_classs_one_sentence(
+        palaces: tuple[Fixture, Fixture], base: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """dn-guest-principal §4. Compiling reads the sentence and the grant and no store, so a
+    sentence the compiler refuses is told its reason, the asker's quoted words as lengths. A
+    sentence that compiles and is refused while it runs is told its class and that class's one
+    sentence, whatever the reason said. A store's error that names a note's path, in a reason
+    the redaction would pass, reaches the guest as its class and nothing else, on stdout and on
+    stderr; the owner's query log keeps the reason."""
+    from agents.ambassador import mcp
+    from core.sentence.surface import redact_reason
+
+    a, _ = palaces
+    guest = _server(a, "guest")
+    ran = {kind: f"GuestRefusal: {kind}: {said}" + (mcp.GUEST_SCOPE_HINT if kind == "scope" else "")
+           for kind, said in mcp.GUEST_RAN.items()}
+    assert set(ran) == {"lookup", "ambiguous", "unsupported", "scope", "sort", "parse", "busy",
+                        "error"}
+
+    # refused by the compiler
+    for sentence, start in (
+            ('nearby "walnut"', "parse: clause: expected a verb"),
+            ('not near "walnut" over dialogue', "sort: not: regions only"),
+            (f'near "{a.canary}" over nowhere', 'ambiguous: over: "<7>" is not a stratum'),
+            ('top 5000 near "walnut" over dialogue', "parse: top 5000: at most 1000"),
+            (f'walk from "{TURN}" via (C over reference', "parse: via: expected"),
+            (f'read "{a.note}"', "scope: read: "),
+            (f'do capture(text: "{a.canary}")', "scope: store in observed: ")):
+        error, text = _call(guest, "query", sentence=sentence)
+        assert error and text.startswith("GuestRefusal: " + start), text
+        assert text not in ran.values() and a.canary not in text
+
+    # refused while it ran: no such node, no such file, no such turn, two cuts that start so,
+    # no cut at all, a turn the sentence does not read
+    a.engine._cache["references"].edges.append(_Edge("docs/old.md", CODE, "c0"))
+    for sentence, kind in (
+            (f'diffuse S from "{a.title}" over dialogue', "lookup"),
+            ('read "docs/no-such-file.md"', "lookup"),
+            ('reach C from "transcript/s9/9" over dialogue', "lookup"),
+            (f'reach F from "{CODE}" as of "c"', "ambiguous"),
+            (f'reach F from "{CODE}" as of "nope"', "unsupported"),
+            (f'diffuse S from "{TURN}" over curated', "scope")):
+        for trace in (False, True):
+            assert _call(guest, "query", sentence=sentence, trace=trace) == (True, ran[kind]), (
+                sentence)
+
+    # a store's error whose reason names a path with an apostrophe: the redaction pairs the
+    # apostrophe with the opening quote and leaves the rest of the path in clear
+    secret = f"/srv/vault/the owner's {a.canary}.md"
+    reason = f"unable to open '{secret}'"
+    assert a.canary in redact_reason(reason)
+    capsys.readouterr()
+    plane = a.engine._cache["vectors"]
+    for raised, kind in ((OSError(reason), "error"), (RuntimeError(reason), "error"),
+                         (KeyError(secret), "lookup"), (IllScopedSentence(reason), "scope")):
+        a.engine._cache["vectors"] = _Failing(raised)
+        for trace in (False, True):
+            assert _call(guest, "query", sentence='near "walnut" over dialogue',
+                         trace=trace) == (True, ran[kind]), kind
+    a.engine._cache["vectors"] = plane
+    assert a.canary not in capsys.readouterr().err       # nor in the server's own diagnostics
+    logged = QueryLog(base / "q.jsonl").entries()[-1]
+    assert (logged.role, logged.refusal) == ("guest", "scope") and a.canary in logged.reason
+
+    # `overview` that fails says its one sentence
+    a.engine._cache["curated"] = _Failing(OSError(reason))
+    assert _call(guest, "overview") == (True, "GuestRefusal: error: " + mcp.GUEST_OVERVIEW_FAILED)
+    assert a.canary not in capsys.readouterr().err
+
+
+def test_the_guests_engine_is_built_inside_the_call_that_needs_it(
+        base: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Making the guest's tools opens nothing, and a tool's body raises `GuestRefusal` and
+    nothing else: a configuration that cannot be read is a refusal from the call that needed
+    the engine, in that call's fixed words."""
+    import core.query
+    from agents.ambassador import mcp
+
+    def unreadable() -> Any:
+        raise OSError("cannot read '/srv/notes/the owner's plan.toml'")
+
+    monkeypatch.setattr(core.query, "QueryEngine", unreadable)
+    server = mcp.Server("guest")
+    assert isinstance(server.amb, mcp.Guest) and server.amb._engine is None
+    assert _call(server, "overview") == (True, "GuestRefusal: error: " + mcp.GUEST_OVERVIEW_FAILED)
+    assert _call(server, "query", sentence='near "walnut" over dialogue') == (
+        True, "GuestRefusal: error: " + mcp.GUEST_RAN["error"])
+    assert "plan.toml" not in capsys.readouterr().err
 
 
 def test_the_admitted_strata_answer(palaces: tuple[Fixture, Fixture]) -> None:
