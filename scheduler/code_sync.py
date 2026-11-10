@@ -31,6 +31,11 @@ if TYPE_CHECKING:  # the sync driver is INJECTED into the handler — no runtime
 CODE_SYNC_KIND = "code_sync"
 CODE_BACKFILL_KIND = "code_backfill"     # the history backfill (bp-099) — sibling of code_sync
 CODE_REBUILD_KIND = "code_rebuild"       # the D7 atom+membership rebuild (bp-153) — checkpointed
+# The lexical code source (dn-palace-lite): with `[ingestion.code] embed = false`, or in an instance
+# that embeds nothing, the code is each repository's files at its ref, landed by the ingress's
+# writer (`ingress/sync_repository.palace`) with no plane row; this kind runs that script once a
+# repository, in place of the embed lane above.
+REPOSITORY_SYNC_KIND = "repository_sync"
 
 Handler = Callable[[Job], "str | None"]
 
@@ -105,6 +110,14 @@ def code_rebuild_handler(sync: CodeCorpusSync, db_path: Path, queue: JobQueue, *
             queue.checkpoint(job.id, step.token or "")
         return f"code rebuild [{step.phase}]: {step.message}"
     return handle
+
+
+def enqueue_repository_sync(queue: JobQueue, router: Router) -> Job:
+    """Enqueue one background sync of the repositories, the lexical code source. Idempotent (a
+    file the catalog holds at its bytes is UNCHANGED and lands nothing), so a duplicate folds into
+    the row waiting; model-less, so it pins and runs at BACKGROUND."""
+    plan = router.plan(REPOSITORY_SYNC_KIND, priority=PRIORITY_BACKGROUND)
+    return queue.enqueue(plan.kind, plan.tier, plan.num_ctx, priority=plan.priority)
 
 
 def enqueue_code_rebuild(queue: JobQueue, router: Router) -> Job:

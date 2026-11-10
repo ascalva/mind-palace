@@ -18,6 +18,7 @@
     uv run scripts/palace.py dream          # on-demand: one dreaming pass (no daemon needed)
     uv run scripts/palace.py vault-sync     # on-demand: one full vault-lane rescan (no daemon)
     uv run scripts/palace.py embed          # on-demand: the embed drain (items landed lazily)
+    uv run scripts/palace.py repo-sync      # on-demand: the code repositories, lexical (no vectors)
     uv run scripts/palace.py dialogue-sync  # on-demand: Open WebUI chats -> the dialogue stratum
     uv run scripts/palace.py relate         # on-demand: signed relation edges (wakes the model)
     uv run scripts/palace.py lanes [code-observe|code-embed|dialogue]  # on-demand edge lanes
@@ -54,7 +55,8 @@ _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path 
 
 USAGE = ("usage: palace.py "
          "{start|stop|down|up|restart|status|queue|query|reset|deploy|ingest-chat|code-seed|"
-         "code-backfill|code-rebuild|dream|vault-sync|embed|dialogue-sync|relate|lanes|reembed|"
+         "code-backfill|code-rebuild|dream|vault-sync|embed|repo-sync|dialogue-sync|relate|lanes|"
+         "reembed|"
          "tick|bless} "
          "[--force] [--confirm] [--skip-tests] [--dry-run] [<plan-id>] [\"<sentence>\" --json "
          "--no-plan --as <role> | --log]")
@@ -266,6 +268,7 @@ def main(argv: list[str]) -> int:
         "dream": ("dreaming pass", launcher.dream_now),
         "vault-sync": ("vault sync", launcher.vault_sync_now),
         "embed": ("embed drain", launcher.embed_now),
+        "repo-sync": ("repository sync", launcher.repo_sync_now),
         "dialogue-sync": ("dialogue sync", launcher.dialogue_sync_now),
         "relate": ("relation edges", launcher.relate_now),
         "lanes": ("lanes: " + (", ".join(lanes) or "all"),

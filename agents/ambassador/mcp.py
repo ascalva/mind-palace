@@ -83,13 +83,22 @@ class Ambassador:
             }
             for s in AMBASSADOR.scopes
         ]
-        return {
+        out: dict[str, Any] = {
             "catalog_by_provenance": dict(catalog),
             "vector_rows": self.engine._get("vectors").count(),
             "relation_edges": dict(edges),
             "versions": self.engine._get("versions").count(),
             "your_grant": planes,
         }
+        if not cfg.embedding.enabled:     # the lite profile: say so, and what ranks instead
+            out["embedding"] = "off: this instance embeds nothing; near ranks by the lexical index"
+        lexical = self.engine._get("lexical")
+        if lexical is not None:
+            out["lexical_units"] = lexical.count()
+        code = code_sources(cfg)
+        if code:
+            out["code"] = code
+        return out
 
     # writes and on-demand work -----------------------------------------------------------------
     def _run(self, fn: Callable[[], int]) -> dict[str, Any]:
@@ -169,7 +178,9 @@ class Ambassador:
             "models": {
                 "chat": model_state(cfg.runtime.port_for("routine") or 8080,
                                     key=chat_key(policy)),
-                "embedder": model_state(cfg.runtime.port_for("embedding") or 8081),
+                # an instance that embeds nothing has no embedder to ask (dn-palace-lite)
+                "embedder": (model_state(cfg.runtime.port_for("embedding") or 8081)
+                             if cfg.embedding.enabled else "off"),
             },
             "heartbeat": last_tick(cfg.paths.data_dir, interval_s=policy.interval_s),
             "services": _launch_agents(),
@@ -222,6 +233,27 @@ class Ambassador:
         finally:
             store.close()
         return {**out, "now": now_local().isoformat(timespec="minutes")}
+
+
+def code_sources(cfg: Any) -> list[dict[str, Any]]:
+    """Each repository of the lexical code source (dn-palace-lite): the commit whose files it
+    last landed whole, when, and how many commits its ref has moved past that since, so a reader
+    knows how current the code stratum is before trusting an answer from it."""
+    from core.ingest.readers import read_mark
+    from core.ingest.repository import behind
+    from core.ingest.table import repository_mark
+    from core.kernel.config.loader import lexical_code
+
+    if not lexical_code(cfg):
+        return []
+    out = []
+    for repo in cfg.ingestion.code.repositories:
+        mark = read_mark(repository_mark(cfg, repo.name))
+        landed = str(mark["commit"]) if mark else ""
+        out.append({"repository": repo.name, "ref": repo.ref, "landed": landed[:12] or None,
+                    "at": mark.get("at") if mark else None,
+                    "behind": behind(Path(repo.path), landed, repo.ref) if landed else None})
+    return out
 
 
 def _launch_agents() -> list[dict[str, str]]:
