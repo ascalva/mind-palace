@@ -650,6 +650,60 @@ def test_a_guests_sentence_cannot_break_the_log_or_write_into_its_reader(
     assert json.loads(text)["asked"] == len(hostile)
 
 
+# ── the protocol stream, which the client reads as JSON ────────────────────────────────────────
+
+
+class _Printing:
+    """A store that prints a line on every read, as a library under it may, then answers."""
+
+    def __init__(self, store: Any, line: str) -> None:
+        self._store, self._line = store, line
+
+    def __getattr__(self, name: str) -> Any:
+        inner = getattr(self._store, name)
+        if not callable(inner):
+            return inner
+
+        def loud(*args: Any, **kwargs: Any) -> Any:
+            print(self._line)
+            return inner(*args, **kwargs)
+
+        return loud
+
+
+def test_what_the_guests_tools_print_stays_off_the_protocol_stream(
+        palaces: tuple[Fixture, Fixture], capfd: pytest.CaptureFixture[str]) -> None:
+    """The client reads the server's stdout as JSON-RPC, one message per line. A store that
+    prints while the guest's `query` and `overview` run, and a refusal with its traceback, each
+    leave one reply per request on the stream the server was given and nothing else. What was
+    printed is on stderr, and the process's own stdout is not written at all."""
+    from agents.ambassador import mcp
+
+    a, _ = palaces
+    line = "a library's progress line"
+    a.engine._cache["curated"] = _Printing(a.engine._cache["curated"], line)
+    asked = [("query", {"sentence": 'near "walnut" over curated'}),
+             ("overview", {}),
+             ("query", {"sentence": f'read "{a.note}"'}),
+             ("status", {})]
+    requests = "".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": "tools/call",
+                                   "params": {"name": tool, "arguments": arguments}}) + "\n"
+                       for i, (tool, arguments) in enumerate(asked, 1))
+    stream = io.StringIO()
+    mcp.serve(io.StringIO(requests), stream, _server(a, "guest"))
+    out, err = capfd.readouterr()
+    assert out == ""                                         # nothing reached the real stdout
+    written = stream.getvalue()
+    replies = [json.loads(reply) for reply in written.splitlines()]
+    assert [r["id"] for r in replies] == [1, 2, 3, 4] and written.count("\n") == len(asked)
+    assert [r["result"]["isError"] for r in replies[:3]] == [False, False, True]
+    assert "unknown tool" in replies[3]["error"]["message"]
+    answer = json.loads(replies[0]["result"]["content"][0]["text"])
+    assert answer["hits"][0]["ref"] == PAPER
+    assert err.count(line) >= 2 and line not in written      # the query's read and the overview's
+    assert "GuestRefusal: scope: read: " in err and a.canary not in written + err
+
+
 def test_overview_counts_only_what_the_grant_reads_and_status_is_absent(
         palaces: tuple[Fixture, Fixture]) -> None:
     a, _ = palaces
