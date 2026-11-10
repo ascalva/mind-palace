@@ -14,4 +14,8 @@ cd "$(git rev-parse --show-toplevel)" || exit 0
 if command -v uv >/dev/null 2>&1; then RUN="uv run"; else RUN="./.venv/bin/python"; fi
 $RUN scripts/snapshot_code.py 2>&1 || echo "code-sensor sync failed (non-blocking; next sync heals)"
 $RUN scripts/sense_self.py 2>&1 || echo "self-sensor sync failed (non-blocking; next sync heals)"
+# The code instance (dn-palace-lite), when it has landed once: as .githooks/post-merge keeps it.
+[ -f config/instances/code.toml ] && { MIND_PALACE_OVERLAY=config/instances/code.toml \
+    $RUN scripts/palace.py repo-sync --if-landed 2>&1 \
+    || echo "code instance sync failed (non-blocking; next sync heals)"; }
 exit 0

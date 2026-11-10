@@ -1,0 +1,17 @@
+#!/bin/sh
+# A pull or merge that moves main keeps the code instance current (docs/design-notes/
+# dn-palace-lite.md): its repositories' files land by the writer, a changed file a new version, a
+# file gone retired, no vector computed. NEVER blocks the merge: a failed sync prints a warning and
+# exits 0; the sync is idempotent catch-up, so the next one (any merge or commit on main, or
+# `palace repo-sync` by hand) heals the gap. Only an instance already landed once is kept current
+# here (`--if-landed`); its first sync is the operator's.
+#
+# main is the ingestion branch (CONVENTIONS §Commits): exit silently on any other branch or
+# detached HEAD.
+[ "$(git symbolic-ref --short -q HEAD)" = "main" ] || exit 0
+cd "$(git rev-parse --show-toplevel)" || exit 0
+[ -f config/instances/code.toml ] || exit 0
+if command -v uv >/dev/null 2>&1; then RUN="uv run"; else RUN="./.venv/bin/python"; fi
+MIND_PALACE_OVERLAY=config/instances/code.toml $RUN scripts/palace.py repo-sync --if-landed 2>&1 \
+    || echo "code instance sync failed (non-blocking; next sync heals)"
+exit 0

@@ -19,6 +19,7 @@
     uv run scripts/palace.py vault-sync     # on-demand: one full vault-lane rescan (no daemon)
     uv run scripts/palace.py embed          # on-demand: the embed drain (items landed lazily)
     uv run scripts/palace.py repo-sync      # on-demand: the code repositories, lexical (no vectors)
+    uv run scripts/palace.py repo-sync --if-landed  # the same, only once it has landed (the hooks)
     uv run scripts/palace.py dialogue-sync  # on-demand: Open WebUI chats -> the dialogue stratum
     uv run scripts/palace.py relate         # on-demand: signed relation edges (wakes the model)
     uv run scripts/palace.py lanes [code-observe|code-embed|dialogue]  # on-demand edge lanes
@@ -217,6 +218,19 @@ def queue_overview() -> int:
     return 0
 
 
+def _landed() -> bool:
+    """Whether this instance's code source has landed a repository whole at least once (its
+    mark), read from the configuration alone, so nothing is opened or made when it has not."""
+    from core.ingest.readers import read_mark
+    from core.ingest.table import repository_mark
+    from core.kernel.config import get_config
+    from core.kernel.config.loader import lexical_code
+
+    cfg = get_config()
+    return lexical_code(cfg) and any(read_mark(repository_mark(cfg, r.name)) is not None
+                                     for r in cfg.ingestion.code.repositories)
+
+
 def main(argv: list[str]) -> int:
     if not argv or argv[0] in {"-h", "--help"}:
         print(USAGE)
@@ -235,6 +249,8 @@ def main(argv: list[str]) -> int:
     if argv[0] == "query":  # read-only: a sentence of the query algebra against the stores, never
         from core.sentence.surface import run_query  # the daemon (dn-query-sentence-algebra, QL-3)
         return run_query(argv[1:])
+    if argv[0] == "repo-sync" and "--if-landed" in argv[1:] and not _landed():
+        return 0    # the hook keeps a landed code instance current; its first sync is deliberate
     from ops.lifecycle.launcher import build_launcher
 
     cmd, flags = argv[0], set(argv[1:])
