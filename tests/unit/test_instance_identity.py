@@ -160,9 +160,12 @@ def test_a_well_formed_id_is_the_instance(monkeypatch, tmp_path, iid) -> None:
     assert loader.get_config().instance.id == iid           # surfaced through get_config()
 
 
-@pytest.mark.parametrize("text", ['[instance]\nid = "bench"\nroot = "/tmp"\n',
+@pytest.mark.parametrize("text", ['[instance]\nid = "bench"\nhome = "/tmp"\n',
+                                  '[instance]\nid = "bench"\nroot = "relative/x"\n',
                                   'instance = "bench"\n'])
 def test_the_instance_section_holds_one_key(monkeypatch, tmp_path, text) -> None:
+    """The table holds an id and, for a named instance, an absolute root (dn-palace-lite):
+    another key, a relative root, or a table that is not one refuses."""
     with pytest.raises(loader.InstanceOverlayError):
         _as_named(monkeypatch, tmp_path, text)
 

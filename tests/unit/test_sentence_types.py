@@ -178,7 +178,8 @@ def test_read_is_a_text_that_composes_with_nothing_and_reads_by_the_refs_shape()
 
 _ARGS = {"ingest_note": 'path: "x.md"', "ingest_doc": 'path: "docs/x.md"',
          "sync_dialogue": 'reader: "openwebui"', "capture": 'text: "t"',
-         "link": 'a: "a", b: "b", relation: "supports"', "sync_corpus": 'name: "wikipedia"'}
+         "link": 'a: "a", b: "b", relation: "supports"', "sync_corpus": 'name: "wikipedia"',
+         "sync_repository": 'name: "x"'}
 
 
 def _do(text: str, role: str = "ambassador") -> Any:

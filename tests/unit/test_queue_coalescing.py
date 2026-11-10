@@ -46,7 +46,7 @@ def test_idempotent_kind_literals_match_the_kind_constants():
     `scheduler.queue` (importing them back would cycle). This test is what keeps that duplication
     honest: rename a kind constant and it fails here rather than silently disabling coalescing."""
     from scheduler.chat_sync import CHAT_SYNC_KIND
-    from scheduler.code_sync import CODE_BACKFILL_KIND, CODE_SYNC_KIND
+    from scheduler.code_sync import CODE_BACKFILL_KIND, CODE_SYNC_KIND, REPOSITORY_SYNC_KIND
     from scheduler.cron import (
         CHAT_EVENTS_KIND,
         CURATE_KIND,
@@ -63,6 +63,7 @@ def test_idempotent_kind_literals_match_the_kind_constants():
     assert _IDEMPOTENT_KINDS == {
         CHAT_SYNC_KIND, VAULT_SYNC_KIND, CODE_SYNC_KIND, CODE_BACKFILL_KIND,
         CHAT_EVENTS_KIND, INTEGRATE_KIND, DIALOGUE_SYNC_KIND, INBOX_CAPTURE_KIND, EMBED_KIND,
+        REPOSITORY_SYNC_KIND,
     }
     # The classification's other half, asserted rather than assumed: model-driven passes mint fresh
     # ledger rows per call, and payload-bearing kinds must never be swallowed by a sibling.
