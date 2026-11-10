@@ -386,7 +386,7 @@ Roundoff and FloatModel, so it has no statements of its own):
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (375 theorems), and the three standard axioms.
+  (380 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -472,6 +472,7 @@ Roundoff and FloatModel, so it has no statements of its own):
 | SCO-6 (firewalls, zone) | admissibility and the zone law are downward closed and survive every meet; a world-reaching scope that passes the zone law names only `world`, the denylist and the overlay, so is cleared for no class under any table that gives those three none; the zone law does not survive join | proved, with a witness; attack survived 306 |
 | SCO-7 (grants) | a grant's meet skips the pairs with no meet, lies under both grants plane by plane, never trips `InadmissibleGrant`, and admits only what both admit | proved, with a witness |
 | SCO-8 (`search`) | `search` never raises `SliceError`, over any strata, with or without history; over `reference` alone it builds with the single-read cut and the Ambassador's grant admits it | proved; attack survived 500 |
+| SCO-9 (the guest) | the guest's grant is accepted, names no stratum of the mirror and not the interpreted stratum, closure included, so it refuses any clause over them, and admits no command and no `assume` | proved, by `decide` and by ING-1 and QSA-5 |
 | SIG-1 | Kruskal's forest has, at every threshold, the graph's components: one forest yields every pairwise σ* | proved; attack survived 500 |
 | SIG-2 | what the loop keeps is a forest, `\|F\| + c(F) = \|V\|`, and its labels are its components | proved; attack survived 500 |
 | SIG-3 | σ* is a symmetric ultrametric | proved; attack survived 500 |

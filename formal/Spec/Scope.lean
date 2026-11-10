@@ -221,6 +221,25 @@ theorem search_reference (authored : Bool) :
     required .search [.reference] false authored = .ok r ∧ admits ambassador r :=
   sorry
 
+/-- **SCO-9** The guest's grant is one `Grant` accepts: no plane names the foundation, and none
+reaches the world. -/
+theorem guest_grantOk : GrantOk guest :=
+  sorry
+
+/-- **SCO-9** No plane of the guest's grant names the mirror, its authored refinement or the
+interpreted stratum, closure included: not the owner's notes, nor the readings derived from
+them. -/
+theorem guest_reads_no_note :
+    ∀ p ∈ guest, Disjoint p.sigma {.mirror, .mirrorAuthored, .interpreted} :=
+  sorry
+
+/-- **SCO-9** So a scope that reads any of the three lies under no plane of the guest's grant: a
+clause that requires one is refused. -/
+theorem guest_refuses_note (r : Scope) {s : Stratum}
+    (hs : s ∈ ({.mirror, .mirrorAuthored, .interpreted} : Finset Stratum)) (hr : s ∈ r.sigma) :
+    ¬ admits guest r :=
+  sorry
+
 /-! ## Witnesses: what the model found, and what the fixes changed -/
 
 namespace Witness
