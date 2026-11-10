@@ -115,6 +115,8 @@ def test_a_vault_path_is_recognised_in_every_spelling(tmp_path: Path,
     vault = home / "vault"
     (vault / "sub").mkdir(parents=True)
     (tmp_path / "link").symlink_to(vault)
+    (tmp_path / "deep" / "er").mkdir(parents=True)
+    (home / "hop").symlink_to(tmp_path / "deep" / "er")
     monkeypatch.setenv("HOME", str(home))
     monkeypatch.chdir(home)
     b = _builder(vault)
@@ -126,9 +128,13 @@ def test_a_vault_path_is_recognised_in_every_spelling(tmp_path: Path,
               f"{vault}/../vault/n.md", f"/{note}", f"{vault}/./n.md",
               str(tmp_path / "link" / "n.md"), "~/vault/n.md", "~/Vault/n.md", "vault/n.md",
               "./vault/sub/../n.md", "../" + home.name + "/vault/n.md",
-              str(home / "\uff56ault" / "n.md")]        # a compatibility form of the name
+              str(home / "\uff56ault" / "n.md"),        # a compatibility form of the name
+              # in the vault by its normal form alone: resolved, the link is followed before the
+              # `..` and the path leaves; the three forms are each asked, so it is withheld
+              f"{home}/hop/../vault/n.md"]
     for ref in inside:
         assert b._in_vault(ref), ref
+    assert (home / "hop" / ".." / "vault").resolve() == (tmp_path / "deep" / "vault").resolve()
     outside = [str(home / "vault-2" / "n.md"), f"{vault}.md", str(home), str(home / "n.md"),
                "/srv/repo/core/x.py", "core/x.py", "~/n.md", "dn-kept.md",
                f"file://{note}"]                         # a URI is no path: named by no rule
@@ -311,6 +317,69 @@ def test_a_turn_whose_edges_are_all_withheld_is_no_turn_to_the_reader(
     back_new = compile_sentence('reach C from "core/new.py" back over dialogue', GUEST)
     assert execute(back_new, build(cast(QueryEngine, engine), back_new,
                                    hide_mirror=True)).hits == ()
+
+
+class _Minted(_Refs):
+    """A reference store whose edges are found by id: each id names the commit that minted it."""
+
+    def __init__(self, minted: dict[str, str]) -> None:
+        super().__init__([])
+        self.minted = minted
+
+    def edge(self, edge_id: str) -> _Edge | None:
+        sha = self.minted.get(edge_id)
+        return None if sha is None else _Edge("docs/a.md", "core/x.py", sha)
+
+
+def test_the_witness_of_a_reference_edge_is_judged_like_any_other(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`witness` of a reference edge's id answers the causal edge keyed to the commit that
+    minted it (`origin`). The reader without the mirror is answered only when that edge is one
+    it may see named, a commit by its sha; a row keyed to a commit whose endpoint is anything
+    else is no record to it, as an id the stores do not hold. The reader with the mirror is
+    answered both."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    other = "f" * 40
+    engine = _engine(repo, vault, monkeypatch, [
+        {**_cedge("c-commit", "s1", 3, SHA, dst_type="commit", order=2), "pair_cut_sha": SHA},
+        {**_cedge("c-note", "s1", 3, f"{vault}/n.md", order=1), "pair_cut_sha": other}], [])
+    engine._cache["references"] = _Minted({"r-commit": SHA, "r-note": other})
+    plan = compile_sentence('witness "r-commit"', GUEST)
+    u = build(cast(QueryEngine, engine), plan, hide_mirror=True)
+    record = u.witness("r-commit")
+    assert record is not None and (record["edge_id"], record["dst"]) == ("c-commit", SHA)
+    assert u.witness("r-note") is None and u.witness("r-none") is None
+    assert execute(compile_sentence('witness "r-note"', GUEST), u).hits == ()
+    w = build(cast(QueryEngine, engine), compile_sentence('witness "r-note"', AMBASSADOR_OVERLAY))
+    record = w.witness("r-note")
+    assert record is not None and record["dst"] == f"{vault}/n.md"
+
+
+def test_the_withheld_note_is_one_sentence_whatever_the_store_holds(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The note that says what is withheld rides with every sentence that walks C or asks a
+    witness, in the same words over a store with no edge, with edges that are shown, and with
+    edges that are withheld: its presence and its words tell nothing of the store. A sentence
+    that does neither carries no such note."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    edges = [_cedge("e1", "s1", 3, f"{repo}/core/x.py"),
+             _cedge("h1", "s1", 3, f"{vault}/n.md", order=1)]
+    said = set()
+    for causal in ([], edges[:1], edges[1:], edges):
+        engine = _engine(repo, vault, monkeypatch, causal, [])
+        for sentence in ('reach C from "core/x.py" back over dialogue', 'witness "e1"',
+                         'witness "h1"',
+                         'walk from "core/x.py" via (C|F) over reference dialogue_transcript'):
+            plan = compile_sentence(sentence, GUEST)
+            u = build(cast(QueryEngine, engine), plan, hide_mirror=True)
+            (note,) = [m for m in u.missing if m.startswith(WITHHELD)]
+            said.add(note)
+        quiet = compile_sentence('reach F from "core/x.py"', GUEST)
+        assert not any(m.startswith(WITHHELD) for m in build(
+            cast(QueryEngine, engine), quiet, hide_mirror=True).missing)
+    assert len(said) == 1 and "at a commit or at a file git tracks" in said.pop()
 
 
 # ── a citation neighbour ───────────────────────────────────────────────────────────────────────
