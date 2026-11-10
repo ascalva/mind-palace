@@ -686,5 +686,10 @@ def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -
             continue
         reply = server.handle(msg)
         if reply is not None:
-            stdout.write(json.dumps(reply, ensure_ascii=False) + "\n")
+            try:
+                stdout.write(json.dumps(reply, ensure_ascii=False) + "\n")
+            except UnicodeEncodeError:
+                # a lone surrogate, which no encoding of the stream carries: a sentence may hold
+                # one, and an answer repeats its sentence. The same JSON, written as ASCII
+                stdout.write(json.dumps(reply, ensure_ascii=True) + "\n")
             stdout.flush()
