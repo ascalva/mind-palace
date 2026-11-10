@@ -12,21 +12,30 @@ the note included, with every adjective and connective, `assume` and every reque
 The admitted strata answer. And the guest's outputs are the same, byte for byte once the names
 the asker typed are normalized, over a second palace whose note, relation and vault edge differ
 (noninterference). The Ambassador, asked the same, sees the canary: the fixture is live, and the
-withholding is what closes the causal and witness channels."""
+withholding is what closes the causal and witness channels.
+
+The causal and citation stores may also hold the note's path as a file system or an action log
+spells it (another letter case, another Unicode normal form, a relative path, a URI, a bare file
+name), and paths that are not the repo's. Adding such edges to a palace changes no guest output,
+and `witness` of each answers nothing; the Ambassador sees every one."""
 
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import sys
+import unicodedata
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from core.chat_events import _classify_file_write
 from core.ingest import ingress
+from core.integrator import _WRITE_KIND_TO_DST
 from core.kernel.complex_types import EdgeSign
 from core.kernel.config import REPO_ROOT
 from core.kernel.provenance import Provenance
@@ -81,6 +90,14 @@ def _dialogue(p: Any, path: str, text: str, prov: Provenance) -> str:
     return digest
 
 
+def _edges(f: Fixture) -> list[CausalEdge]:
+    """The two proven edges of session s1: the turn's action wrote the note and a repo file (the
+    projector stamps an action with the next utterance's index, so turn 1's actions carry
+    witness_turn 2)."""
+    return [CausalEdge(f.vault_edge, "s1", 1, "C", "file", f.note, "wd1", 2),
+            CausalEdge(f.repo_edge, "s1", 2, "C", "file", f"{REPO_ROOT}/{CODE}", "wd1", 2)]
+
+
 def _palace(base: Path, canary: str) -> Fixture:
     p = palace_at(base, "p")
     root = p.root
@@ -121,26 +138,37 @@ def _palace(base: Path, canary: str) -> Fixture:
                                  "chunk_index": 0, "text": "irrigation of walnut orchards",
                                  "layer": "prose",
                                  "vector": EMB.embed_query("irrigation of walnut orchards")}])
-    # a transcript turn whose action wrote the note and a repo file (the projector stamps an
-    # action with the next utterance's index, so turn 1's actions carry witness_turn 2)
+    # a transcript turn whose action wrote the note and a repo file
     note = entry.source_path
-    vault_edge, repo_edge = _eid("s1", 1, note), _eid("s1", 2, CODE)
-    open_causal_edge_store(cfg).replace_session("s1", [
-        CausalEdge(vault_edge, "s1", 1, "C", "file", note, "wd1", 2),
-        CausalEdge(repo_edge, "s1", 2, "C", "file", f"{REPO_ROOT}/{CODE}", "wd1", 2)], "wd1")
+    f = Fixture(canary, engine, root, note, entry.title, _eid("s1", 1, note), _eid("s1", 2, CODE),
+                attestation)
+    open_causal_edge_store(cfg).replace_session("s1", _edges(f), "wd1")
     open_chatlog_store(cfg).add_batch([ChatUtterance("s1", 1, "owner", "please write the plan",
                                                      "wd1")])
-    return Fixture(canary, engine, root, note, entry.title, vault_edge, repo_edge, attestation)
+    return f
 
 
 @pytest.fixture
-def palaces(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Fixture, Fixture]:
+def base(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Where a test's palaces stand, the citation graph's cut and the query log fixed."""
     import core.reference_view as rv
     from core.sentence import surface
 
     monkeypatch.setattr(rv, "_resolve_default_commit", lambda cfg: "c1")
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
-    return _palace(tmp_path / "a", _canary("a")), _palace(tmp_path / "b", _canary("b"))
+    return tmp_path
+
+
+@pytest.fixture
+def palaces(base: Path) -> tuple[Fixture, Fixture]:
+    return _palace(base / "a", _canary("a")), _palace(base / "b", _canary("b"))
+
+
+@pytest.fixture
+def spelled(base: Path) -> Fixture:
+    """A palace under a directory whose name has two Unicode normal forms, so its note's path
+    has a second spelling there."""
+    return _palace(base / unicodedata.normalize("NFC", "w\u00e9"), _canary("s"))
 
 
 # ── the surfaces ───────────────────────────────────────────────────────────────────────────────
@@ -386,6 +414,83 @@ def test_the_guest_cannot_tell_two_palaces_apart(palaces: tuple[Fixture, Fixture
             eb, tb = _call(gb, "query", sentence=sb, trace=trace)
             assert (ea, norm(a, ta)) == (eb, norm(b, tb)), sa
     assert _call(ga, "overview") == _call(gb, "overview")
+
+
+# ── the note under other spellings, and endpoints that are not the repo's ──────────────────────
+
+
+def _spellings(f: Fixture) -> dict[str, tuple[str, str]]:
+    """Causal endpoints a guest must not see named, as (dst_type, dst): the note's path as a
+    file system may treat it or an action log record it, a path in the checkout that git does
+    not track, and a path outside the repo. Each holds the canary."""
+    vault = Path(str(f.engine.config.ingestion.vault.path))
+    name = Path(f.note).name
+    # a vault file under a `docs/design-notes/` folder: the projector keeps its file name alone
+    kind, doc = _classify_file_write(str(vault / "docs" / "design-notes" / name))
+    out = {
+        "case": ("file", f.note.replace(str(vault), str(vault.parent / vault.name.upper()))),
+        "nfd": ("file", unicodedata.normalize("NFD", f.note)),
+        "relative": ("file", os.path.relpath(f.note)),               # from this directory
+        "relative, elsewhere": ("file", f"{vault.parent.name}/{vault.name}/{name}"),
+        "uri": ("file", f"file://{f.note}"),
+        "doc": (_WRITE_KIND_TO_DST[kind], doc),
+        "untracked": ("file", f"{REPO_ROOT}/data/{f.canary}-untracked.md"),
+        "outside": ("file", str(f.root.parent / "elsewhere" / f"{f.canary}-outside.txt")),
+    }
+    assert out["doc"] == ("doc", name) and len({dst for _, dst in out.values()} | {f.note}) == 9
+    assert all(f.canary in dst for _, dst in out.values())
+    return out
+
+
+def _answers(server: Any, sentences: list[str]) -> list[tuple[bool, str]]:
+    """Each sentence asked without and with its trace, then the overview."""
+    asked = [_call(server, "query", sentence=s, trace=t) for s in sentences for t in (False, True)]
+    return [*asked, _call(server, "overview")]
+
+
+def test_an_edge_is_shown_only_when_it_ends_at_a_commit_or_a_tracked_file(
+        spelled: Fixture) -> None:
+    """The universe's allow list (dn-guest-principal §5). The causal store gains eight edges from
+    the fixture's turn, and the citation graph four from a repo file to the note's path, as it
+    is and in three spellings that are no repo-relative path. Asked the battery, each new edge's
+    id and each new endpoint by its own name, the guest answers what it answered before they
+    were added, byte for byte; no answer holds the canary; `witness` of each id is empty. The
+    Ambassador is shown all of them."""
+    f = spelled
+    extra = _spellings(f)
+    ids = {name: _eid("s1", 10 + k, dst) for k, (name, (_, dst)) in enumerate(extra.items())}
+    cited = [f.note, extra["case"][1], extra["nfd"][1], f"~/{Path(f.note).name}"]
+    battery = [s for s, _ in _battery(f)]
+    probes = [f'witness "{i}"' for i in ids.values()] + [
+        f'reach C from "{dst}" back over dialogue' for _, dst in extra.values()] + [
+        f'reach F from "{CODE}" depth 2 over reference']
+    guest = _server(f, "guest")
+    before = _answers(guest, battery + probes)
+
+    open_causal_edge_store(f.engine.config).replace_session("s1", _edges(f) + [
+        CausalEdge(ids[name], "s1", 10 + k, "C", kind, dst, "wd1", 2)
+        for k, (name, (kind, dst)) in enumerate(extra.items())], "wd1")
+    f.engine._cache["references"].edges += [_Edge(CODE, dst, "c1") for dst in cited]
+
+    after = _answers(guest, battery + probes)
+    assert after == before                                   # noninterference, no name normalized
+    for _, text in after[:2 * len(battery)]:                 # the battery, each sentence twice
+        assert f.canary not in text, text                    # every new endpoint holds it
+    for name, edge in ids.items():
+        assert _outcome(*_call(guest, "query", sentence=f'witness "{edge}"')) == "empty", name
+    (end,) = json.loads(_call(guest, "query",
+                              sentence=f'reach C from "{TURN}" over dialogue reference')[1])["hits"]
+    assert end["ref"] == CODE and end["detail"]["witness"] == f.repo_edge
+
+    # the control: the edges are in the stores, and a grant that reads the mirror is shown them
+    amb = _server(f, "ambassador")
+    for name, (_, dst) in extra.items():
+        error, text = _call(amb, "query", sentence=f'witness "{ids[name]}"')
+        assert not error and json.loads(text)["hits"][0]["detail"]["dst"] == dst, name
+    error, text = _call(amb, "query", sentence=f'reach C from "{TURN}" over dialogue reference')
+    assert {h["detail"].get("witness") for h in json.loads(text)["hits"]} >= set(ids.values())
+    error, text = _call(amb, "query", sentence=f'reach F from "{CODE}"')
+    assert {h["ref"] for h in json.loads(text)["hits"]} >= set(cited)
 
 
 def test_overview_counts_only_what_the_grant_reads_and_status_is_absent(

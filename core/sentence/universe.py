@@ -24,6 +24,9 @@ clauses can reach — materialized lazily:
   nodes of the dialogue's transcript stratum, the endpoints as the reference graph's nodes (a
   checkout's or a worktree's path, repo-relative) or the mirror's (a vault path); an endpoint
   outside both, or an artifact id, is named as a node that `read` cannot open, never dropped.
+  A reader whose grant names no stratum of the mirror is shown an edge only when it ends at a
+  commit or at a file git tracks in this repo at HEAD; any other edge is withheld whole, since
+  an endpoint is a path and a path can be a note's (`_Builder._named`, dn-guest-principal §5).
 
 On the support the laws hold exactly: masks, products, thresholds (QSA-1 to QSA-4). What the
 support loses is bounded and one-sided: restricting the walk to a subgraph whose complement
@@ -40,6 +43,8 @@ The answer's notes carry the support's census and the cut.
 
 from __future__ import annotations
 
+import os
+import unicodedata
 from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -54,7 +59,14 @@ from core.query import CURATED_REF, QueryEngine
 from core.sentence import ast
 from core.sentence.ast import Node, Rel
 from core.sentence.automaton import letters
-from core.sentence.execute import Relation, Universe, membership, read_ref
+from core.sentence.execute import (
+    Relation,
+    Universe,
+    is_commit_sha,
+    membership,
+    read_ref,
+    tracked_paths,
+)
 from core.sentence.plan import Plan
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
@@ -196,6 +208,13 @@ def _int(x: object) -> int:
     return int(x) if isinstance(x, int | float | str) and str(x) != "" else 0
 
 
+def _folded(path: Path) -> tuple[str, ...]:
+    """A path's components as a file system that ignores letter case and normalisation compares
+    them: each one decomposed, case-folded and decomposed again."""
+    return tuple(unicodedata.normalize("NFKD", unicodedata.normalize("NFKD", part).casefold())
+                 for part in path.parts)
+
+
 def is_repo_path(atom: str) -> bool:
     """A repo-relative path — the reference graph's node identity: relative, with a directory
     part, never a dialogue or transcript turn or a paper ref."""
@@ -223,9 +242,14 @@ class _Builder:
         self.strata = strata
         self.admits = membership(strata) if strata is not None else (lambda label, prov: True)
         # the reader's grant names no stratum of the mirror (the guest's): the note graph is not
-        # built, pending items are listed for the dialogue's classes alone, and a vault path the
-        # transcript stratum holds, a causal edge's endpoint, is withheld with its edge (`_hidden`)
+        # built, pending items are listed for the dialogue's classes alone, and a causal edge is
+        # shown only when its endpoint is a commit or a file git tracks here (`_named`), so a
+        # note's path the transcript stratum holds is withheld with its edge however it is spelled
         self.hide_mirror = hide_mirror
+        self._named_of: dict[tuple[str, str], bool] = {}     # `_named`, per (dst, dst_type)
+        self._citable_of: dict[str, bool] = {}               # `_citable`, per citation neighbour
+        self._tracked_paths: frozenset[str] | None = None    # `_tracked`, read once
+        self._vault_forms: frozenset[tuple[str, ...]] | None = None   # the vault, folded
         self.witnessed = False      # some clause is a witness (its record is read in `universe`)
         self.nodes: dict[str, _Node] = {}
         self.f_edges: dict[str, set[str]] = {}
@@ -578,19 +602,83 @@ class _Builder:
             roots.append(root.parent.parent.parent)
         return roots
 
-    def _hidden(self, ref: str) -> bool:
-        """A ref the reader may not see named: a path under the vault, a note of the mirror, when
-        the reader's grant names no stratum of the mirror (`hide_mirror`). Read off the path
-        alone, absolute or under `~`, before anything is resolved, so it errs toward withholding.
-        A causal edge that ends at one is withheld whole, its id with it, and so is a citation
-        neighbour, as if the store did not hold them: what the reader sees does not depend on
-        them (dn-guest-principal)."""
-        if not self.hide_mirror or not ref.startswith(("/", "~")):
+    def _tracked(self) -> frozenset[str]:
+        """The paths git tracks in this checkout at HEAD, read once per builder; the empty set
+        when git cannot be asked, so nothing is named then."""
+        if self._tracked_paths is None:
+            from core.kernel.config import REPO_ROOT
+
+            try:
+                self._tracked_paths = tracked_paths(Path(REPO_ROOT))
+            except Exception:                           # fail closed: no path is tracked
+                self._tracked_paths = frozenset()
+        return self._tracked_paths
+
+    def _in_vault(self, ref: str) -> bool:
+        """Whether a path is the vault or lies under it, in any spelling the file system treats
+        as the same file: another letter case, another Unicode normalisation, `..` components, a
+        symlink. The components are compared folded (`_folded`), as a prefix, for the path as
+        written (`~` expanded), for its normal form and for its resolved form, against the
+        configured vault path and its resolved form. A path that cannot be read this way counts
+        as inside, so the test errs toward withholding."""
+        try:
+            if self._vault_forms is None:
+                vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
+                self._vault_forms = frozenset({_folded(vault), _folded(vault.resolve())})
+            p = Path(ref).expanduser()
+            forms = {_folded(p), _folded(Path(os.path.normpath(p))), _folded(p.resolve())}
+        except Exception:                               # fail closed: inside the vault
+            return True
+        return any(f[:len(v)] == v for v in self._vault_forms for f in forms)
+
+    def _named(self, dst: str, dst_type: str) -> bool:
+        """Whether a causal edge's endpoint is one a reader whose grant names no stratum of the
+        mirror may see named (`hide_mirror`). An allow list, since an endpoint is whatever path or
+        id the action log recorded and a note's path has many spellings: a commit's edge is named
+        when its endpoint is a hex sha; any other edge only when its endpoint is not in the vault
+        (`_in_vault`) and resolves to a repo-relative path git tracks in this checkout at HEAD
+        (`_tracked`), from a doc's id (`_doc_path`) or from an absolute path under a checkout of
+        this repo (`_endpoint`). A relative path, one under `~`, a URI, a path outside the repo,
+        an untracked or deleted file, a doc's id that is not one tracked file and an endpoint of
+        an unknown type are not named, nor is one that cannot be judged. An edge that is not named
+        is withheld whole, its id with it, as if the store did not hold it: what the reader sees
+        does not depend on it (dn-guest-principal §5)."""
+        key = (dst, dst_type)
+        if key not in self._named_of:
+            try:
+                self._named_of[key] = self._allowed(dst, dst_type)
+            except Exception:                           # fail closed: not named, never raised
+                self._named_of[key] = False
+        return self._named_of[key]
+
+    def _allowed(self, dst: str, dst_type: str) -> bool:
+        """`_named`'s rule for one endpoint, uncached; it may raise, and `_named` then withholds."""
+        if dst_type == "commit":
+            return is_commit_sha(dst)
+        if self._in_vault(dst):
             return False
-        p = Path(ref).expanduser()
-        vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
-        return vault in p.parents or vault.resolve() in p.parents or vault.resolve() in (
-            p.resolve().parents)
+        rel: str | None = None
+        if dst_type == "doc" and "/" not in dst:
+            rel = _doc_path(dst)
+        elif dst_type in ("file", "doc") and Path(dst).is_absolute():
+            node = self._endpoint(dst, dst_type)
+            rel = node.ref if node.stratum == "reference" else None
+        return rel is not None and rel in self._tracked()
+
+    def _citable(self, ref: str) -> bool:
+        """Whether a citation neighbour is one the reader may see named. The citation graph is
+        projected from git history, so its refs are repo-relative paths and denote repo files; a
+        reader whose grant names no stratum of the mirror (`hide_mirror`) is shown a neighbour
+        only when it is spelled as one (not absolute, not under `~`, no URI, no `..` component)
+        and lies in the vault under no checkout of this repo. It need not be tracked at HEAD: the
+        graph is read at other cuts too."""
+        if not self.hide_mirror:
+            return True
+        if ref not in self._citable_of:
+            plain = not (ref.startswith(("/", "~")) or "://" in ref or ".." in ref.split("/"))
+            self._citable_of[ref] = plain and not any(
+                self._in_vault(str(root / ref)) for root in self._roots())
+        return self._citable_of[ref]
 
     def _endpoint(self, dst: str, dst_type: str) -> _Node:
         """The node a causal endpoint names, not yet added. A path under a checkout of this repo
@@ -678,12 +766,13 @@ class _Builder:
         """The causal store read whole, once per sentence — one content-free row per proven
         action (a witness, an endpoint, an id) — and indexed in memory by turn (the endpoints a
         turn produced) and by endpoint (the turns that produced it); the support is cut from it.
-        An edge whose endpoint the reader may not see named is not indexed (`_hidden`)."""
+        For a reader whose grant names no stratum of the mirror only the edges whose endpoint it
+        may see named are indexed (`_named`)."""
         if self._causal_index is None:
             by_turn: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             by_end: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             for e in self.store("causal").all_edges():
-                if self._hidden(str(e["dst"])):
+                if self.hide_mirror and not self._named(str(e["dst"]), str(e["dst_type"])):
                     continue
                 tref = producing_turn(e)
                 eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
@@ -741,7 +830,7 @@ class _Builder:
             nbrs: list[tuple[str, Rel, Mapping[str, Any] | None]] = []
             if Rel.F in moves and is_repo_path(node):
                 nbrs += [(t, Rel.F, None) for t in self._cited(
-                    node, (n for n, dd in frontier if dd < radius)) if not self._hidden(t)]
+                    node, (n for n, dd in frontier if dd < radius)) if self._citable(t)]
             if Rel.C in moves:
                 nbrs += [(other, Rel.C, e) for other, e in self._causal_neighbours(node)]
             for nb, _rel, e in sorted(nbrs, key=lambda x: (x[0], x[1].value)):
@@ -864,15 +953,17 @@ class _Builder:
             return [(v.doc_id, v.version_seq, v.digest, v.at) for v in versions.history(doc_id)]
 
         def witness(edge_id: str) -> Mapping[str, object] | None:
-            # a record whose endpoint the reader may not see named is no record to it (`_hidden`)
+            # an edge whose endpoint the reader may not see named is no record to it (`_named`):
+            # the answer is `None`, as for an id the store does not hold
             edge = origin(edge_id, causal_edges=self.store("causal"),
                           reference_edges=self.store("references"))
             if edge is not None:
-                return None if self._hidden(edge.dst) else {
-                    k: str(v) for k, v in edge.__dict__.items()}
+                if self.hide_mirror and not self._named(str(edge.dst), str(edge.dst_type)):
+                    return None
+                return {k: str(v) for k, v in edge.__dict__.items()}
             row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness
             if row is not None:
-                if self._hidden(str(row["dst"])):
+                if self.hide_mirror and not self._named(str(row["dst"]), str(row["dst_type"])):
                     return None
                 # the turn that produced it, by its ref; the raw transcript's digest is a
                 # raw-store key and never leaves the store
@@ -917,8 +1008,9 @@ class _Builder:
         if self.hide_mirror and (Rel.C in self.moves or self.witnessed):
             # the same words whether or not anything was withheld: a count would tell
             missing.append("withheld: the grant names no stratum of the mirror, so a causal edge "
-                           "that ends at a vault note is not shown, its id with it, and a witness "
-                           "answers no landing's attestation")
+                           "is shown only when it ends at a commit or at a file git tracks in "
+                           "this repo at HEAD; any other edge is not shown, its id with it, and "
+                           "a witness answers no landing's attestation")
         missing.append("D moves at the note grain: the version chains are per note (use trace)")
         waiting = frozenset(i for i, n in enumerate(order) if n.ref in set(self.pending))
         unembedded = frozenset(i for i, n in enumerate(order) if n.ref in set(self.unembedded))
@@ -976,7 +1068,9 @@ def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
     anchors reach in the indexed strata, the citation graph at the cut and, when the sentence
     walks `C`, the causal edges. With a trace, the support's census is noted. `hide_mirror` is for
     a reader whose grant names no stratum of the mirror (`ask_logged` sets it from the grant):
-    the note graph is not built, and a vault path the other stores hold is withheld."""
+    the note graph is not built, and of what the other stores hold a causal edge is shown only
+    when it ends at a commit or at a file git tracks in this repo at HEAD, a citation neighbour
+    only when it is a repo-relative path outside the vault."""
     seeds = seeds_of(plan.term, precedents)
     b = _Builder(engine, precedents, admitted_strata(plan, precedents), hide_mirror=hide_mirror)
     b.moves = frozenset(seeds.moves)
