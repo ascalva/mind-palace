@@ -15,7 +15,8 @@ temporal; E = {F} → structural; otherwise semantic.
 
 What lives here now (2026-11-04, the owner's order retired the one-word executor):
 
-* `Grant`, `AMBASSADOR` and the owner's `AMBASSADOR_OVERLAY` (`with_overlay`) — the grants in code.
+* `Grant`, `AMBASSADOR` and the owner's `AMBASSADOR_OVERLAY` (`with_overlay`), the ingress's
+  `OPERATOR` and the read-only `GUEST` — the grants in code.
 * `Verb`, `required` and `mode_of` — the scope table of the eight one-word verbs, kept as the laws'
   anchor (SCO-8, QSA-8) and as `core/sentence/legacy.py`'s compatibility map; the sentence
   compiler (`core/sentence/types.py`) builds its clauses' scopes the same way and types them by
@@ -140,6 +141,12 @@ class Grant:
     def admits(self, required: Scope) -> bool:
         return any(req_admissible(required, g) for g in self.scopes)
 
+    @property
+    def strata(self) -> frozenset[Stratum]:
+        """Every stratum some plane names, closed downward: what a reader under this grant may
+        see named (`core.sentence.universe` withholds a mirror endpoint outside it)."""
+        return frozenset().union(*(s.sigma.strata for s in self.scopes))
+
     def meet(self, other: Grant) -> Grant:
         """Safe delegation: the pairwise meets that exist. A cross-clock pair has no meet, and
         neither has a pair whose windows meet at a point across several strata with no shared
@@ -207,6 +214,27 @@ OPERATOR = Grant(
         scope({Stratum.REFERENCE, Stratum.DIALOGUE}, {"F", "C"}, Clock.COMMIT, _ALL, propose=True,
               write=True),
         scope({Stratum.MIRROR}, {"D"}, Clock.N_S, _ALL),
+    )
+)
+
+
+# The guest: an external agent's principal, read-only. The Ambassador's planes without the mirror's
+# version plane, over the strata a guest may read: the dialogue (its transcripts and artifacts
+# below it), the reference stratum (the repo's code and docs), the curated papers and the observed
+# records. Never the mirror (the owner's notes) nor the interpreted stratum (readings derived from
+# the notes, which can quote them), and the closure adds neither (SCO-1). No propose, no write, no
+# overlay and no world reach, so it admits no command (ING-1) and no `assume` (QSA-5); SCO-9 states
+# it. Its role, `guest`, holds no spool (`core/ingest/ingress.py`); its surface is
+# `scripts/palace_mcp.py --role guest` (dn-guest-principal).
+GUEST = Grant(
+    (
+        scope(
+            {Stratum.DIALOGUE, Stratum.REFERENCE, Stratum.CURATED, Stratum.OBSERVED},
+            {"F", "D"},
+            Clock.PROJECTION_EVENT,
+            _ALL,
+        ),
+        scope({Stratum.REFERENCE, Stratum.DIALOGUE}, {"F", "C"}, Clock.COMMIT, _ALL),
     )
 )
 
