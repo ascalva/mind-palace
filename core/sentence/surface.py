@@ -42,6 +42,7 @@ from core.sentence.plan import Plan, compile_sentence, normalize
 from core.sentence.precedents import DEFAULT, Precedents
 from core.sentence.trace import Trace
 from core.sentence.types import (
+    MIRROR_NAMES,
     AmbiguousSentence,
     IllScopedSentence,
     Sort,
@@ -260,7 +261,10 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
         else:
             from core.sentence.universe import build
 
-            u = build(engine or QueryEngine(), plan, precedents=precedents, trace=t)
+            # a grant that names no stratum of the mirror (the guest's) is shown no vault path:
+            # the universe withholds what the other stores say of the notes (dn-guest-principal)
+            hide = {"hide_mirror": True} if not grant.strata & MIRROR_NAMES else {}
+            u = build(engine or QueryEngine(), plan, precedents=precedents, trace=t, **hide)
         answer = execute(plan, u, precedents=precedents, trace=t)
     except Exception as e:
         reason = redact_reason(str(e)) if command else str(e)

@@ -215,13 +215,18 @@ def admitted_strata(plan: Plan, precedents: Precedents = DEFAULT) -> frozenset[S
 
 class _Builder:
     def __init__(self, engine: QueryEngine, precedents: Precedents,
-                 strata: frozenset[Stratum] | None = None) -> None:
+                 strata: frozenset[Stratum] | None = None, *, hide_mirror: bool = False) -> None:
         self.e, self.p = engine, precedents
         # what the sentence's admitted clauses read: a node outside it is never loaded, so no
         # answer, note or refusal can carry a row the grant did not admit (None: everything, for
         # a builder driven by hand)
         self.strata = strata
         self.admits = membership(strata) if strata is not None else (lambda label, prov: True)
+        # the reader's grant names no stratum of the mirror (the guest's): the note graph is not
+        # built, pending items are listed for the dialogue's classes alone, and a vault path the
+        # transcript stratum holds, a causal edge's endpoint, is withheld with its edge (`_hidden`)
+        self.hide_mirror = hide_mirror
+        self.witnessed = False      # some clause is a witness (its record is read in `universe`)
         self.nodes: dict[str, _Node] = {}
         self.f_edges: dict[str, set[str]] = {}
         self.c_edges: dict[str, set[str]] = {}
@@ -293,8 +298,9 @@ class _Builder:
     def load_mirror(self) -> None:
         from core.kernel.provenance import Provenance
 
-        if self.admits("mirror", Provenance.AUTHORED_SOLO.value) or self.admits(
-                "dialogue", Provenance.AUTHORED_DIALOGUE.value):
+        reads_mirror = self.admits("mirror", Provenance.AUTHORED_SOLO.value) or self.admits(
+            "dialogue", Provenance.AUTHORED_DIALOGUE.value)
+        if reads_mirror and not self.hide_mirror:      # the guest's dialogue loads below
             notes, mat, _ = self.e.note_graph()
             for i, n in enumerate(notes):
                 prov = str(n.get("provenance", ""))
@@ -343,7 +349,11 @@ class _Builder:
             catalog, plane = self.store("catalog"), self.store("vectors")
         except KeyError:
             return
-        for e in pending(catalog, plane, lexical=lexical):
+        from core.kernel.provenance import Provenance
+
+        dialogue = (Provenance.AUTHORED_DIALOGUE, Provenance.OBSERVED)
+        for e in pending(catalog, plane, lexical=lexical,
+                         classes=dialogue if self.hide_mirror else None):
             prov = str(e.provenance)
             label = stratum_of_provenance(prov) or "mirror"
             if label not in ("mirror", "dialogue") or not self.admits(label, prov):
@@ -568,6 +578,20 @@ class _Builder:
             roots.append(root.parent.parent.parent)
         return roots
 
+    def _hidden(self, ref: str) -> bool:
+        """A ref the reader may not see named: a path under the vault, a note of the mirror, when
+        the reader's grant names no stratum of the mirror (`hide_mirror`). Read off the path
+        alone, absolute or under `~`, before anything is resolved, so it errs toward withholding.
+        A causal edge that ends at one is withheld whole, its id with it, and so is a citation
+        neighbour, as if the store did not hold them: what the reader sees does not depend on
+        them (dn-guest-principal)."""
+        if not self.hide_mirror or not ref.startswith(("/", "~")):
+            return False
+        p = Path(ref).expanduser()
+        vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
+        return vault in p.parents or vault.resolve() in p.parents or vault.resolve() in (
+            p.resolve().parents)
+
     def _endpoint(self, dst: str, dst_type: str) -> _Node:
         """The node a causal endpoint names, not yet added. A path under a checkout of this repo
         (this one, the main one, or one of the main one's worktrees,
@@ -653,11 +677,14 @@ class _Builder:
                                dict[str, list[tuple[str, dict[str, Any]]]]]:
         """The causal store read whole, once per sentence — one content-free row per proven
         action (a witness, an endpoint, an id) — and indexed in memory by turn (the endpoints a
-        turn produced) and by endpoint (the turns that produced it); the support is cut from it."""
+        turn produced) and by endpoint (the turns that produced it); the support is cut from it.
+        An edge whose endpoint the reader may not see named is not indexed (`_hidden`)."""
         if self._causal_index is None:
             by_turn: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             by_end: dict[str, list[tuple[str, dict[str, Any]]]] = {}
             for e in self.store("causal").all_edges():
+                if self._hidden(str(e["dst"])):
+                    continue
                 tref = producing_turn(e)
                 eref = self._endpoint(str(e["dst"]), str(e["dst_type"])).ref
                 by_turn.setdefault(tref, []).append((eref, e))
@@ -714,7 +741,7 @@ class _Builder:
             nbrs: list[tuple[str, Rel, Mapping[str, Any] | None]] = []
             if Rel.F in moves and is_repo_path(node):
                 nbrs += [(t, Rel.F, None) for t in self._cited(
-                    node, (n for n, dd in frontier if dd < radius))]
+                    node, (n for n, dd in frontier if dd < radius)) if not self._hidden(t)]
             if Rel.C in moves:
                 nbrs += [(other, Rel.C, e) for other, e in self._causal_neighbours(node)]
             for nb, _rel, e in sorted(nbrs, key=lambda x: (x[0], x[1].value)):
@@ -837,19 +864,27 @@ class _Builder:
             return [(v.doc_id, v.version_seq, v.digest, v.at) for v in versions.history(doc_id)]
 
         def witness(edge_id: str) -> Mapping[str, object] | None:
+            # a record whose endpoint the reader may not see named is no record to it (`_hidden`)
             edge = origin(edge_id, causal_edges=self.store("causal"),
                           reference_edges=self.store("references"))
             if edge is not None:
-                return {k: str(v) for k, v in edge.__dict__.items()}
+                return None if self._hidden(edge.dst) else {
+                    k: str(v) for k, v in edge.__dict__.items()}
             row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness
             if row is not None:
+                if self._hidden(str(row["dst"])):
+                    return None
                 # the turn that produced it, by its ref; the raw transcript's digest is a
                 # raw-store key and never leaves the store
                 out = {k: str(v) for k, v in row.items() if k != "witness_digest"}
                 out["transcript"] = producing_turn(row)
                 return out
             # a landing's receipt names its attestation (dn-ingress D5, ING-6): the record
-            # of what landed, its role, its action and the digests it produced
+            # of what landed, its role, its action and the digests it produced. A reader that
+            # holds no receipt, one whose grant names no stratum of the mirror, is shown none:
+            # a note's landing is attested too
+            if self.hide_mirror:
+                return None
             try:
                 att = self.e._get("attestations").get(edge_id)
             except KeyError:                              # an engine without the store
@@ -879,6 +914,11 @@ class _Builder:
                 missing.append(f"causal: {unreadable} endpoints are commits, ids, or paths "
                                "outside the repo and the vault: named in the transcript's "
                                "stratum, not readable")
+        if self.hide_mirror and (Rel.C in self.moves or self.witnessed):
+            # the same words whether or not anything was withheld: a count would tell
+            missing.append("withheld: the grant names no stratum of the mirror, so a causal edge "
+                           "that ends at a vault note is not shown, its id with it, and a witness "
+                           "answers no landing's attestation")
         missing.append("D moves at the note grain: the version chains are per note (use trace)")
         waiting = frozenset(i for i, n in enumerate(order) if n.ref in set(self.pending))
         unembedded = frozenset(i for i, n in enumerate(order) if n.ref in set(self.unembedded))
@@ -931,14 +971,17 @@ class _Builder:
 
 
 def build(engine: QueryEngine, plan: Plan, *, precedents: Precedents = DEFAULT,
-          trace: Trace | None = None) -> Universe:
+          trace: Trace | None = None, hide_mirror: bool = False) -> Universe:
     """The universe a plan reads: the mirror and the dialogue, then what the sentence's texts and
     anchors reach in the indexed strata, the citation graph at the cut and, when the sentence
-    walks `C`, the causal edges. With a trace, the support's census is noted."""
+    walks `C`, the causal edges. With a trace, the support's census is noted. `hide_mirror` is for
+    a reader whose grant names no stratum of the mirror (`ask_logged` sets it from the grant):
+    the note graph is not built, and a vault path the other stores hold is withheld."""
     seeds = seeds_of(plan.term, precedents)
-    b = _Builder(engine, precedents, admitted_strata(plan, precedents))
+    b = _Builder(engine, precedents, admitted_strata(plan, precedents), hide_mirror=hide_mirror)
     b.moves = frozenset(seeds.moves)
     b.transcript = seeds.transcript
+    b.witnessed = any(c.verb == "witness" for c in plan.clauses)
     b.load_mirror()
     b.load_pending()
     b.open_view(seeds.cut)
