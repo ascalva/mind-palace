@@ -189,16 +189,19 @@ def _battery(f: Fixture) -> list[tuple[str, str]]:
         (f'diffuse F from "{CODE}"', "answered"),
         # reach F, C and D, forward and back
         (f'reach F from "{CODE}"', "answered"),
+        (f'reach F from "{CODE}" forward', "answered"),
         (f'reach F from "{CODE}" depth 2 back', "answered"),
         (f'reach F from "{n}"', "refused"),
         (f'reach C from "{TURN}" over dialogue', "admitted"),     # a mask: no file
         (f'reach C from "{TURN}" over reference', "answered"),
+        (f'reach C from "{TURN}" forward over reference', "answered"),
         (f'reach C from "{TURN}" depth 2 over dialogue_transcript reference', "answered"),
         (f'reach C from "{TURN}"', "refused"),
         (f'reach C from "{CODE}" back over dialogue', "answered"),
         (f'reach C from "{n}" back over dialogue', "refused"),
         (f'reach C from "{t}" back over dialogue', "refused"),
         (f'reach D from "{n}"', "refused"),
+        (f'reach D from "{n}" back', "refused"),
         (f'reach D from "{AUTHORED}" over dialogue', "refused"),
         # relate, trace
         (f'relate "{n}"', "refused"),
