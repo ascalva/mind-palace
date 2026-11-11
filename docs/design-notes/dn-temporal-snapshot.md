@@ -122,8 +122,14 @@ and state files hold what is in flight: the ingress spools with their receipts
 (`core/ingest/table.py:276`, `ops/heartbeat.py:298`), the two sensing handoffs
 (`ops/code_sensor.py:862`, `ops/self_sensor.py:345`), a stream source's cursor
 (`core/ingest/stream.py:30`) and the heartbeat's tick files (`ops/heartbeat.py:76`). A recorded
-cut is taken when the handoff is empty (§3.3), which is the statement that none of it is in
-flight; one of them keeps text, the rejected requests, and §6.1 names it for the purge.
+cut does not certify that these are empty. Its handoff certificate, as the spine sources it, is
+that the `requests/` and `observations/` directories of the one sensing handoff it is given
+hold nothing (`core/temporal/spine.py:218`, `:283-286`, `:1090-1103`), and its trough
+certificate that no job is queued or running (§3.3). The code and agent sensing handoffs are
+other directories, and the ingress spools and the dialogue handoff are not looked at. A cut
+does not need them to be empty: what a spool or a handoff holds has not landed, so it is an
+event of no chain, no sentence reads it, and when it lands it lands at a position after the
+cut. One of them keeps text, the rejected requests, and §6.1 names it for the purge.
 
 ### 1.4 What is proved, what is measured, what is open
 
@@ -477,11 +483,18 @@ repository backs; trough quiescence, an empty queue with no queued and no runnin
 (`core/temporal/spine.py:197-206`), which certifies that no causality of the core is in flight;
 and the empty handoff, which certifies that nothing is in flight between the edge and the core.
 A cut across strata composes the three, and the spine refuses a cut whose certificate it cannot
-source (`spine.py:275-281`, `:1064-1084`). `[ESTABLISHED]`
+source (`spine.py:275-281`, `:1064-1084`). As the spine sources it, the handoff certificate is
+the emptiness of the two directories of the one sensing handoff it is given (`spine.py:218`,
+`:283-286`, `:1090-1103`); §1.3 says what that leaves unlooked at, and why a cut does not need
+it. `[ESTABLISHED]`
 
 So a cut is recorded at a trough and at no other moment. Two things ask for one: the trough
 itself, when the queue and the handoff are empty and the frontier moved since the last record;
-and the owner's command, which is served at the next trough, or at once when no daemon runs. The
+and the owner's command, which is served at the next trough. With no daemon running that is at
+once only when no job is queued. A landing through the writer enqueues jobs
+(`core/ingest/writer.py:203`, `:555`), and the trough certificate needs none queued as well as
+none running (`spine.py:197-206`), so with jobs queued and nothing running to take them the
+spine refuses the cut: the command says so and records nothing until the queue is drained. The
 sensor reading a commit does not record a cut: it reads inside its job
 (`ops/code_sensor.py:404-418`), where the trough certificate is refused. A record names the
 newest commit of the ledger as its `repo` position, so it covers every commit sensed since the
