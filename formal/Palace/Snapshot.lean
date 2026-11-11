@@ -72,7 +72,16 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   resolution: every frontier resolves to exactly one greatest consistent cut under it,
   monotonically (`exists_resolves`, `Resolves.unique`, `Resolves.mono`); a consistent cut stays
   consistent as the store grows (`Consistent.of_grown`); and a cut consistent for a recorded
-  bound on the references is consistent for the true ones (`Consistent.of_bound`).
+  bound on the references is consistent for the true ones (`Consistent.of_bound`). A reference
+  the resolver does not follow is kept by a filter of the read: a row is withheld when a source
+  of it lies outside the cut or is withheld. The filtered read is closed under every reference,
+  it is the greatest such set of rows inside the cut, it is the prefix at a consistent cut, it
+  never withholds a row whose references are all resolved, and it is monotone and append
+  invariant (`Kept.source`, `kept_of_closed`, `kept_iff_of_consistent`, `kept_of_resolved`,
+  `Kept.mono`, `kept_grown_iff`). The controls: a pass attestation whose reference to a landing
+  is resolved, which takes another landing chain down, and the same reference filtered, where
+  the prefix is not closed and the filtered read is (`Witness.pass_drags`,
+  `Witness.pass_withheld`).
 * SNP-9, certified cuts: the certificate of a cut verifies on every extension of the store, two
   stores that verify one certificate under a collision-free digest have the same read at its cut
   and so the same derived views, a certificate extends over the events since an earlier one, the
@@ -95,7 +104,9 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   (`exists_resolvesIn`, `ResolvesIn.unique`, `ResolvesIn.mono`, `ResolvesIn.le_resolves`,
   `resolvesIn_univ`). A chain that no other chain reads is lowered alone, every other chain
   read as asked (`Consistent.update_of_unread`, `resolvesIn_update_of_unread`,
-  `resolvesIn_of_unread`), and retention
+  `resolvesIn_of_unread`); a chain that reads a lowered chain, and that nothing else reads,
+  follows it and takes nothing with it, which is the case of a chain of records
+  (`resolvesIn_of_followed`, `Witness.record_follows`); and retention
   commutes with growth (`prune_landGen`). The controls: the pruned store read under its horizon,
   which cannot tell a lost key from one never written (`Witness.prune_forgets`,
   `Witness.prune_indistinct`); a record on a chain that content reads, which drags every reader
@@ -1296,6 +1307,63 @@ theorem resolvesIn_of_unread {S : K → Set ℕ} {f p : Cut K} (U : K → Prop) 
     · simp only [hk, ↓reduceIte]
       exact hdf k
 
+/-- SNP-10 The lowering with followers. `U` are chains that cannot serve the position asked and
+`V` chains that read them; nothing else reads a chain of `U`, and nothing but itself reads a
+chain of `V`. From a consistent cut asked, the cut read has each chain of `U` at the greatest
+position it serves at or under the one asked, each chain of `V` at the greatest position it
+serves whose events read the chains of `U` inside those positions, and every other chain as
+asked. A chain of records, which reads every chain it certifies and is read by none, is a chain
+of `V`: it is lowered with what it certifies, to its last record that the cut read holds, and
+takes nothing with it. The control is `Witness.record_follows`. -/
+theorem resolvesIn_of_followed {S : K → Set ℕ} {f p q : Cut K} (U V : K → Prop)
+    [DecidablePred U] [DecidablePred V] (hf : Consistent R f) (hUV : ∀ k, V k → ¬U k)
+    (hS : ∀ k, ¬U k → ¬V k → f k ∈ S k)
+    (hU : ∀ k i x j, U x → R k i x j → (k = x ∧ j ≤ i) ∨ V k)
+    (hV : ∀ k i x j, V x → R k i x j → k = x ∧ j ≤ i)
+    (hp : ∀ x, U x → p x ∈ S x ∧ p x ≤ f x ∧ ∀ n ∈ S x, n ≤ f x → n ≤ p x)
+    (hq : ∀ x, V x → q x ∈ S x ∧ q x ≤ f x ∧ (∀ i y j, U y → R x i y j → i < q x → j < p y) ∧
+      ∀ n ∈ S x, n ≤ f x → (∀ i y j, U y → R x i y j → i < n → j < p y) → n ≤ q x) :
+    ResolvesIn R S f fun k ↦ if U k then p k else if V k then q k else f k := by
+  have hle : ∀ k, (if U k then p k else if V k then q k else f k) ≤ f k := fun k ↦ by
+    by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).2.1
+    · by_cases hv : V k
+      · simp only [hk, hv, ↓reduceIte]
+        exact (hq k hv).2.1
+      · simp only [hk, hv, ↓reduceIte]
+        exact le_rfl
+  refine ⟨fun k i k' j hr hi ↦ ?_, fun k ↦ ?_, hle, fun d hd hdS hdf k ↦ ?_⟩
+  · by_cases hk' : U k'
+    · rcases hU k i k' j hk' hr with ⟨rfl, hji⟩ | hv
+      · exact lt_of_le_of_lt hji hi
+      · have hk : ¬U k := hUV k hv
+        simp only [hk, hv, ↓reduceIte] at hi
+        simp only [hk', ↓reduceIte]
+        exact (hq k hv).2.2.1 i k' j hk' hr hi
+    · by_cases hv' : V k'
+      · obtain ⟨rfl, hji⟩ := hV k i k' j hv' hr
+        exact lt_of_le_of_lt hji hi
+      · simp only [hk', hv', ↓reduceIte]
+        exact hf k i k' j hr (lt_of_lt_of_le hi (hle k))
+  · by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).1
+    · by_cases hv : V k
+      · simp only [hk, hv, ↓reduceIte]
+        exact (hq k hv).1
+      · simp only [hk, hv, ↓reduceIte]
+        exact hS k hk hv
+  · by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).2.2 _ (hdS k) (hdf k)
+    · by_cases hv : V k
+      · simp only [hk, hv, ↓reduceIte]
+        exact (hq k hv).2.2.2 _ (hdS k) (hdf k) fun i y j hy hr hi ↦
+          lt_of_lt_of_le (hd k i y j hr hi) ((hp y hy).2.2 _ (hdS y) (hdf y))
+      · simp only [hk, hv, ↓reduceIte]
+        exact hdf k
+
 theorem ResolvesIn.le_on_of_closed {R' : K → ℕ → K → ℕ → Prop} {S S' : K → Set ℕ}
     {f f' c c' : Cut K} (G : K → Prop)
     (hclosed : ∀ k i k' j, G k → R' k i k' j → G k')
@@ -1344,6 +1412,93 @@ theorem ResolvesIn.eq_on_of_closed {R' : K → ℕ → K → ℕ → Prop} {S S'
       (fun a ha ↦ (hf a ha).le) h' k hk)
     (h'.le_on_of_closed G hclosed (fun a i b j ha hr ↦ (hR a i b j ha).1 hr)
       (fun a ha ↦ (hS a ha).superset) h0 (fun a ha ↦ (hf a ha).ge) h k hk)
+
+/-! The filtered read: the references a resolver does not follow. -/
+
+section Filter
+
+variable {ok : K → ℕ → Prop} {c : Cut K}
+
+/-- SNP-8 The filtered read is closed: every source of a kept row is kept, so it lies inside the
+cut and is itself not withheld. The read holds no fact whose sources lie after the cut, whatever
+the cut. -/
+theorem Kept.source {k k' : K} {i j : ℕ} (h : Kept R ok c k i) (hr : R k i k' j) :
+    Kept R ok c k' j :=
+  ⟨lt_of_not_ge fun hle ↦ h.2 (.outside hr hle), fun hw ↦ h.2 (.through hr hw)⟩
+
+/-- A kept row passes its own test. -/
+theorem Kept.passes {k : K} {i : ℕ} (h : Kept R ok c k i) : ok k i :=
+  not_not.1 fun hn ↦ h.2 (.own hn)
+
+/-- SNP-8 The filtered read withholds no more than it must: every set of rows inside the cut
+that pass their own test and that holds the sources of its rows is kept. So the filtered read is
+the greatest such set. -/
+theorem kept_of_closed (T : K → ℕ → Prop) (hT : ∀ k i, T k i → i < c k ∧ ok k i)
+    (hclosed : ∀ k i k' j, T k i → R k i k' j → T k' j) {k : K} {i : ℕ} (h : T k i) :
+    Kept R ok c k i := by
+  refine ⟨(hT k i h).1, fun hw ↦ ?_⟩
+  induction hw with
+  | own hn => exact hn (hT _ _ h).2
+  | outside hr hle => exact absurd (hT _ _ (hclosed _ _ _ _ h hr)).1 (not_lt.2 hle)
+  | through hr _ ih => exact ih (hclosed _ _ _ _ h hr)
+
+/-- SNP-8 At a consistent cut, with every row passing its own test, the filter withholds
+nothing: the filtered read is the prefix. So it is the prefix at the head. -/
+theorem kept_iff_of_consistent (hc : Consistent R c) (hok : ∀ k i, ok k i) {k : K} {i : ℕ} :
+    Kept R ok c k i ↔ i < c k :=
+  ⟨fun h ↦ h.1, fun h ↦ kept_of_closed (fun k i ↦ i < c k) (fun k i hi ↦ ⟨hi, hok k i⟩)
+    (fun k i k' j hi hr ↦ hc k i k' j hr hi) h⟩
+
+/-- SNP-8 The rows whose references are all resolved are never withheld. `P` is a set of rows
+that pass their own test, whose every reference is one the resolver follows (`R'`) and leads
+into `P`: the landings, the attestations of landings and of commits, the commits. At a cut
+consistent for `R'` every row of `P` inside the cut is kept under the whole relation `R`. -/
+theorem kept_of_resolved {R' : K → ℕ → K → ℕ → Prop} (P : K → ℕ → Prop)
+    (hP : ∀ k i k' j, P k i → R k i k' j → R' k i k' j ∧ P k' j) (hok : ∀ k i, P k i → ok k i)
+    (hc : Consistent R' c) {k : K} {i : ℕ} (h : P k i) (hi : i < c k) : Kept R ok c k i :=
+  kept_of_closed (fun k i ↦ P k i ∧ i < c k) (fun k i hk ↦ ⟨hk.2, hok k i hk.1⟩)
+    (fun k i k' j hk hr ↦ ⟨(hP k i k' j hk.1 hr).2, hc k i k' j (hP k i k' j hk.1 hr).1 hk.2⟩)
+    ⟨h, hi⟩
+
+/-- A row withheld at a later cut is withheld at an earlier one. -/
+theorem Withheld.anti {c d : Cut K} (hcd : c ≤ d) {k : K} {i : ℕ} (h : Withheld R ok d k i) :
+    Withheld R ok c k i := by
+  induction h with
+  | own hn => exact .own hn
+  | outside hr hle => exact .outside hr ((hcd _).trans hle)
+  | through hr _ ih => exact .through hr ih
+
+/-- SNP-2 The filtered read is monotone in the cut, for a test that does not depend on the cut:
+a row kept at a cut is kept at every later one. -/
+theorem Kept.mono {c d : Cut K} (hcd : c ≤ d) {k : K} {i : ℕ} (h : Kept R ok c k i) :
+    Kept R ok d k i :=
+  ⟨lt_of_lt_of_le h.1 (hcd k), fun hw ↦ h.2 (hw.anti hcd)⟩
+
+/-- A row inside the old head that is withheld for the references of a grown store was withheld
+for the old ones, when the rows inside the old head kept their references. -/
+theorem Withheld.of_grown {R' : K → ℕ → K → ℕ → Prop} {h : Cut K}
+    (hR : ∀ k i k' j, i < h k → R' k i k' j → R k i k' j) (hc : c ≤ h) {k : K} {i : ℕ}
+    (hw : Withheld R' ok c k i) (hi : i < h k) : Withheld R ok c k i := by
+  induction hw with
+  | own hn => exact .own hn
+  | outside hr hle => exact .outside (hR _ _ _ _ hi hr) hle
+  | @through k k' i j hr _ ih =>
+    by_cases hj : j < h k'
+    · exact .through (hR _ _ _ _ hi hr) (ih hj)
+    · exact .outside (hR _ _ _ _ hi hr) ((hc k').trans (not_lt.1 hj))
+
+/-- SNP-1 The filtered read is append invariant: when the rows inside the old head keep the
+references they had, the rows kept at a cut inside the old head are the same after the store
+grows. -/
+theorem kept_grown_iff {R' : K → ℕ → K → ℕ → Prop} {h : Cut K}
+    (hR : ∀ k i k' j, i < h k → (R' k i k' j ↔ R k i k' j)) (hc : c ≤ h) {k : K} {i : ℕ} :
+    Kept R' ok c k i ↔ Kept R ok c k i :=
+  ⟨fun hk ↦ ⟨hk.1, fun hw ↦ hk.2 (hw.of_grown (fun a b a' b' hb hr ↦ (hR a b a' b' hb).2 hr) hc
+      (lt_of_lt_of_le hk.1 (hc k)))⟩,
+    fun hk ↦ ⟨hk.1, fun hw ↦ hk.2 (hw.of_grown (fun a b a' b' hb hr ↦ (hR a b a' b' hb).1 hr) hc
+      (lt_of_lt_of_le hk.1 (hc k)))⟩⟩
+
+end Filter
 
 end Consistency
 
@@ -1638,6 +1793,128 @@ theorem record_drags :
       have := hc 0 0 1 1 (Or.inr ⟨rfl, rfl, rfl, rfl⟩) (Nat.pos_of_ne_zero h)
       omega
     exact ⟨hland, hatt⟩
+
+/-- The control for SNP-10's lowering with followers: a chain of records is lowered with what
+it certifies. Chain 0 is a landing log, chain 1 the attestations, chain 2 a chain `X` that
+serves its empty prefix and the positions from 2 on, chain 3 the records. The landing reads its
+attestation, and the one record reads the first event of every other chain. Asked at the head,
+the cut read keeps the landing log and the attestations as asked and reads `X` and the records
+at their empty prefixes: the records' chain is not read as recorded, and it takes no chain with
+it. -/
+theorem record_follows :
+    ∃ (R : ℕ → ℕ → ℕ → ℕ → Prop) (S : ℕ → Set ℕ) (f : Cut ℕ),
+      Consistent R f ∧ (∀ k, k ≠ 2 → S k = Set.univ) ∧ (∀ k, f k = 1) ∧
+        ∀ c, ResolvesIn R S f c → c 0 = 1 ∧ c 1 = 1 ∧ c 2 = 0 ∧ c 3 = 0 := by
+  refine ⟨fun k i k' j ↦ (k = 0 ∧ i = 0 ∧ k' = 1 ∧ j = 0) ∨ (k = 3 ∧ i = 0 ∧ k' ≠ 3 ∧ j = 0),
+    fun k ↦ if k = 2 then {p | p = 0 ∨ 2 ≤ p} else Set.univ, fun _ ↦ 1, ?_,
+    fun k hk ↦ by simp [hk], fun _ ↦ rfl, ?_⟩
+  · rintro k i k' j (⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, -, rfl⟩) _ <;> exact Nat.one_pos
+  · rintro c ⟨hc, hS, hcf, hmax⟩
+    have hX : c 2 = 0 := by
+      have h2 : c 2 = 0 ∨ 2 ≤ c 2 := by simpa using hS 2
+      have h1 : c 2 ≤ 1 := hcf 2
+      omega
+    have h3 : c 3 = 0 := by
+      by_contra h
+      have := hc 3 0 2 0 (Or.inr ⟨rfl, rfl, by decide, rfl⟩) (Nat.pos_of_ne_zero h)
+      omega
+    have hd : Consistent (fun k i k' j ↦ (k = 0 ∧ i = 0 ∧ k' = 1 ∧ j = 0) ∨
+        (k = 3 ∧ i = 0 ∧ k' ≠ 3 ∧ j = 0)) (fun k ↦ if k = 2 ∨ k = 3 then 0 else 1) := by
+      rintro k i k' j (⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, -, rfl⟩) hi
+      · decide
+      · simp at hi
+    have hle := hmax _ hd (fun k ↦ by by_cases hk : k = 2 <;> simp [hk]) (fun k ↦ by
+      change (if k = 2 ∨ k = 3 then 0 else 1) ≤ 1
+      by_cases hk : k = 2 ∨ k = 3 <;> simp [hk])
+    have a0 : 1 ≤ c 0 := by simpa using hle 0
+    have a1 : 1 ≤ c 1 := by simpa using hle 1
+    have b0 : c 0 ≤ 1 := hcf 0
+    have b1 : c 1 ≤ 1 := hcf 1
+    exact ⟨by omega, by omega, hX, h3⟩
+
+/-- The control for SNP-8's filtered read: a pass attestation whose reference to a landing is
+resolved. Chain 0 is a landing log behind a history window: it serves its empty prefix and the
+positions from 2 on. Chain 1 is the attestations: the attestation of the landing on chain 0, a
+pass attestation that reads that landing, and the attestation of the landing on chain 2. Chain 2
+is a landing log of another class that serves every position. The cut asked is the head and is
+consistent. With the pass attestation's reference followed by the resolver, the second landing
+log is read at its empty prefix, though it serves the position asked: the cascade of
+`record_drags`, through a pass and not a record. -/
+theorem pass_drags :
+    ∃ (R : ℕ → ℕ → ℕ → ℕ → Prop) (S : ℕ → Set ℕ) (f : Cut ℕ),
+      Consistent R f ∧ (∀ k, k ≠ 0 → S k = Set.univ) ∧ f 2 = 1 ∧
+        ∀ c, ResolvesIn R S f c → c 2 = 0 := by
+  refine ⟨fun k i k' j ↦ (k = 0 ∧ i = 0 ∧ k' = 1 ∧ j = 0) ∨ (k = 1 ∧ i = 1 ∧ k' = 0 ∧ j = 0) ∨
+      (k = 2 ∧ i = 0 ∧ k' = 1 ∧ j = 2),
+    fun k ↦ if k = 0 then {p | p = 0 ∨ 2 ≤ p} else Set.univ,
+    fun k ↦ if k = 0 then 1 else if k = 1 then 3 else 1, ?_, fun k hk ↦ by simp [hk], rfl, ?_⟩
+  · rintro k i k' j (⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl⟩) _ <;>
+      decide
+  · rintro c ⟨hc, hS, hcf, -⟩
+    have h0 : c 0 = 0 := by
+      have a : c 0 = 0 ∨ 2 ≤ c 0 := by simpa using hS 0
+      have b : c 0 ≤ 1 := by simpa using hcf 0
+      omega
+    have h1 : c 1 ≤ 1 := by
+      by_contra h
+      have := hc 1 1 0 0 (Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩)) (by omega)
+      omega
+    by_contra h
+    have := hc 2 0 1 2 (Or.inr (Or.inr ⟨rfl, rfl, rfl, rfl⟩)) (Nat.pos_of_ne_zero h)
+    omega
+
+/-- The same store with the pass attestation's reference filtered and not resolved. The
+resolver follows the landings' references alone, and the cut read is the cut asked with the
+first landing log at its empty prefix. That cut is not consistent for the whole relation, so the
+prefix read at it holds a pass whose landing is outside. The filtered read withholds that pass
+and keeps the attestation after it and the second landing. -/
+theorem pass_withheld :
+    ∃ (R R' : ℕ → ℕ → ℕ → ℕ → Prop) (S : ℕ → Set ℕ) (f g : Cut ℕ),
+      (∀ k i k' j, R' k i k' j → R k i k' j) ∧ ResolvesIn R' S f g ∧ g 2 = f 2 ∧
+        ¬Consistent R g ∧ ¬Kept R (fun _ _ ↦ True) g 1 1 ∧ Kept R (fun _ _ ↦ True) g 1 2 ∧
+          Kept R (fun _ _ ↦ True) g 2 0 := by
+  let R' : ℕ → ℕ → ℕ → ℕ → Prop := fun k i k' j ↦
+    (k = 0 ∧ i = 0 ∧ k' = 1 ∧ j = 0) ∨ (k = 2 ∧ i = 0 ∧ k' = 1 ∧ j = 2)
+  let R : ℕ → ℕ → ℕ → ℕ → Prop := fun k i k' j ↦ R' k i k' j ∨ (k = 1 ∧ i = 1 ∧ k' = 0 ∧ j = 0)
+  let S : ℕ → Set ℕ := fun k ↦ if k = 0 then {p | p = 0 ∨ 2 ≤ p} else Set.univ
+  let f : Cut ℕ := fun k ↦ if k = 0 then 1 else if k = 1 then 3 else 1
+  let g : Cut ℕ := fun k ↦ if k = 0 then 0 else f k
+  have hf : Consistent R' f := by
+    rintro k i k' j (⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl⟩) _ <;> decide
+  have hg : ResolvesIn R' S f g :=
+    resolvesIn_of_unread (R := R') (S := S) (f := f) (p := fun _ ↦ 0) (fun k ↦ k = 0) hf
+      (fun k hk ↦ by simp [S, hk]) (fun k i x j hx hr ↦ by
+        subst hx
+        rcases hr with ⟨-, -, h, -⟩ | ⟨-, -, h, -⟩ <;> simp at h)
+      (fun x hx ↦ by
+        subst hx
+        refine ⟨by simp [S], by simp [f], fun n hn hnf ↦ ?_⟩
+        have a : n = 0 ∨ 2 ≤ n := by simpa [S] using hn
+        have b : n ≤ 1 := by simpa [f] using hnf
+        change n ≤ 0
+        omega)
+  have hP : ∀ k i, Kept R (fun _ _ ↦ True) g k i ↔ i < g k ∧ ¬(k = 1 ∧ i = 1) := by
+    intro k i
+    constructor
+    · intro hk
+      refine ⟨hk.1, ?_⟩
+      rintro ⟨rfl, rfl⟩
+      have := (hk.source (Or.inr ⟨rfl, rfl, rfl, rfl⟩ : R 1 1 0 0)).1
+      simp [g] at this
+    · intro hk
+      refine kept_of_closed (fun k i ↦ i < g k ∧ ¬(k = 1 ∧ i = 1)) (fun k i h ↦ ⟨h.1, trivial⟩)
+        ?_ hk
+      rintro k i k' j ⟨hi, hne⟩ ((⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl⟩) |
+        ⟨rfl, rfl, rfl, rfl⟩)
+      · simp [g] at hi
+      · exact ⟨by decide, by decide⟩
+      · exact absurd ⟨rfl, rfl⟩ hne
+  refine ⟨R, R', S, f, g, fun _ _ _ _ h ↦ Or.inl h, hg, rfl, fun h ↦ ?_, fun h ↦ ?_, ?_, ?_⟩
+  · have := h 1 1 0 0 (Or.inr ⟨rfl, rfl, rfl, rfl⟩) (by decide)
+    simp [g] at this
+  · exact ((hP 1 1).1 h).2 ⟨rfl, rfl⟩
+  · exact (hP 1 2).2 ⟨by decide, by decide⟩
+  · exact (hP 2 0).2 ⟨by decide, by decide⟩
 
 /-- The control for SNP-6's closed set of chains: the cut read on a chain a grant names depends
 on what a chain it reads serves. One relation and one frontier, served positions that agree on
