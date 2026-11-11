@@ -606,7 +606,9 @@ references between the chains of §3.1 are these. `[ESTABLISHED: read off the wr
   (`core/verdict/dispositions.py:59-64`).
 
 The first four are **resolved**: the resolver follows them, and the cut read is consistent for
-them. The last four are **filtered**: the resolver does not follow them, and a row that has one
+them. Three of them join chains of §3.1. A citation edge is a row of no chain: it is read by its
+stamps, which are positions on `repo` and `att` (§5.1), so a cut that holds its stamps holds its
+sources. The last four are **filtered**: the resolver does not follow them, and a row that has one
 is served at a cut only when its sources are. Both are taken up below, after the definition.
 
 A causal edge reads from the turn that witnessed it and, when it ends at a commit, from the
