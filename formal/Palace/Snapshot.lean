@@ -63,8 +63,9 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   control is the erasure that deletes rows (`Witness.compact_moves`). For a keyed chain whose
   holes keep their keys, the read of a key at a cut is its last write at or under the cut, a
   hole when that write is erased, and the three reads agree on it (`stateAt_holes`,
-  `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`, `genRead_gens_holes`, `lastWrite_holes`); the control is the hole that loses its key, which
-  returns a superseded version or one from after the cut (`Witness.keyless_hole`).
+  `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`, `genRead_gens_holes`,
+  `lastWrite_holes`); the control is the hole that loses its key, which returns a superseded
+  version or one from after the cut (`Witness.keyless_hole`).
 * SNP-8, resolution: the consistent cuts are the clock's cuts, CLK-2, among the frontier cuts
   (`consistent_iff_isCut`), so their closure under meet and join is CLK-2's, read through that
   equivalence (`Consistent.inf`, `Consistent.sup`, `consistentCuts`). What this law adds is
