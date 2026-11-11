@@ -372,8 +372,8 @@ date, which selects the last record whose wall bookmark is not later. Wall time 
 there and orders nothing. The resolver follows three references, each through a recorded bound
 that is sound because there is one writer (\Cref{thm:lattice}): a landing's to the attestation
 ledger, an attestation's to its commit, a record's to its frontier. A pass's attestation and a
-row of model output read landings too; resolved, they would lower the ledger and every landing
-chain with it (\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice} withholds them
+row of model output read landings too; resolved, they would lower the ledger, and that can take
+another landing chain down (\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice} withholds them
 from the read instead.
 
 \begin{algorithm}[t]
