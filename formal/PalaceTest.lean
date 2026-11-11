@@ -30,6 +30,7 @@ public import PalaceTest.Scope
 public import PalaceTest.Script
 public import PalaceTest.Sentence
 public import PalaceTest.SigmaStar
+public import PalaceTest.Snapshot
 public import PalaceTest.Spectral
 public import PalaceTest.Superconnection
 public import PalaceTest.Utility

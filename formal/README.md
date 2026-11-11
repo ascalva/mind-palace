@@ -27,7 +27,7 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, Scale, and the parts of Magnetic and
+theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, Scale, Snapshot, and the parts of Magnetic and
 NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
@@ -297,6 +297,44 @@ Roundoff and FloatModel, so it has no statements of its own):
   `eval/utility_field.py` transcribes the model on synthetic graphs and its tests are the Python
   falsifiers, so the six laws are the ledger's family XV (`Spec/Utility.lean`, 20 statements); the
   controls and the gap stay design theorems.
+- `Snapshot`: a read of the stores at a cut (`docs/design-notes/dn-temporal-snapshot.md`), proved
+  before any code reads a store at a cut, on a model of a store as a family of append chains (a
+  document's versions, a session's turns, a class's landing log), a cut as a prefix length for
+  each chain (the frontier of the event clock's §2.4), the read at a cut and between two cuts, a
+  derived view as a derivation of the prefixes, a store of keyed writes held three ways (rewritten
+  in place, recomputed from the prefix, kept by generation with a closing stamp), the grant and
+  the erasure as parameters of a read that are the present's, the reads-from references between
+  chains, and the certificate of a cut as the digest of each chain's prefix. SNP-1 append
+  invariance: a read at a cut inside the store, a read between two such cuts and every derived
+  view are unchanged by any growth of the store; SNP-2 the read at an earlier cut is a prefix of
+  the read at a later one, and a cut of a cut is the meet; SNP-3 the read at `a` followed by the
+  read between `a` and `b` is the read at `b` and adjacent reads-between compose, so a fold
+  continued from a checkpoint over the events since is the fold of the prefix (a job's checkpoint
+  is a cut); SNP-4 the read at the head cut is the store, so `as of` the current cut is no
+  `as of`; SNP-5 a reader is append invariant exactly when it reads only the prefixes, exactly
+  when it is a derived view, and for keyed writes the generational store read at a cut is the
+  state recomputed from the prefix and the last write inside it, with at most one generation of a
+  key alive at a cut, while the store rewritten in place determines no read at a past cut; SNP-6
+  a narrower grant's snapshot is the restriction of a wider one's, a snapshot reads only the
+  chains the grant names and the cut on them, and restricting to chains commutes with the cut
+  where filtering events does not (a cut's positions count the events a filter hides); SNP-7 no
+  erased event is visible at any cut, a larger erasure shows a sublist, the store with holes
+  keeps every position, two stores that differ only in erased events give every derivation the
+  same reading at every cut, a kept derived row is served only when none of its sources is
+  erased, and a key retired after a cut is served at no earlier cut, growth changing a served
+  value only by removing it, where the looser seal that withholds a key only while it is not
+  live serves everything the stricter one serves and is lifted by a later landing; SNP-8 consistent cuts (every source of an event inside is inside)
+  are closed under meet and join, a sublattice of the cuts, they are CLK-2's cuts among the
+  frontier cuts, every frontier resolves to exactly one greatest consistent cut under it,
+  monotonically, and a consistent cut stays consistent as the store grows; SNP-9 the certificate
+  of a cut verifies on every extension of the store, two stores that verify one certificate under
+  a collision-free digest have the same read at its cut and so the same derived views, a
+  certificate extends over the events since an earlier one, the meet and the join of two
+  certified cuts are certified from the two certificates alone, and an erasure that keeps a
+  commitment beside each event keeps every certificate. The controls as theorems: the reader
+  that ignores the cut, the store rewritten in place, an event filter applied before the cut, the
+  erasure that deletes rows, a digest with collisions. Design theorems (Palace and PalaceTest, no
+  Spec rows): `as of` reads the citation graph at a commit and every other store as it is now.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
@@ -313,8 +351,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   exported, every module contributes, and only the unsafe compiler helpers are left out, and
   `check.sh` holds its count to the audit's, since a checker accepts an empty export.
 - `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (of the design
-  theorems, Magnetic, NegativeType, Superconnection, Dynamics and Scale have them), as Mathlib keeps
-  its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
+  theorems, Magnetic, NegativeType, Superconnection, Dynamics, Scale and Snapshot have them), as
+  Mathlib keeps its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
 - `Audit.lean`: lists the axioms behind every `Palace` declaration and fails on anything beyond
@@ -826,6 +864,36 @@ alone does not bound the form, within 12 (an edge of weight 1 with opposite ends
 at a gain above the rate the ceiling is fixed, on the first instance; at exponent 2 the ratio is
 not constant, on the first instance; and the greedy walk's empirical measure is not within `1/8`
 of the structural stationary distribution, on the first instance.
+
+The snapshot is attacked on the model's own definitions (seeds 430 to 474): stores of two
+chains over three events, cuts from two naturals, keyed chains over three keys, chains of
+landings and retires from codes, grants from two bits and event filters and erasures from three,
+reads-from relations as lists of edges between the two chains at positions under four, and a
+digest that reads a chain as a numeral in base four, which is collision free. Thirty attacks
+survived, every one all 500 instances: the read at a cut and between two cuts under growth; the
+prefix order and the meet; the two compositions and the journal; the head cut; the generational
+store against the recomputed state and the last write, one generation alive at most, the same
+under growth, and the keyed journal; the narrower grant, and the chains a snapshot reads; the
+erasure (nothing erased visible, positions kept, the holes dropped), the retire that seals every
+earlier cut, growth that only removes, the two seals in their order, and the kept rows with their
+sources; the resolver, the
+meet and the join of consistent cuts, and the monotone resolution; the certificate under growth,
+the digest of a reversed chain, the certificate over the delta, at the meet and the join, and
+across an erasure on a committed store. The resolver is the one thing attacked that the library
+does not define: the descent that lowers a frontier until no event inside it has a source
+outside, checked against the greatest consistent cut by enumerating the thirty-six cuts of the
+grid. The fifteen controls, each refuted: a read at a cut past the head changes with growth,
+within 11 instances; the read at one cut is a prefix of the read at any other, within 6; the
+composition with the cuts in any order, within 6; the store rewritten in place as the state at a
+cut, within 5; generations without the closing stamp, which read a key's oldest write, within 18;
+an event filter applied before the cut, within 26; two stores with the same admitted events and
+one hidden event more before the cut, within 7; an erasure that deletes rows, after which a read
+at a cut holds an event from after it, within 29; the state at a cut served without the seal,
+within 53; the looser seal taken for one under which growth only removes, within 48; the kept
+rows served without their sources, within 11; the frontier taken for a
+consistent cut, within 11; a consistent cut advanced by one position, within 12; the additive
+digest, under which a chain and its reverse agree, within 11; and a digest over the contents,
+which an erasure changes, within 14.
 
 ## Build
 
