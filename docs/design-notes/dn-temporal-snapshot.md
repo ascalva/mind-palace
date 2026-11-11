@@ -435,8 +435,9 @@ JSON (keys sorted, no white space, UTF-8) of the object with the fields `chain`,
 `source_path`, `doc_id`, `version`, `digest`, `title`, `att_head`, `ref_lo`, `ref_hi` and `at`.
 `closed_at` is out, since it is written later, and so is `path_key`, which is an index key.
 `hash` is SHA-256 over the previous row's `hash` followed by the commitment; the first row's
-previous hash is 32 zero bytes, and after a history window (§9.2) it is the hash of the last row
-dropped, kept in the `horizon` row. The chain is hashed like the prediction ledger
+previous hash is 32 zero bytes. No row is ever deleted, by a purge or by a history window: both
+empty rows and keep their commitments and hashes (§6.1, §9.2), so the chain is hashed from its
+first row for as long as it lives. The chain is hashed like the prediction ledger
 (`eval/predictions/ledger.py:1-12`), with one difference that §6.1 needs: a row's hash covers a
 commitment to the row and not the row, so a purge can empty the row and keep the chain
 (`commitments_purge`, `verifies_purge`). `[THEOREM: SNP-9]`
@@ -1415,9 +1416,11 @@ was never there: two chains can leave the same pruned store where, at one cut un
 horizon, a key held a value in the first and had never been written in the second
 (`Witness.prune_indistinct`). Two horizons are the later one (`prune_prune`). `[THEOREM:
 SNP-10]` The journal form says the same of a fold: continued from the state kept at the
-horizon over the events since, it is the fold of the whole prefix (`foldAt_readBetween`), and the
-chain's digest at the horizon, kept as the seed, lets every certificate from the horizon on
-verify (`certify_digest_readBetween`). `[THEOREM: SNP-3, SNP-9]`
+horizon over the events since, it is the fold of the whole prefix (`foldAt_readBetween`), and
+for a chain that drops its prefix whole, as the use log does, the chain's digest at the horizon,
+kept as the seed, lets every certificate from the horizon on verify
+(`certify_digest_readBetween`). `[THEOREM: SNP-3, SNP-9]` The landing log needs no seed: a
+window empties its rows and keeps their commitments, so it is hashed from its first row (§9.2).
 
 So the horizon is recorded, and a cut under it is not served.
 
@@ -1489,11 +1492,26 @@ A chain can declare two windows, each in positions, and a retention pass runs at
   derived again (§9.3).
 - **A window for the history.** The chain's horizon moves to the later of the horizon in force
   and the head less the window. A `horizon` row is appended first, so the positions under it are
-  unserved from that moment; then the derived rows still under it, the raw objects no retained
-  row names, and the log's rows closed at or under it are dropped, the chain's digest at the
-  horizon kept as its seed.
+  unserved from that moment; then the derived rows still under it and the raw objects no
+  retained row names are dropped, and the log's rows closed at or under it are emptied.
 
-The second is an exception to the rule that raw objects are kept
+**What a window leaves of a row.** An emptied row keeps `chain`, `seq`, `kind`, `closed_at`,
+`commitment` and `hash`, and loses every other field, its key included. No row of the log is
+deleted. The rows closed at or under a horizon and the rows still alive there interleave, and a
+row at the horizon's position is never closed under it, so with rows deleted there would be no
+last row dropped whose hash could seed the rest, and the hashes of the rows kept under the
+horizon could not be computed again. With the commitments kept, `verify` runs from the first
+row as it does on a chain that was never pruned (§3.2), every certificate keeps verifying, as
+after a purge (`verifies_purge`), and a row still alive under the horizon is checked like any
+other, by its commitment and by the chain. For the reads an emptied row is a dropped one
+(`genRead_prune_gens`): it has no key, so no seek by path finds it, and it needs none, since a
+row closed at or under the horizon is the last event of its path at no cut from the horizon on;
+its closing stamp keeps it out of the heads at those cuts. `[THEOREM: SNP-9 for the chain,
+SNP-10 for the reads; DERIVED for the key]` By arithmetic, not measured: an emptied row is
+about 100 bytes, two 32-byte hashes, the kind, three integers and its entry of the closing
+index, against the 396 to 434 measured for a whole one.
+
+The window for the history is an exception to the rule that raw objects are kept
 (`core/kernel/stores/rawstore.py:1-8`), which only the owner's purge makes today, so it is the
 owner's to declare. Its order is the one the stores use for a cache: the horizon is declared
 first, so a crash in the middle leaves rows that are no longer served, never a position that is
@@ -1517,7 +1535,9 @@ The default instance declares neither window and keeps everything; by the arithm
 log is megabytes a year and its superseded derived rows about a gigabyte a year at a hundred
 landings a day. An instance that must bound its disk declares the first window, which frees
 those derived rows and moves no horizon. The second frees, beyond that, only the raw objects
-and the log's rows of the closed versions, and it is declared only by the owner (D8).
+and about three quarters of the bytes of the log's rows of the closed versions, and it is
+declared only by the owner (D8). At the cuts a chain no longer serves it also withholds every
+pass attestation, dream claim and interpreted row that read a landing of that chain (§7.1).
 
 ### 9.3 Lazy landing, in time
 
@@ -1769,8 +1789,8 @@ the runs is given where they differed. `[MEASURED]`
 | `read` under `as of` | the same fakes, one reading at a commit of the checkout fourteen back and one at a sha of forty `d`s that git does not hold | at the commit git holds: that commit's blob and not the head's, under a note saying that `read` read the present, the hit carrying no commit; at the sha git does not hold: `HEAD`'s blob, the same note, the same hit |
 | row numbering | a table keyed by text, five rows, in a temporary file | after the last row was deleted the next insert was numbered 5 again; a vacuum after a delete in the middle kept the numbers |
 
-Not measured: anything on an instance's own stores; the size of a recorded cut and of a chain
-table's row, which are arithmetic; how often a row of model output is replaced; the lexical
+Not measured: anything on an instance's own stores; the size of a recorded cut, of a chain
+table's row and of a row of the log that a window emptied, which are arithmetic; how often a row of model output is replaced; the lexical
 statistics computed from a mask at a corpus's size; the causal fiber recomputed over a real
 instance's sessions, cold or warm; a vector search with superseded rows joined to the heads at a
 cut; the reads of the chat log and the attestation ledger through their chain tables; a
@@ -1957,9 +1977,11 @@ give, and what each alternative costs is the answers it changes, which the entry
    a window for derived rows, which moves no horizon and frees what a superseded version mostly
    costs, about 29 kilobytes of derived rows for a note of four chunks by §9.1's arithmetic; and
    a window for the history only when the owner declares one, since it drops raw objects
-   (§9.2). The alternatives: a horizon everywhere, which over the first window frees only a
-   closed version's raw bytes and its 0.4 kilobytes of log, and loses the default instance's
-   history for it; that trade is worth making only where raw objects are large, as a transcript
+   (§9.2), and at the cuts under the new horizon withholds every pass attestation, dream claim
+   and interpreted row that read a landing of the chain. The alternatives: a horizon
+   everywhere, which over the first window frees only a closed version's raw bytes and about
+   0.3 of its 0.4 kilobytes of log, by arithmetic, and loses the default instance's history for
+   it; that trade is worth making only where raw objects are large, as a transcript
    retained whole at each growth is (0.79 MB a growth on the fixture). Or the last `n` versions
    an identity, which leaves no horizon to name.
 9. **D9, the attestation ledger under a purge.** It still names a purged digest (§6.1), against
@@ -2021,7 +2043,7 @@ give, and what each alternative costs is the answers it changes, which the entry
 | SN-d | a second embedder identity's vectors kept beside the first | none: the present's identity | dn-two-phase-ingestion's open question 4 |
 | SN-e | lexical statistics stored per class and per recorded cut | computed from the mask | a lexical query at a past cut over its budget |
 | SN-f | `repo` as a graph of commits, and a chain a repository | the line of the branch the sensor reads, one repository | an instance whose history has merges or that reads several repositories |
-| SN-g | which recorded cuts are kept under a horizon | the records stay as attested claims; their chains' rows go | a consumer that must verify a cut under a horizon |
+| SN-g | which recorded cuts are kept under a horizon | the records stay; a landing chain keeps its commitments and hashes, so a record under its horizon still verifies there and reads nothing | a consumer that must read, and not only verify, a cut under a horizon |
 | SN-h | generations with a diff for the causal fiber | recomputation with a memo | SNF-5 |
 | SN-i | the curated rows written outside the catalog | outside the snapshot, counted in the answer's note (§5.6) | the script routed through the writer |
 | SN-j | a date asked under a narrower grant | resolved over every record, the answer showing the record's id and its positions on the grant's chains only | a use that must hide when the instance was quiescent |
