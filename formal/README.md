@@ -334,7 +334,11 @@ Roundoff and FloatModel, so it has no statements of its own):
   here from `Clock.IsCut.frontier_inf` and `frontier_sup`; every frontier resolves to exactly
   one greatest consistent cut under it, monotonically, a consistent cut stays consistent as the
   store grows, and a cut consistent for a recorded bound on the references is consistent for
-  the true ones; SNP-9 the certificate of a cut verifies on every extension of the store, two
+  the true ones; a reference the resolver does not follow is kept by a filter of the read, a
+  row withheld when a source of it lies outside the cut or is withheld, and the filtered read
+  holds the sources of its rows, is the greatest such set inside the cut, is the prefix at a
+  consistent cut, never withholds a row whose references are all resolved, and is monotone and
+  append invariant; SNP-9 the certificate of a cut verifies on every extension of the store, two
   stores that verify one certificate under a collision-free digest have the same prefix of
   every digested chain at its cut and so the same derived views of it, a certificate extends
   over the events since an earlier one, the meet and the join of two certified cuts are
@@ -348,8 +352,10 @@ Roundoff and FloatModel, so it has no statements of its own):
   positions (those from a horizon on, and the empty prefix) every frontier resolves to exactly
   one greatest consistent cut among them, which never passes the cut asked and rises with the
   frontier and with served positions that grow; a chain that no other chain reads is lowered
-  alone, every other chain read as asked. The grant and the erasure applied to one read
-  (`shown`) keep the laws of each. The fifteen controls as theorems, in `Witness`: the reader
+  alone, every other chain read as asked, and a chain that reads the lowered chains and that
+  nothing but itself reads, as a chain of records does, follows them and takes nothing with
+  it. The grant and the erasure applied to one read
+  (`shown`) keep the laws of each. The eighteen controls as theorems, in `Witness`: the reader
   that ignores the cut (`present_not_appendInvariant`), the store rewritten in place
   (`stateOf_forgets`), an event filter applied before the cut (`filter_before_cut`), positions
   that count hidden events (`position_channel`), the erasure that deletes rows
@@ -358,7 +364,10 @@ Roundoff and FloatModel, so it has no statements of its own):
   (`prune_forgets`, `prune_indistinct`), a digest with collisions (`digest_collides`), a hole
   that loses its key (`keyless_hole`), a seal written after a certified cut
   (`seal_not_certified`), a renamed chain (`rename_breaks_certificate`), a record on a chain
-  that content reads (`record_drags`), a named chain that reads an unnamed one
+  that content reads (`record_drags`), a chain of records lowered with a chain it certifies
+  (`record_follows`), a pass attestation whose reference to a landing is resolved, and the
+  same reference filtered, where the prefix is not closed and the filtered read is
+  (`pass_drags`, `pass_withheld`), a named chain that reads an unnamed one
   (`resolution_reads_unnamed`), and served positions that shrink (`served_set_shrinks`). Design
   theorems (Palace and PalaceTest, no Spec rows): `as of` reads the citation graph at a commit
   and every other store as it is now.
@@ -892,12 +901,12 @@ at a gain above the rate the ceiling is fixed, on the first instance; at exponen
 not constant, on the first instance; and the greedy walk's empirical measure is not within `1/8`
 of the structural stationary distribution, on the first instance.
 
-The snapshot is attacked on the model's own definitions (seeds 430 to 513): stores of two
+The snapshot is attacked on the model's own definitions (seeds 430 to 520): stores of two
 chains over three events, cuts from two naturals, keyed chains over three keys, chains of
 landings and retires from codes, grants from two bits and event filters and erasures from three,
 reads-from relations as lists of edges between the two chains at positions under four, a
 digest that reads a chain as a numeral in base four, which is collision free, and the positions
-a chain serves from ten bits. Forty-five attacks survived, every one all 500 instances: the read
+a chain serves from ten bits. Forty-nine attacks survived, every one all 500 instances: the read
 at a cut and between two cuts under growth; the prefix order and the meet; the two compositions
 and the journal; the head cut; the generational store against the recomputed state and the last
 write, one generation alive at most, the same under growth, and the keyed journal; an event of
@@ -912,13 +921,16 @@ the meet and the join, and across an erasure on a committed store; the pruned ge
 store at and past its horizon, never wrong under it, and two horizons as the later one; and,
 among the served positions, the greatest consistent cut under a frontier found by enumeration,
 consistent and served, under the resolution of the frontier, rising with what is served, equal
-to the resolution when every position is served, and equal to the frontier with an unread chain
-lowered alone. Two resolvers are attacked that the library does not define: the descent that
+to the resolution when every position is served, equal to the frontier with an unread chain
+lowered alone, and with a chain that reads it lowered after it; and the row filter, closed, the
+greatest closed set of rows inside the cut by enumeration of every set of rows, growing with
+the cut, and withholding nothing at a consistent cut. Two resolvers are attacked that the
+library does not define: the descent that
 lowers a frontier until no event inside it has a source outside, checked against the greatest
 consistent cut by enumerating the thirty-six cuts of the grid (461), and its alternation with
 the floor to the served positions, checked against the greatest consistent served cut (492).
 
-The thirty-nine controls, each refuted, with the instances it took. A read at a cut past the
+The forty-two controls, each refuted, with the instances it took. A read at a cut past the
 head changes with growth, for the prefix, the read between two cuts and the generational store
 (11, 11, 7). The read at one cut is a prefix of the read at any other (6); a cut of a cut is
 the join (5); the read at a cut that is not the head is the store (8). The composition with
@@ -937,7 +949,9 @@ under its horizon (30); pruning at the earlier of two horizons (24); a frontier 
 served positions without the descent (24); the floor and the descent each run once, in either
 order (17, 26); a chain that others read lowered alone (17); the cut read reaching the floor
 (23), rising when less is served (10), and equal to the resolution when not every position is
-served (5).
+served (5). The rows whose own sources lie inside the cut taken for a closed set (61); the
+prefix taken for the filtered read (15); a chain that follows a lowered chain read as asked
+(38).
 
 ## Build
 
