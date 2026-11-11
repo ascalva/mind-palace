@@ -477,3 +477,294 @@ beside them. A store verifies a certificate when its own prefixes have those dig
 Checking a certificate against a store is one seek a chain, the stored hash at the position
 against the certified digest, 3 microseconds; recomputing a chain from its first row is the
 audit, 0.8 s for a million rows. `[MEASURED §11]`
+
+## 4. Reads
+
+### 4.1 `read_at` and `read_between`, ledger by ledger
+
+`read_at(c)` is the prefix of a chain at a position and `read_between(a, b)` the events after `a`
+and up to `b` (`readAt`, `readBetween`). The second composes with the first and with itself
+(`readAt_append_readBetween`, `readBetween_append`), so nothing more is needed of a ledger than
+these two. `[THEOREM: SNP-3]` For each ledger, the read, the index it needs and its cost:
+
+| ledger | `read_at(c)` | `read_between(a, b)` | index | cost |
+|---|---|---|---|---|
+| landing log, a class | one path: its last event at or under `c`; every path: the rows with `seq ≤ c` not closed at or under `c` | the rows with `a < seq ≤ b` | the primary key, `landings_path`, `landings_closed` | one path 3 to 4 µs through `landings_path`, and 6 ms when the planner takes the primary key, so the statement names the index; 1,000 positions 0.7 ms; every head §4.2 `[MEASURED §11]` |
+| a document's version chain | the log's rows of the identity at or under `c` | the same rows in the range | `(class, doc_id, seq)`, partial where the identity is not the path | as one path's |
+| raw objects | the object of the digest the log names at `c` | the objects the delta names | none: content-addressed | one file |
+| chat log | a session's turns whose chain number is at or under `c` | the turns numbered in the range | the chain table's key and its `(session, turn)` | a range |
+| attestations | by id, as today; in order, the chain table at or under `c` | a range of the chain table | the chain table | a range, where `all()` sorts the ledger by wall time and `producers_of` decodes every record today (`core/attestation/store.py:127-132`, `:159-165`) |
+| citation readings | the reading of the commit, as today | the paths whose blob differs between the two commits, by the commit ledger's `files` rows (`ops/code_snapshot.py:59-69`), with their readings at each | exists: `(target_ref, commit_sha)` and `(source_ref, commit_sha)` (`reference_edges.py:149-156`) | as today |
+| commit ledger | the commit and, through git, its ancestors | git's range | none: the ledger keeps no parent, so the range is git's | git's |
+| staging | `read_at(g)`, as built | the rows admitted or tombstoned in the range | `staged_rows_generation` exists; none on the tombstone stamp | as built |
+| run ledger, verdicts, observation history | by key; in insertion order | a range | a sequence number, when a consumer needs one | none needs one yet |
+
+The landing log's two reads are the ones every other store's read at a cut goes through, since
+it is the log that says which version of a path a cut holds (§5).
+
+### 4.2 Every head at a cut
+
+Reading the head of every path of a class at a cut is the rows with `seq ≤ c` whose `closed_at`
+is absent or above `c`. On a synthetic log of a million events over 100,000 paths it took 149 to
+163 ms at the middle cut and 246 to 285 ms at and near the head. `[MEASURED §11]` The cost is the
+part of the log the statement walks, not the size of the answer. Two readers need it: the
+universe, for the strata it loads whole (`core/sentence/universe.py:275-299`), and the lexical
+statistics at a cut (§5.3). The bound is the journal form: the heads kept at some recorded cuts
+and continued over the events since (`stateAt_eq_foldl`), which costs the distance to the nearest
+kept cut instead of the prefix. It is parked until an instance shows the need (SN-c). `[THEOREM
+for the journal; INFERENCE for parking it, falsifier SNF-6]`
+
+### 4.3 What the reads cost in bytes
+
+A landing is 409 bytes in the log with its two indexes (the table 315, the path index 67, the
+closing index 27), measured without the two integer columns `version` and `att_head`.
+`[MEASURED §11]` A chain table's row is an integer, the row's key and a 32-byte hash. A recorded
+cut is about two kilobytes (§3.3). None of it is content: the log holds paths, digests and
+titles, which the catalog holds already.
+
+## 5. Derived data as a function of a cut
+
+### 5.1 The rule and the four forms
+
+A derived view at a cut is a derivation applied to the prefixes (`view`), and a reader of a store
+at a cut is append invariant exactly when it is one (`appendInvariant_iff_exists_view`). On a
+store of keyed writes three ways of holding such a view agree: recomputed from the prefix
+(`stateAt`), journaled from a checkpoint over the delta (`stateAt_eq_foldl`,
+`foldAt_readBetween`), and kept by generation, a row valid from the cut that contains its write
+up to the cut that contains the key's next one (`genRead_gens`). The store rewritten in place
+determines no read at a past cut (`Witness.stateOf_forgets`). `[THEOREM: SNP-5]` So the choice
+among the three is cost, store by store. A fourth form is a way of storing the third: immutable
+segments under a versioned manifest, where the manifest's version is the position. The vector
+table is built that way, and §5.2 says why its versions are not the snapshot.
+
+| derived store | a function of | held as | what it costs here | what would change the choice |
+|---|---|---|---|---|
+| vectors (atoms, occupancies) | the chunk's text and the embedder's identity | version-keyed rows the plane keeps already; the log selects the version | no new bytes; a search over superseded rows, then a join with the heads at the cut | an instance that must drop superseded atoms (§9), after which a cut finds them pending |
+| lexical units and postings | the chunk's text and the tokenizer's identity | version-keyed rows the index keeps already; the log selects the version; the statistics from the mask | no new bytes; 4,179 bytes a kept unit on synthetic text `[MEASURED §11]` | a query at a past cut over its budget at the instance's size: then statistics stored per class and per recorded cut |
+| chat events, causal edges | the transcript as retained at the cut, and the commits inside the cut | recomputed at the cut, the present rows a cache of the head | 6 ms a session of 2,000 records `[MEASURED §11]`; no bytes | a sentence that walks the causal fiber at a past cut over a second on a real instance (SNF-5): then generations, written with a diff |
+| interpreted artifacts, hyperedges, relation edges, claim ops | a model's output: of nothing that can be computed again | generations, the replaced row archived with its interval | one archived row a replacement, which is thrown away today | a measured churn so low that declaring them outside the snapshot loses nothing |
+| the similarity backbone | the vectors of the support | recomputed, as today | nothing | nothing |
+| citation readings | the tree at the commit | one whole reading a commit, as built | 3,029,562 rows over 1,487 commits at 567 bytes a row in the repository's records | the store's size: then a row valid over a range of commits (SN-b) |
+| code memberships | git's blob at the path | version-keyed by blob; git's tree selects the version | nothing new | nothing |
+| the utility field (not built) | the use log | a fold with kept checkpoints | a checkpoint a declared number of ticks | its own note's measurements |
+
+The figures for the citation readings are `docs/experiments/corpus-measurements-2026-11-07.md:106`
+and `core/reference_view.py:15-16`.
+
+### 5.2 Vectors
+
+An atom is one chunk text under one embedder: its id is its layer and the hash of its text
+(`core/stores/plane.py:113-115`), the plane records the embedder's identity and refuses another
+(`plane.py:350-362`), and an occupancy says that a document at a version holds an atom at a
+position (`plane.py:268-278`). So a vector is a function of a content digest and an embedder
+identity, and a past version's vectors are still in the plane: a superseded version's occupancies
+and atoms stay, and only `current` moves. `[ESTABLISHED]` The vectors at a cut are therefore the
+atoms of the versions the landing log says were the heads at the cut: a read of the plane with
+its superseded rows (`plane.py:772-821`) joined with the heads. `[DERIVED from SNP-5]`
+
+Three things follow.
+
+- **No stamp on the rows.** The interval a version's rows are valid on is read from the log. A
+  stamp on the rows would have to be a set of intervals (§2.3, item 3).
+- **Not the table's own versions.** The vector table keeps a dataset version a write, and an
+  earlier version can be read. After a purge the purged text was still returned by eight and by
+  five of the table's ten versions, and the compaction that removes it leaves one version, so it
+  removes every earlier snapshot with it. `[MEASURED §11]` A manifest's version cannot be both
+  the position a snapshot is read at and something an erasure reaches. The cut is a predicate on
+  rows, taken from the log; the manifest stays a physical form.
+- **The embedder's identity is the present's.** After a model change the plane is reset and the
+  drain derives the current versions only (`core/ingest/derive.py:85-118` lists the active
+  entries the plane does not hold current), so a superseded version has no vector. At a cut such
+  a version is pending, and a semantic clause ranks it by the lexical index or reports it, which
+  is ING-21's rule read at a cut. Deriving it is the same drain run over the versions a cut
+  holds. `[DERIVED from ING-19, ING-21]` A snapshot is of content, not of the geometry in force
+  when the content landed (decision D5, §13).
+
+### 5.3 The lexical index
+
+The index keeps every version's units and postings and marks the head (`core/stores/lexical.py:
+56-82`, `:251-256`), and it computes its statistics at query time over the current units of the
+reader's classes: the unit count and the mean length (`lexical.py:316-321`) and each term's
+document frequency (`lexical.py:337-340`). `[ESTABLISHED]` At a cut the arithmetic is the same
+with one predicate changed: a unit counts when its version is its path's head at the cut, in
+place of `current = 1`. The collection size, the mean length and the document frequencies are
+then the masked set's own, which is what makes a score at a cut the score the index gave then
+under the same tokenizer. A clearance and a cut are the same kind of thing to this index: a mask
+over units whose statistics must be the mask's. `[DERIVED]`
+
+The other forms cost more here. Recomputing means tokenizing every item alive at the cut, since
+the statistics are the collection's and not the support's: right for a few hundred notes, not for
+a corpus. A journal of the changes to the document frequencies has an entry a term a unit, no
+fewer than the postings (122 a unit on the synthetic text). An index with its statistics built in
+cannot serve a cut, or a clearance, without a copy a mask; if the index moves to immutable
+segments, a segment has to carry its statistics per class and per recorded cut, or leave them to
+be computed from the mask. `[INFERENCE, falsifier SNF-7]` The tokenizer's identity is the
+present's, as the embedder's is: a changed tokenizer resets the index (`lexical.py:180-194`) and
+the backfill lands the active items, so a superseded version's units are derived again from the
+raw store when a cut asks for them.
+
+### 5.4 Model output
+
+Interpreted artifacts, relation edges and claim ops are written by passes that call a model, and
+each is keyed by what it is about, so a later pass over the same subjects replaces the row
+(`core/stores/derived.py:209-216`, `core/stores/edges.py:88-106`). The output cannot be computed
+again, so the two choices are to keep it by generation or to declare it outside the snapshot.
+This note keeps it. `[INFERENCE, falsifier SNF-8]`
+
+The form is the one the observation stores use: archive, then replace
+(`core/stores/code_observations.py:211-254`, `core/stores/observation_history.py:46-56`). Each
+store gets a sequence number a write (its chain; the three are written `interp` in §3.1), each
+row the number it was written at, and a replaced row goes to a history table with the number it
+was replaced at. The read at a cut is the row whose interval holds the position (`genRead`), and
+at the head it is the present row (`genRead_gens_length`). `[THEOREM: SNP-5, SNP-4]`
+
+A kept row is served at a cut only when its sources are there. An artifact's subjects and a
+relation edge's endpoints are content digests (`derived.py:186-189`, `edges.py:39-40`), so the row
+is about particular versions: it is in the snapshot when it was written at or under the cut, every
+digest it names is some path's head at the cut, and none of them is erased or sealed
+(`mem_serve_iff`). `[THEOREM: SNP-7 for the erasure; DERIVED for the heads]` Until SN-6 builds
+this the three stores serve two positions, the empty prefix and the head (§7.1).
+
+### 5.5 The causal fiber
+
+The events of a session and its causal edges are a deterministic function of the transcript and
+the commit ledger (`core/chat_events.py:136-176`, `core/integrator.py:118-164`), so recomputing is
+exact, and it is the definition here. At a cut: for each session, the transcript is the raw
+object the session's last turn inside the cut names (`core/chat_events.py:211` takes the last
+row's digest the same way for the head); its events are extracted and kept when their turn is
+inside the cut; a commit event resolves against the commits inside the cut on `repo`. `[DERIVED
+from SNP-5]`
+
+This repairs three things the stored rows have today (§2.3, item 4). The result no longer depends
+on the order in which the projector, the integrator and the code sensor ran. An event whose
+result arrived after the cut is read without it, as it stood. And an edge is named by its session,
+its event's order and its endpoint, which a session's growth does not change.
+
+The cost is an extraction a session: 6 ms for a synthetic session of 2,000 records and 0.79 MB.
+`[MEASURED §11]` The builder reads the causal store whole once a sentence
+(`core/sentence/universe.py:581-595`), so at a cut it would extract every session with a turn
+inside the cut, and a memo keyed by the session and its transcript's digest makes each
+extraction happen once a process. Generations are the alternative: the rows kept, keyed by
+session and order, each with the range of `chat` positions it was valid on, written with a diff so
+that a session's growth adds its new events and closes only the rows that changed. They cost a
+rewrite of the projector and the integrator and are kept for the instance that needs them
+(SNF-5).
+
+### 5.6 An instance with no embedder
+
+Nothing above reads the plane to learn what existed. The node set of a snapshot comes from the
+landing log, which lives in the catalog's file; the lexical units, the version chains, the causal
+fiber and the citation readings need no vector; and a semantic clause on such an instance ranks
+by the lexical index and says so, at a cut as at the head (ING-21). The plane's own supersession
+log could not carry this: an instance with no plane has none, and under lazy embedding it records
+the order in which the drain reached the items, not the order in which they landed. Today the
+universe takes the mirror's nodes from the plane's rows (`core/query.py:462-465`); at a cut it
+takes them from the log. `[DERIVED; ESTABLISHED for the present reads]`
+
+## 6. Erasure and scope
+
+Two things are parameters of a read and no function of the cut, because they are the present's:
+what has been erased, and what the asker may see.
+
+### 6.1 A purge leaves a hole
+
+No erased event is visible at any cut (`not_erased_of_mem_visible`), a larger erasure shows a
+sublist (`visible_sublist`), and two stores that differ only in erased events give every
+derivation the same reading at every cut (`erased_invisible`): erased content is an argument of
+no read. `[THEOREM: SNP-7]`
+
+The erasure keeps positions. The store with a hole at each erased event has the head it had and
+commutes with the cut (`head_redact`, `redact_readAt`); an erasure that deletes rows moves the
+later ones up, and a read at a cut then holds an event from after it (`Witness.compact_moves`).
+`[THEOREM]` The plane's supersession log is the second kind today: after a purge, a later landing
+at the path took position 1 again. `[MEASURED §11]` In the landing log a purge empties the row:
+the path, the identity, the digest, the title and the salt become null, and the commitment and
+the hash stay. The certificates keep verifying (`verifies_purge`), a reader reads a hole
+(`contents_purge_committed`), and since the commitment was salted and the salt is gone, it can no
+longer be tested against a guess of the content. `[THEOREM: SNP-9 for the chain; DERIVED for the
+salt]`
+
+That last point is a rule the record already has: no tombstone keeps a content hash of purged
+private text (`docs/design-notes/vector-membership-store.md:810-813`). A digest of purged bytes
+is a test for those bytes. What a purge has to reach, against what it reaches today:
+
+| store | today, after a purge `[MEASURED §11]` | what a snapshot needs |
+|---|---|---|
+| raw object, catalog row, plane occupancies and their freed atoms | removed | the same, and the log's rows emptied |
+| the vector table's earlier dataset versions | still return the text | the purge ends with a compaction that keeps no earlier version |
+| lexical units, postings and version records | remain, with the words | removed with the plane's rows |
+| the version chain's rows | still name the digest | the digest nulled, the row and its number kept: a second owner-gated write beside the relabel (`core/stores/versions.py:132`) |
+| relation edges and artifacts that name the digest | untouched | not served (`mem_serve_iff`), and removed by the purge |
+| the attestation ledger | still names the digest | open: decision D9 |
+| a deletion attestation | none is written (`core/attestation/store.py:3-6` says one is) | one, of action `purge`, naming the commitment and not the digest |
+
+Until the stores of the middle rows are reached, a read of them at a cut would return what a
+purge left. So the erasure's reach is stage SN-4, and it lands before any of those stores is read
+at a past cut (§12).
+
+### 6.2 A retire seals
+
+A vault delete is a tombstone: the catalog's row goes inactive and the raw object stays
+(`catalog.py:160-172`). The requirement is that a tombstoned item does not come back through a
+snapshot either. Two rules do that, both proved, and they are ordered.
+
+- **The stricter seal** (`servedAt`). A retire among the events past the cut closes the cut for
+  that identity. Once the chain retires an identity, no cut before the retire serves it
+  (`servedAt_append_of_retire`); growth that does not retire it changes nothing
+  (`servedAt_append_of_no_retire`); so growth changes a served value only by removing it
+  (`servedAt_of_append`).
+- **The looser seal** (`servedNow`). An identity is withheld at every cut exactly while it is not
+  live at the head. It serves everything the stricter one serves (`servedNow_of_servedAt`), keeps
+  an identity that is retired now out of every cut (`servedNow_of_not_live`), and is lifted by a
+  later landing, which brings the past back (`Witness.servedNow_restores`). `[THEOREM: SNP-7]`
+
+This note takes the stricter seal, keyed by identity, with an `unseal` event that only the owner
+writes. `[INFERENCE, falsifier SNF-10]` The reason is in the code: a new row's identity is its
+path unless it declares one (`catalog.py:103-110`), so a different note written later at a
+deleted note's path has the deleted note's identity, and under the looser seal it would bring
+the deleted note's versions back at the earlier cuts. The seal is by identity and not by path so
+that a rename seals nothing: the old path's tombstone is a `move` (§3.2). The cost of the
+stricter seal is also in the code: a rescan tombstones every catalog path whose file is gone
+(`core/ingest/sync.py:262`, `:285-286`), so a vault that is missing at a rescan seals every
+note's past, and the owner lifts it with one `unseal` over the range.
+
+The seal is read off the whole chain, the present, and off no prefix of it: one more seek, the
+position of the identity's last retire that no later `unseal` names. At the head nothing is
+sealed (`servedAt_length`).
+
+### 6.3 The grant is the asker's now
+
+A snapshot under a grant is the read at the cut restricted to the chains the grant names and,
+within them, to the events it may see named (`snapshot`). The grant is no function of the cut.
+`[THEOREM: SNP-6]`
+
+- A narrower grant's snapshot is the restriction of a wider one's, at every cut
+  (`snapshot_narrow`): what a wider grant was shown at a cut bounds what a narrower one is shown
+  there.
+- It reads only the chains the grant names and the cut's positions on them (`snapshot_congr`),
+  and it is append invariant (`snapshot_grow`).
+- Restricting to whole chains commutes with the cut (`restrict_readAt`). Filtering events before
+  the cut does not: it moves the positions (`Witness.filter_before_cut`), and a position on a
+  chain counts the events a filter hides (`Witness.position_channel`). So an event filter is
+  applied after the read, and what must be hidden in number is hidden by chain, which is why the
+  landing log is a chain a class.
+
+Two consequences for the surface. An answer names the cut it read on the chains the asker's grant
+names and on no other, and the bounds a row records (§3.5) are never shown: `att` mixes every
+class, so its positions count other classes' landings. And a class is a row's class now: a
+whole-class relabel renames a chain, and nothing else moves a row between chains (ING-17).
+`[DERIVED]`
+
+### 6.4 A reader that is shown only named endpoints
+
+A read-only principal is being added that is shown a causal edge only when the edge ends at a
+commit or at a file git tracks at `HEAD`. That rule is an event filter in the sense of §6.3, and
+at a cut it is the present's filter applied to the edges inside the cut: an edge is shown when its
+witness turn is inside the cut on `chat`, its commit, if it ends at one, is inside the cut on
+`repo`, and its endpoint passes the list as the list stands now. The list is not taken at the
+cut's tree. `[DERIVED from SNP-6]` Two reasons. The grant is the asker's now, so a file that left
+the tracked tree since the cut is withheld at the cut as it is at the head, and no cut shows a
+name the head withholds. And the filter is then applied after the read, which is the order
+`restrict_readAt` and its control require. The principal's snapshot is the restriction of the
+owner's at every cut (`snapshot_narrow`). The alternative, the list taken at the cut's tree, is
+decision D11.
