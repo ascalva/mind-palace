@@ -26,8 +26,9 @@ has no past.
 Two things are parameters of a read and no function of the cut, because they are the present's:
 the asker's **grant** (`snapshot`: the chains it names and the events it may see named) and the
 **erasure** (`visible`: the erased events masked; `redact`: the store with a hole at each, every
-position kept; `servedAt`: a key retired after the cut is served at no earlier cut). The control
-for the erasure is `compact`, an erasure that deletes rows and lets the later ones move up.
+position kept; `servedAt`: a key retired after the cut is served at no earlier cut, with
+`servedNow` the looser seal that a later landing lifts). The control for the erasure is
+`compact`, an erasure that deletes rows and lets the later ones move up.
 
 Events may read from events of other chains (`R k i k' j`: the `i`-th event of chain `k` reads
 from the `j`-th of chain `k'`); a cut is **consistent** when every source of an event inside it is
@@ -172,6 +173,11 @@ sealed there, else the value the key held at the cut, if it was live. The seal i
 whole chain, the present, and no prefix of it. -/
 def servedAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : Option β :=
   if sealedAt l c x then none else (stateAt l c x).join
+
+/-- The looser seal: a key is withheld at every cut exactly while it is not live at the head, so
+a key landed again after its retire is served again at the cuts before the retire. -/
+def servedNow [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : Option β :=
+  if ((stateOf l x).join).isNone then none else (stateAt l c x).join
 
 end Generations
 
