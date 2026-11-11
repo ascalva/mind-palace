@@ -517,7 +517,7 @@ That last point is forced. A record reads from the prefix of every chain it cert
 landing reads from the attestation ledger. If records sat on that ledger, a chain that could
 serve only a position below one a record certified would exclude the record, the ledger's
 prefix would stop before it, and every landing attested later would go with it: one chain read
-low would take every landing chain to its empty prefix (`Witness.record_drags`). On a chain of
+low can take a landing chain to its empty prefix (`Witness.record_drags`). On a chain of
 their own, which no event reads, the records constrain nothing (§3.5). `[THEOREM: SNP-10]`
 
 Since each record is the head of every chain at some moment and chains only grow, the recorded
@@ -527,7 +527,7 @@ attestation at the 1,060 bytes a row of the attestation ledger takes in the repo
 records (`docs/experiments/corpus-measurements-2026-11-07.md:107`). A record at every trough
 that moved is at most one a job. At the job rate those records show, 720 an hour
 (`corpus-measurements-2026-11-07.md:94-95`), a record a job would be 47 megabytes a day; but
-those were sync jobs that mostly land nothing, and a job that moves no chain asks for no record.
+those were sync jobs of 0.07 s each, and a job that moves no chain asks for no record.
 An instance with thirty troughs a day that moved writes 81 kilobytes a day. The cadence is
 parked (SN-a).
 
@@ -1392,8 +1392,10 @@ the landing chains down with it.
 A window is counted in events because wall time orders nothing (Law C4): the last ten thousand
 landings of a class, not the last ninety days. It is one position a chain, not a number of
 versions an identity. Keeping the last `n` versions of each identity would leave no horizon:
-which cuts are exact would differ from one identity to the next, and the control of §8 says such
-a store cannot tell what it lost. `[INFERENCE, falsifier SNF-9]`
+which cuts are exact would differ from one identity to the next, with no position to record
+them by. The control of §8 is proved for a store pruned at one horizon; that a store pruned per
+identity is no better at telling what it lost is the step this note infers. `[INFERENCE,
+falsifier SNF-9]`
 
 The default instance declares neither window and keeps everything; by the arithmetic above its
 log is megabytes a year and its superseded derived rows about a gigabyte a year at a hundred
@@ -1760,7 +1762,8 @@ where they are. `[THEOREM: SNP-1, SNP-3; DERIVED for the job]`
 ## 13. Decisions for the owner
 
 Each with the recommendation and what the alternative costs. Where a cost has a figure it is
-given; where it has none, that is said.
+given. D3, D4, D6, D11 and D12 are choices of behaviour: they have no cost in bytes or time to
+give, and what each alternative costs is the answers it changes, which the entry states.
 
 1. **D1, where the catalog's past is kept.** Recommended: the landing log in the catalog's file,
    written by the catalog (§3.2), at about 0.4 kilobytes a landing on the fixture. The
@@ -1850,7 +1853,7 @@ given; where it has none, that is said.
     its attestation in its own row (§3.3). The alternative, a row of the attestation ledger,
     is one table fewer and signs a record where every other attestation is signed; but every
     landing reads that ledger, so a chain read below a position a record certified, as a
-    landing chain behind a history window is, takes every landing chain to its empty prefix
+    landing chain behind a history window is, can take every landing chain to its empty prefix
     (`Witness.record_drags`).
 14. **D14, what a purged row of the log keeps.** Recommended: the keyed hash of its path, with
     its position (§6.1), 47 bytes a row of index on the fixture. The alternatives: keep the
