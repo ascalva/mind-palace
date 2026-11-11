@@ -180,7 +180,7 @@ The job queue, the task list and the telemetry are left out (§1.3).
 | store | clock | what names a position | what a rewrite loses today |
 |---|---|---|---|
 | plane occupancies (`core/stores/plane.py:268-278`) | none: `landed_at` is wall time | (path, digest, chunk) | which version was the head when: only `current` flips, and flips back when a path returns to bytes it held before (`plane.py:466-487`) |
-| the plane's supersession log (`plane.py:282-289`) | `seq` per path | (path, seq) | a purge deletes entries and the next entry takes the position again (`plane.py:491-495`, `:552-553`) `[MEASURED §11]`; a reset drops it (`plane.py:628-640`); an instance with no plane has none; under lazy embedding it records the drain's order, not the landing's |
+| the plane's supersession log (`plane.py:282-289`) | `seq` per path | (path, seq) | a purge deletes entries and the next entry takes the position again (`plane.py:491-495`, `:552-553`) `[MEASURED §11]`; a reset drops it (`plane.py:628-640`); an instance with no plane has none; under lazy embedding it is written by the drain, in the drain's order, and only for the versions still current then (`core/ingest/derive.py:85-118`) |
 | atoms (the vector table) | none: content-addressed (`plane.py:113-115`) | the atom's id | the `held` and `current` cache columns; the table's own dataset versions, one a write, which a compaction drops (`core/stores/vectorstore.py:780-812`) |
 | lexical units and postings (`core/stores/lexical.py:56-82`) | none: `landed_at` is wall time | (path, digest, chunk) | the head flag (`lexical.py:251-256`, `:260-265`); every unit, when the tokenizer changes (`lexical.py:180-194`) |
 | code memberships (`core/stores/memberships.py:140-155`) | git: (path, blob) | the version's identity | the head flag; a purge leaves a recorded hole (`memberships.py:153`, `:491-497`) |
@@ -249,8 +249,9 @@ in §2.2 unless given]`
    derived from them (`ops/lifecycle/launcher.py:1748-1800`); the commit ledger and the
    observation history are guarded (`launcher.py:111-118`). The raw store is the first target
    listed (`launcher.py:1753`), while the comment beside the chat log's entry says it is not one
-   (`launcher.py:1779-1780`). Whatever the intent, no chain of an instance survives a reset with
-   its positions, so a reset opens a new history (§8).
+   (`launcher.py:1779-1780`). The lexical index and the relation edges are not among the targets,
+   so they outlast a reset with rows about items that are gone. Whatever the intent, no chain of
+   an instance survives a reset with its positions, so a reset opens a new history (§8).
 
 ## 3. The cut
 
