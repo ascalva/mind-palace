@@ -27,9 +27,10 @@ the store serves the cuts from the horizon on.
 Two things are parameters of a read and no function of the cut, because they are the present's:
 the asker's **grant** (`snapshot`: the chains it names and the events it may see named) and the
 **erasure** (`visible`: the erased events masked; `redact`: the store with a hole at each, every
-position kept; `servedAt`: a key retired after the cut is served at no earlier cut, with
-`servedNow` the looser seal that a later landing lifts). The control for the erasure is
-`compact`, an erasure that deletes rows and lets the later ones move up.
+position kept; `holes`: the same for a keyed chain, the hole keeping its key; `shown`: the grant
+and the erasure applied to one read; `servedAt`: a key retired after the cut is served at no
+earlier cut, with `servedNow` the looser seal that a later landing lifts). The control for the
+erasure is `compact`, an erasure that deletes rows and lets the later ones move up.
 
 Events may read from events of other chains (`R k i k' j`: the `i`-th event of chain `k` reads
 from the `j`-th of chain `k'`); a cut is **consistent** when every source of an event inside it is
@@ -187,6 +188,12 @@ a key landed again after its retire is served again at the cuts before the retir
 def servedNow [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : Option β :=
   if ((stateOf l x).join).isNone then none else (stateAt l c x).join
 
+/-- A keyed chain with a hole at each erased write: the hole keeps the write's key and its
+position and loses its value, so it still shadows the key's earlier writes. The alternative, a
+hole that loses its key too, is the control (`Witness.keyless_hole`). -/
+def holes (E : κ × β → Bool) (l : List (κ × β)) : List (κ × Option β) :=
+  l.map fun e ↦ (e.1, if E e then none else some e.2)
+
 end Generations
 
 /-! ### The grant and the erasure, the present's -/
@@ -205,6 +212,12 @@ the events it may see named. The grant is no function of the cut: it is the aske
 def snapshot (G : K → Prop) [DecidablePred G] (p : α → Bool) (s : Store K α) (c : Cut K) :
     Store K α :=
   restrict G p (readAt s c)
+
+/-- What an asker is shown of a store at a cut: the grant's snapshot with the erased events
+masked. The cut, the grant and the erasure in one reader, the last two the present's. -/
+def shown (G : K → Prop) [DecidablePred G] (p E : α → Bool) (s : Store K α) (c : Cut K) :
+    Store K α :=
+  snapshot G (fun a ↦ p a && !E a) s c
 
 /-- The store with every erased event replaced by a hole: the erasure keeps every position. -/
 def redact (E : α → Bool) (s : Store K α) : Store K (Option α) :=
