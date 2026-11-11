@@ -29,8 +29,9 @@ the asker's **grant** (`snapshot`: the chains it names and the events it may see
 **erasure** (`visible`: the erased events masked; `redact`: the store with a hole at each, every
 position kept; `holes`: the same for a keyed chain, the hole keeping its key; `shown`: the grant
 and the erasure applied to one read; `servedAt`: a key retired after the cut is served at no
-earlier cut, with `servedNow` the looser seal that a later landing lifts). The control for the
-erasure is `compact`, an erasure that deletes rows and lets the later ones move up.
+earlier cut, with `servedNow` the looser seal that a later landing lifts, and `historyAt` the
+versions the stricter seal serves). The control for the erasure is `compact`, an erasure that
+deletes rows and lets the later ones move up.
 
 Events may read from events of other chains (`R k i k' j`: the `i`-th event of chain `k` reads
 from the `j`-th of chain `k'`); a cut is **consistent** when every source of an event inside it is
@@ -187,6 +188,17 @@ def servedAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : 
 a key landed again after its retire is served again at the cuts before the retire. -/
 def servedNow [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : Option β :=
   if ((stateOf l x).join).isNone then none else (stateAt l c x).join
+
+/-- The landings of a key that no retire of it follows, oldest first: the versions of the key's
+present life. -/
+def sinceRetire [DecidableEq κ] (l : List (κ × Option β)) (x : κ) : List β :=
+  l.foldl (fun acc e ↦ if e.1 = x then (e.2.elim [] fun v ↦ acc ++ [v]) else acc) []
+
+/-- The history a chain of landings and retires serves of a key at a cut, under the stricter
+seal: nothing when the key is sealed there, else its landings inside the cut that no retire
+follows. A version landed before a retire of its key is in no history, at any cut. -/
+def historyAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : List β :=
+  if sealedAt l c x then [] else sinceRetire (l.take c) x
 
 /-- A keyed chain with a hole at each erased write: the hole keeps the write's key and its
 position and loses its value, so it still shadows the key's earlier writes. The alternative, a

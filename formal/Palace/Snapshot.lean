@@ -56,11 +56,14 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   (`servedAt_append_of_retire`, `servedAt_append_of_no_retire`, `servedAt_of_append`); the looser
   seal, under which a key is withheld only while it is not live, serves everything the stricter
   one serves and is lifted by a later landing (`servedNow_of_servedAt`,
-  `Witness.servedNow_restores`). The control is the erasure that deletes rows
-  (`Witness.compact_moves`). For a keyed chain whose holes keep their keys, the read of a key at
-  a cut is its last write at or under the cut, a hole when that write is erased, and the three
-  reads agree on it (`stateAt_holes`, `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`,
-  `genRead_gens_holes`, `lastWrite_holes`); the control is the hole that loses its key, which
+  `Witness.servedNow_restores`). The seal covers the key's versions as it covers its value: the
+  history served at a cut ends at the value served there, and at every cut after a retire, the
+  head included, it holds only versions landed after that retire (`getLast?_historyAt`,
+  `historyAt_append_of_retire`, `historyAt_of_retire_inside`, `sinceRetire_append_retire`). The
+  control is the erasure that deletes rows (`Witness.compact_moves`). For a keyed chain whose
+  holes keep their keys, the read of a key at a cut is its last write at or under the cut, a
+  hole when that write is erased, and the three reads agree on it (`stateAt_holes`,
+  `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`, `genRead_gens_holes`, `lastWrite_holes`); the control is the hole that loses its key, which
   returns a superseded version or one from after the cut (`Witness.keyless_hole`).
 * SNP-8, resolution: the consistent cuts are the clock's cuts, CLK-2, among the frontier cuts
   (`consistent_iff_isCut`), so their closure under meet and join is CLK-2's, read through that
@@ -718,6 +721,78 @@ theorem servedNow_of_servedAt {l : List (κ × Option β)} {c : ℕ} {x : κ} {v
     | none => rw [hj] at hlive; exact absurd hlive (by simp)
     | some w => rfl
   simp only [servedNow, hnot, Bool.false_eq_true, ↓reduceIte, hstate, Option.join_some]
+
+theorem sinceRetire_append_singleton (l : List (κ × Option β)) (e : κ × Option β) (x : κ) :
+    sinceRetire (l ++ [e]) x
+      = if e.1 = x then (e.2.elim [] fun v ↦ sinceRetire l x ++ [v]) else sinceRetire l x := by
+  simp only [sinceRetire, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+theorem foldl_sinceRetire_of_retire (t : List (κ × Option β)) (x : κ) (acc : List β) :
+    ((x, none) :: t).foldl
+        (fun acc e ↦ if e.1 = x then (e.2.elim [] fun v ↦ acc ++ [v]) else acc) acc
+      = sinceRetire t x := by
+  simp [sinceRetire]
+
+/-- SNP-7 A retire closes the key's history: the versions landed before a retire of the key
+are in no later history. -/
+theorem sinceRetire_append_retire (l t : List (κ × Option β)) (x : κ) :
+    sinceRetire (l ++ (x, none) :: t) x = sinceRetire t x := by
+  unfold sinceRetire
+  rw [List.foldl_append]
+  exact foldl_sinceRetire_of_retire t x _
+
+/-- The last version of a key's present life is the value the key holds live. -/
+theorem getLast?_sinceRetire (l : List (κ × Option β)) (x : κ) :
+    (sinceRetire l x).getLast? = (stateOf l x).join := by
+  induction l using List.reverseRecOn with
+  | nil => rfl
+  | append_singleton l e ih =>
+    rw [sinceRetire_append_singleton, stateOf_append_singleton]
+    by_cases hx : e.1 = x
+    · subst hx
+      rw [Function.update_self]
+      cases e.2 <;> simp
+    · rw [Function.update_of_ne (Ne.symm hx)]
+      simpa [hx] using ih
+
+/-- SNP-7 The history served at a cut ends at the value served there: the seal that withholds
+a key's value withholds its versions with it. -/
+theorem getLast?_historyAt (l : List (κ × Option β)) (c : ℕ) (x : κ) :
+    (historyAt l c x).getLast? = servedAt l c x := by
+  unfold historyAt servedAt
+  split_ifs
+  · rfl
+  · exact getLast?_sinceRetire _ x
+
+/-- SNP-7 Once the chain retires a key, no cut before the retire serves any version of it. -/
+theorem historyAt_append_of_retire {l t : List (κ × Option β)} {c : ℕ} {x : κ}
+    (hc : c ≤ l.length) (h : (x, none) ∈ t) : historyAt (l ++ t) c x = [] := by
+  have hs : sealedAt (l ++ t) c x = true := by
+    rw [sealedAt_append t hc, Bool.or_eq_true]
+    exact Or.inr (List.any_eq_true.2 ⟨(x, none), h, by simp⟩)
+  simp only [historyAt, hs, ↓reduceIte]
+
+/-- SNP-7 At every cut after a retire of a key, the head included, the history served of the
+key holds only versions landed after that retire: a new item under a retired identity does not
+bring the retired item's versions with it. -/
+theorem historyAt_of_retire_inside (l t : List (κ × Option β)) (x : κ) {c : ℕ}
+    (hc : l.length + 1 ≤ c) :
+    historyAt (l ++ (x, none) :: t) c x
+      = if sealedAt (l ++ (x, none) :: t) c x then []
+        else sinceRetire (t.take (c - (l.length + 1))) x := by
+  unfold historyAt
+  split_ifs
+  · rfl
+  · have h1 : (l ++ (x, none) :: t).take c
+        = l ++ (x, none) :: t.take (c - (l.length + 1)) := by
+      rw [List.take_append, List.take_of_length_le (by omega),
+        show c - l.length = (c - (l.length + 1)) + 1 by omega, List.take_succ_cons]
+    rw [h1, sinceRetire_append_retire]
+
+/-- SNP-4 At the head cut the history served is the key's present life. -/
+theorem historyAt_length (l : List (κ × Option β)) (x : κ) :
+    historyAt l l.length x = sinceRetire l x := by
+  simp [historyAt, sealedAt]
 
 omit [DecidableEq κ] in
 theorem holes_append (E : κ × β → Bool) (l t : List (κ × β)) :
