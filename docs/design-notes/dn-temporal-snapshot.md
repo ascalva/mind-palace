@@ -571,7 +571,7 @@ references between the chains of §3.1 are these. `[ESTABLISHED: read off the wr
   the order the writer lands them in (`core/ingest/writer.py:397-436`: the version, the
   attestation, the key last);
 - the attestation of a sensed commit, and of a projection of it, reads from the commit
-  (`ops/code_sensor.py:413-418`, `:489-492`);
+  (`ops/code_sensor.py:413-418`, `:498-499`);
 - a citation edge reads from its commit and from the projection that wrote it;
 - a recorded cut reads from the prefix of every chain it certifies and from the record before
   it, and no row of another chain reads a recorded cut;
@@ -711,8 +711,10 @@ The certificate of a cut is, for each chain, the digest of its prefix under the 
 
 **Which chains have a hash.** A landing chain from SN-1, as the `hash` of the row at the
 position. `repo` always: the commit's sha is git's own chain. `chat`, `att`, `staging` and
-`runs` from SN-2, as the running hash of the chain table added beside each. The `interp` chains
-and `decl` from SN-6, and `use` with the stage that builds the field. A record carries a digest
+`runs` from SN-2, as the running hash of the chain table added beside each. The `interp` chains,
+the claim ops among them, and `decl` from SN-6, which gives each a sequence number and a
+running hash over its rows' content, the wall bookmark left out; and `use` with the stage that
+builds the field. A record carries a digest
 for each chain that has a hash when it is taken and a null for the others, and `verify` says
 which chains it checked. Until a chain is hashed, a recorded cut fixes its position and nothing
 about its rows, and the two conclusions below do not reach a view that reads it. `[INFERENCE]`
