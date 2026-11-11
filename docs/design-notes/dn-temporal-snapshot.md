@@ -89,7 +89,7 @@ as of a cut (dn-utility-field, open question 1).
 9. **Retention is counted in positions and drops derived rows before ledgers (§9).**
    `[INFERENCE, falsifier SNF-9]`
 10. **The build is eight stages, each a pull request with its tests and its rollback; the first
-    is the landing log (§12).** `[INFERENCE, falsifier SNF-1]`
+    is the landing log (§12).** `[INFERENCE, falsifier SNF-11]`
 
 ### 1.3 Out of scope
 
@@ -694,12 +694,12 @@ is a test for those bytes. What a purge has to reach, against what it reaches to
 | the vector table's earlier dataset versions | still return the text | the purge ends with a compaction that keeps no earlier version |
 | lexical units, postings and version records | remain, with the words | removed with the plane's rows |
 | the version chain's rows | still name the digest | the digest nulled, the row and its number kept: a second owner-gated write beside the relabel (`core/stores/versions.py:132`) |
-| relation edges and artifacts that name the digest | untouched | not served (`mem_serve_iff`), and removed by the purge |
+| relation edges and artifacts that name the digest | untouched (read, not measured: `core/ingest/purge.py:58-62` names neither store) | not served (`mem_serve_iff`), and removed by the purge |
 | the attestation ledger | still names the digest | open: decision D9 |
 | a deletion attestation | none is written (`core/attestation/store.py:3-6` says one is) | one, of action `purge`, naming the commitment and not the digest |
 
 Until the stores of the middle rows are reached, a read of them at a cut would return what a
-purge left. So the erasure's reach is stage SN-4, and it lands before any of those stores is read
+purge left. So the erasure's reach is stage SN-3, and it lands before any of those stores is read
 at a past cut (§12).
 
 ### 6.2 A retire seals
@@ -818,9 +818,9 @@ The mode of a clause follows from its scope (`core/query.py:273-281`).
 
 | mode | verbs | what it reads at the cut | exact from |
 |---|---|---|---|
-| semantic | `near`, `diffuse S`, `reach S`, `relate` | the heads of the clause's classes, from the log; their vectors by content address and the lexical index for the pending ones (§5.2, §5.3); the backbone recomputed among them | SN-3; `relate` SN-6 |
+| semantic | `near`, `diffuse S`, `reach S`, `relate` | the heads of the clause's classes, from the log; their vectors by content address and the lexical index for the pending ones (§5.2, §5.3); the backbone recomputed among them | SN-4; `relate` SN-6 |
 | structural | `reach F`, `diffuse F`, `walk` over `F` | the citation reading of the cut's commit | today |
-| temporal | `trace`, `reach D`, `walk` over `D`, `changed` (§7.4) | the version chain's prefix: the log's rows of the identity at or under the cut | SN-3 |
+| temporal | `trace`, `reach D`, `walk` over `D`, `changed` (§7.4) | the version chain's prefix: the log's rows of the identity at or under the cut | SN-4; `changed` SN-8 |
 | causal | `reach C`, `walk` over `C`, `witness` | the causal fiber recomputed at the cut (§5.5); an attestation at or under the cut on `att` | SN-5 |
 
 | species | at a cut |
@@ -1009,3 +1009,364 @@ exact. Two more things follow.
   anything that produced value, and go first. `[HYPOTHESIS: checked by comparing, on the corpus
   instance, how often a pass ordered by the field drops a row a later cut asks for against a
   pass ordered by age; falsifier SNF-9]`
+
+## 10. The laws
+
+Each law is stated so that it becomes a property test when its stage is built, and is proved
+now. The Lean names are in `formal/Palace/Snapshot.lean`, the attacks and controls in
+`formal/PalaceTest/Snapshot.lean`, by seed. `[THEOREM]` throughout.
+
+- **SNP-1 append invariance.** A read at a cut inside the store, a read between two such cuts
+  and every derived view are unchanged by any growth of the store (`readAt_grow`,
+  `readAt_of_extends`, `readBetween_grow`, `appendInvariant_view`), also under an erasure and a
+  grant (`visible_grow`, `snapshot_grow`) and for the keyed forms (`stateAt_append`,
+  `genRead_gens_append`). Controls: the reader that ignores the cut
+  (`Witness.present_not_appendInvariant`); a read at a cut past the head (seed 431). Attacks 430,
+  432, 446. The test, at SN-1: over random sequences of catalog writes, `read_at(c)` taken after
+  every further write equals the one taken when `c` was the head.
+- **SNP-2 monotonicity.** The read at an earlier cut is a prefix, chain by chain, of the read at
+  a later one, and a cut of a cut is the meet (`readAt_mono`, `mem_readAt_of_le`,
+  `readAt_readAt`, `head_readAt`, `visible_mono`). Control: the read at one cut taken for a prefix
+  of the read at any other (434). Attacks 433, 435. The test, at SN-1: for `a ≤ b`, `read_at(a)`
+  is a prefix of `read_at(b)`.
+- **SNP-3 composition.** The read at `a` followed by the read between `a` and `b` is the read at
+  `b`, and two adjacent reads-between compose (`readAt_append_readBetween`, `readBetween_append`);
+  a fold continued from a checkpoint over the delta is the fold of the prefix
+  (`foldAt_readBetween`, `stateAt_eq_foldl`); an event, or a pair of events, read at the later cut
+  was read at the earlier one or lies in the delta (`mem_readAt_iff`, `pair_readAt`); a key the
+  delta does not write has one state at both cuts (`stateAt_eq_of_not_written`). Controls: the
+  two cuts in any order (437); a key's state taken for unchanged whatever the delta writes (477).
+  Attacks 436, 438, 439, 447, 475, 476. The test, at SN-1: the catalog rebuilt from the state at
+  a checkpoint and the delta equals the catalog; at SN-8: the region of §7.4.
+- **SNP-4 idempotence.** The read at the head cut is the store, and every reading at it is the
+  present's (`readAt_head`, `readAt_of_head_le`, `view_head`, `genRead_gens_length`,
+  `snapshot_head`, `servedAt_length`, `servedNow_length`, `visible_head`). Attack 440. The test,
+  at every stage: a sentence under `as of "head"` returns what it returns without.
+- **SNP-5 a derived view depends only on the prefixes.** A reader is append invariant exactly
+  when it reads only the prefixes, exactly when it is a derived view (`prefixOnly_view`,
+  `view_congr`, `appendInvariant_iff_prefixOnly`, `appendInvariant_iff_exists_view`). For keyed
+  writes the generational store read at a cut is the state recomputed from the prefix and the
+  key's last write inside it, and at most one generation of a key is alive at a cut
+  (`genRead_gens`, `stateAt_eq_lastWrite`, `length_filter_selects_le_one`). Controls: the store
+  rewritten in place (`Witness.stateOf_forgets`, 444); generations without the closing stamp
+  (445). Attacks 441, 442, 443. The test, at SN-1: the three reads of the log agree at every
+  position, and no path has two rows alive.
+- **SNP-6 grant restriction.** A narrower grant's snapshot is the restriction of a wider one's;
+  a snapshot reads only the chains the grant names and the cut on them; restricting to chains
+  commutes with the cut (`snapshot_narrow`, `snapshot_congr`, `snapshot_grow`,
+  `restrict_restrict`, `restrict_readAt`). Controls: an event filter applied before the cut
+  (`Witness.filter_before_cut`, 449); positions that count hidden events
+  (`Witness.position_channel`, 451). Attacks 448, 450. The test, at SN-4: of two grants one under
+  the other, the narrower answer at a cut is the wider one masked, and landings of a class the
+  grant does not name change neither the answer nor the cut it shows.
+- **SNP-7 erasure dominance.** No erased event is visible at any cut; a larger erasure shows a
+  sublist; the store with holes keeps every position; stores that differ only in erased events
+  read the same at every cut; a kept row is served only when none of its sources is erased
+  (`not_erased_of_mem_visible`, `visible_sublist`, `head_redact`, `redact_readAt`,
+  `visible_eq_reduceOption`, `visible_congr`, `erased_invisible`, `mem_serve_iff`,
+  `serve_sublist`). A key retired after a cut is served at no earlier cut, growth changes a served
+  value only by removing it, and the looser seal serves what the stricter one serves
+  (`stateAt_of_servedAt`, `servedAt_append_of_retire`, `servedAt_append_of_no_retire`,
+  `servedAt_of_append`, `servedNow_of_servedAt`, `servedNow_of_not_live`). Controls: the erasure
+  that deletes rows (`Witness.compact_moves`, 455); the state served without the seal (458); the
+  looser seal taken for a monotone one (`Witness.servedNow_restores`, 474); kept rows served
+  without their sources (460). Attacks 452, 453, 454, 456, 457, 459, 473. The test, at SN-3: after
+  a purge no read at any cut and no scan of the instance's files finds the purged words; after a
+  retire no cut before it serves the identity.
+- **SNP-8 consistent cuts.** They are closed under meet and join, a sublattice of the cuts; they
+  are CLK-2's cuts among the frontier cuts; every frontier resolves to exactly one greatest
+  consistent cut under it, monotonically; a consistent cut stays consistent as the store grows
+  (`consistent_zero`, `Consistent.inf`, `Consistent.sup`, `consistentCuts`,
+  `consistent_iff_isCut`, `exists_resolves`, `Resolves.unique`, `Resolves.mono`, `resolves_self`,
+  `Consistent.of_grown`). Controls: a frontier taken for a cut (462); a consistent cut advanced
+  by one position (464). Attacks 461, 463, 465. The test, at SN-2: the resolver against
+  enumeration on small stores, and no recorded cut with a reference crossing it.
+- **SNP-9 certified cuts.** A certificate verifies on every extension of the store; under a
+  collision-free digest two stores that verify one certificate have the same read at its cut and
+  the same derived views; a certificate extends over the delta; the meet and the join are
+  certified from the two certificates; an erasure that keeps commitments keeps every certificate
+  (`verifies_certify`, `verifies_certify_of_extends`, `eq_of_chainDigest_eq`,
+  `Verifies.readAt_eq`, `Verifies.view_eq`, `certify_digest_readBetween`, `certify_inf`,
+  `certify_sup`, `commitments_purge`, `verifies_purge`, `contents_purge_committed`). Controls: a
+  digest with collisions (`Witness.digest_collides`, 468); a digest over contents, which an
+  erasure changes (472). Attacks 466, 467, 469, 470, 471. The test, at SN-2: a certificate
+  verifies after any further writes and on a copy of the files, and fails when one row under the
+  cut is edited.
+- **SNP-10 the horizon.** A generational store pruned at a horizon is exact at every cut from
+  the horizon on and never wrong under it; horizons compose to the later one (`genRead_prune`,
+  `genRead_prune_gens`, `stateAt_of_genRead_prune`, `prune_prune`). Among the positions the
+  chains serve, every frontier resolves to exactly one greatest consistent cut, which rises with
+  what is served and never passes the cut asked (`exists_resolvesIn`, `ResolvesIn.unique`,
+  `ResolvesIn.mono`, `ResolvesIn.le_resolves`, `resolvesIn_univ`, `resolvesIn_self`). Controls:
+  the pruned store read under its horizon (`Witness.prune_forgets`, 480); a frontier lowered to
+  the served positions without the descent (483). Attacks 478, 479, 481, 482, 484, 485, 486. The
+  test, at SN-4: the cut read is under the cut asked on every chain; at SN-7: every read at a cut
+  from the horizon on is the same before and after a retention pass.
+
+What the model leaves out, said plainly. A chain is a list and a store a family of lists: one
+writer is assumed, and nothing is said of two. Events are opaque, and so is the stores' SQL. The
+hash's collision freedom is a hypothesis of SNP-9 (`CollisionFree`), not a theorem about SHA-256.
+The `unseal` and `horizon` events are not in the model of the seal, and the owner's gate on them
+is the code's. A repository history with merges is covered by CLK-2's down-sets and not by the
+chain model (§3.1). The descent that computes a resolution is attacked, not proved.
+
+## 11. Measurements
+
+Every figure in this note is from a synthetic fixture: a temporary directory or in-memory stores
+built by the probe, the test suite's throwaway palace for the purge, and nothing of any
+instance. One machine (Apple M2 Pro, 12 cores, 32 GB, macOS 27.0) with other work running, the
+load average between 2.4 and 5; Python 3.15.2, SQLite 3.54.1, LanceDB 0.33.0; the code at
+`e3e3ee47`. The timings are medians with their ranges. Each probe was run at least twice, and a
+range across the runs is given where they differed. `[MEASURED]`
+
+| probe | fixture | result |
+|---|---|---|
+| the landing log | the table of §3.2 without `version` and `att_head`, with its two indexes, in one SQLite file; one class, 100,000 paths, ten landings a path in a shuffled order, one transaction, every row hashed and the path's previous row stamped | 1,000,000 rows in 408.9 MB: 409 bytes a row (table 315, path index 67, closing index 27); 50,000 to 54,000 rows a second written |
+| its reads | the same file, 200 repetitions a point read, 5 a scan | one path at the middle cut 3 to 4 µs through the path index and 6.0 to 7.1 ms when the planner took the primary key; 1,000 positions 0.69 ms; every head 149 to 163 ms at the middle cut (99,908 rows) and 246 to 285 ms at and near the head (100,000 rows); the chain's hash recomputed from the first row in 0.77 to 0.79 s; the stored hash at a position read in 3 µs |
+| a kept version in the lexical index | `LexicalStore` on a temporary file; 500 items of 4 chunks in 3 versions, each chunk 171 words drawn from a vocabulary of 20,000 with frequencies falling as the inverse of the rank | 6,000 units held, 2,000 of them current; 734,409 postings, 122 a unit; 25.1 MB, 4,179 bytes a unit; superseded share 0.67 |
+| what a purge leaves | the test suite's throwaway palace (`tests/fixtures/ingress.py:73`), lazy, with its fake embedder: two notes landed and drained, one edited and drained, then deleted from the vault, then both its digests purged (`purge_raw`); a control note never purged, found at every step | gone: the raw objects, the plane's occupancies and supersession entries, the catalog rows. Left: the words in the vector table read at versions 2 to 9 and 3 to 7 of its 10; the lexical units, postings, title and version records; both version rows; one attestation a digest |
+| after the purge | the same palace: the vector table compacted with no retention; every SQLite file checkpointed, then vacuumed; a new note landed at the path | the compaction left 1 dataset version and no purged word in the table's files; the deleted catalog and plane rows' path and digest were still in the files' bytes after the checkpoint and gone after the vacuum; the plane's supersession log held position 1 for the path again, and the version chain appended number 3 |
+| the order of two jobs | in-memory stores; one session with a commit event; the ledger holds the commit before the integrator's first pass, or gains it after | 1 edge against 0, and still 0 after a second pass, the session being skipped as unchanged |
+| the events of a prefix | a transcript of four records: a prompt, a reply with a `git commit` call, the call's result with the sha, a reply | the prefix that ends before the result gives the commit event an empty reference; the whole gives the sha; the two longer prefixes agree with the whole |
+| re-deriving a session | a synthetic transcript of 2,000 records, 0.79 MB, 7 repetitions | 6.0 to 6.1 ms median (5.7 to 7.2) |
+| what `as of` accepts | the unit tests' store fakes; git read-only on the checkout | `as of "HEAD"` and `as of "2026-11-01"` refused; a sha prefix accepted; `read` of a repository path under a commit where the file differed returned that commit's blob and not the head's, under a note saying that `read` read the present |
+| row numbering | a table keyed by text, five rows, in a temporary file | after the last row was deleted the next insert was numbered 5 again; a vacuum after a delete in the middle kept the numbers |
+
+Not measured: anything on an instance's own stores; the lexical statistics computed from a mask
+at a corpus's size; the causal fiber recomputed over a real instance's sessions; a vector search
+with superseded rows joined to the heads at a cut; a retention pass. Each is the measurement of
+the stage that builds it.
+
+## 12. The build order
+
+Nothing is built by this note. What the merge licenses is decision D12. The stages, each a pull
+request against main with its tests and its rollback, each transcribing its laws and
+property-testing the transcription against the Lean statements; the laws a stage relies on enter
+`docs/LAWS.md` and `formal/Spec/` with it, as design theorems do when code comes to rely on them.
+
+- **SN-1 the landing log.** The `landings` table of §3.2 in the catalog's file, created by the
+  catalog's own migration (`core/stores/catalog.py:77-92`) and written inside `record`,
+  `tombstone`, `remove`, `remove_digest`, `relabel_provenance` and `migrate_rekey_doc_id`, in the
+  transaction of the row each writes, so that a `deferred()` batch (`catalog.py:125-138`) carries
+  its log rows; a `genesis` at first open; the reads `read_at(class, path, c)`,
+  `heads_at(class, c)`, `read_between(class, a, b)`, `head(class)` and `verify(class)`. Nothing
+  reads them yet, and no reader's behaviour changes. Tests: SNP-1 to SNP-5 as §10 states them,
+  over random sequences of catalog writes; the catalog equals the fold of the log after every
+  write; a store the UNCHANGED check skips writes no row; a transaction killed between the two
+  rows leaves neither; the genesis equals the catalog; `verify` fails on an edited row. The laws
+  SNP-1 to SNP-5 enter the ledger here. Rollback: the table is additive and unread, so dropping
+  it restores the file; a build that stops writing it and resumes later appends a `horizon`.
+- **SN-2 cuts.** The chain tables for `chat` and `att`; the `cuts` table and the `cut`
+  attestation; a record at a sensed commit, at a moved trough and on command; the four names; the
+  resolver; a command that records, lists and verifies cuts. Tests: SNP-8 and SNP-9 as stated.
+  Rollback: additive tables; the names fall back to today's.
+- **SN-3 the erasure's reach and the seal.** A purge empties the log's rows, removes the lexical
+  units, nulls the version rows' digests, removes the relation edges and artifacts that name the
+  digest, compacts the vector table and writes its attestation; the seal by identity and the
+  owner's `unseal`. It lands before SN-4, since SN-4 is the first stage that reads a superseded
+  version. Tests: SNP-7 as stated, with the purge probe of §11 turned into a test that must find
+  nothing. Rollback: a purge has none by its nature; the rest is additive.
+- **SN-4 the notes at a cut.** The universe's nodes from `heads_at`; `read` from the raw object
+  the log names; the vectors and the lexical units joined to the heads; the pending rule at a
+  cut; `trace` at a cut; the cut read and its note (§7.1), which retires the note that says a verb
+  read the present; the commit on a `read` hit. Tests: `as of "head"` against no `as of` over the
+  query battery (`eval/query_battery.py`); a sentence at a recorded cut asked before and after
+  unrelated landings; SNP-6 with two grants; the cut read under the cut asked. Rollback: one
+  configuration switch under `[query]`, off being today's behaviour.
+- **SN-5 the causal fiber at a cut.** The recomputation of §5.5 with its memo; edges named by
+  session, order and endpoint; the transcript integrator's checkpoint a cut on `chat` and `repo`.
+  Tests: the two job orders giving one result; the prefix that ends before a result; the stored
+  rows at the head equal to the recomputation. Rollback: the stored rows stay the head's cache.
+- **SN-6 model output by generation.** A sequence number and a history table for artifacts,
+  relation edges and claim ops; `relate` at a cut; a kept row served only with its sources.
+  Tests: SNP-5 on random sequences of writes and replacements; `mem_serve_iff`'s test. Rollback:
+  additive columns and tables.
+- **SN-7 retention.** The window a chain in the instance's configuration; the pass in the order
+  of §9.2; the `horizon` row; the horizon in the answers. Tests: SNP-10 as stated, and a pass
+  killed at each step leaving no served position incomplete. Rollback: none for dropped rows by
+  their nature; nothing runs unless a window is declared.
+- **SN-8 the delta.** `changed between` and `changed since` (§7.4); the integrator interface
+  below. Tests: the region's union law, and equal reads at both cuts for an identity outside it.
+
+**A generic integrator on the delta.** An integrator job is a registered, scoped job that reads
+what changed and writes one batch of edges with their evidence. Its checkpoint is a cut `a`. A
+run takes `b`, the greatest consistent cut under the head on the chains the job reads; reads
+`read_between(a, b)` on them; writes its batch, every edge's sources inside `b`; and records `b`
+as its checkpoint in the transaction of the batch. Three laws make that correct. The state the
+job would compute from the whole prefix at `b` is its state at `a` continued over the delta
+(`foldAt_readBetween`), so a run and a rebuild agree. The delta up to `b` is the same however
+the stores grow while the job runs or after it (`readBetween_grow`), so a run repeated after a
+crash reads what the interrupted one read, and anything more lies after `b`
+(`readBetween_append`). And for a job that joins two chains, a pair read at `b` was read
+at `a` or has a member in the delta (`pair_readAt`), so the job visits the old events of one
+chain only against the new events of the other. The transcript integrator is the case at hand:
+it joins `chat` and `repo`, a commit that reaches the ledger after its session was read is a
+delta on `repo`, and the session's unresolved commit events are visited against it, which the
+digest it keeps a session today does not do (§2.3, item 4). The integrators that
+dn-decision-integrators designs, and the embed drain, are jobs of this shape; their designs stay
+where they are. `[THEOREM: SNP-1, SNP-3; DERIVED for the job]`
+
+## 13. Decisions for the owner
+
+Each with the recommendation and what the alternative costs.
+
+1. **D1, where the catalog's past is kept.** Recommended: the landing log in the catalog's file,
+   written by the catalog (§3.2). The alternatives: version chains for every place, which is a
+   second file, so the key and its history are two transactions and ING-7's order gains a stage,
+   and whose chains are per document, so a cut is a pair a document; or the plane's supersession
+   log, which an instance with no plane lacks, which records the drain's order under lazy
+   embedding, and which gives a position again after a purge.
+2. **D2, the grain of a cut.** Recommended: one position a chain, the landing chains one a
+   provenance class (§3.1). The alternatives: a position a document, the spine's frontier today,
+   which is millions of pairs a cut on a corpus instance; or one landing chain for every class,
+   which saves a few integers a cut and tells a narrower reader, by its positions, how many
+   landings the classes it cannot read made.
+3. **D3, what a retire does to the past.** Recommended: the stricter seal, by identity, lifted
+   only by the owner's `unseal` (§6.2). The alternative, the looser seal, brings a deleted note's
+   versions back at earlier cuts when another note is written at its path, and lets a past answer
+   grow; it needs no unseal when a vault is missing at a rescan, where the stricter one does.
+4. **D4, a store that cannot serve the cut asked.** Recommended: read it at the greatest position
+   at or under the cut that it serves, and name the cut read (§7.1). The alternatives: refuse the
+   sentence, after which `as of` answers nothing that touches a store without a past until SN-6,
+   and nothing under a horizon ever; or keep today's behaviour, which answers from after the cut
+   and changes as the store grows.
+5. **D5, the embedder's and the tokenizer's identity at a cut.** Recommended: the present's
+   (§5.2, §5.3). The alternative, the identity in force when the content landed, needs every
+   identity's vectors kept, a vector table an identity (1,536 bytes an atom at the present
+   dimension and precision), in a plane that refuses a second identity today.
+6. **D6, the names `as of` takes.** Recommended: `head`, a recorded cut's id, a commit, a date
+   (§3.4). The alternatives: commits only, as today, which leaves no name for a moment between
+   two commits and none on an instance with no repository; or dates without the cut read in the
+   answer, which gives an answer that cannot be asked again.
+7. **D7, between two cuts.** Recommended: the region `changed between` and `changed since`
+   (§7.4). The alternatives: nothing, and every integrator and every question about change is a
+   hand-written read; or a general two-cut adjective, which is a second universe a sentence and a
+   pair sort, and which dn-graph-dynamics designs already as GD-4.
+8. **D8, retention.** Recommended: no window on the default instance, a declared window a chain
+   where the disk is bounded (§9.2). The alternatives: a window everywhere, which loses the
+   default instance's history to save megabytes a year; or the last `n` versions an identity,
+   which leaves no horizon to name.
+9. **D9, the attestation ledger under a purge.** It still names a purged digest (§6.1), against
+   the plane's rule that no content hash of purged text is kept. Recommended: from SN-3 on a
+   landing's attestation names the log row's commitment in place of the content digest, so a
+   purge leaves nothing that can be tested; the rows written before stay, and a purge lists them
+   as what it could not reach. It makes an attestation a landing, a kilobyte each at the recorded
+   row size, where today there is one per action and digest, and it turns the landing's check
+   for an earlier attestation into a read of the log, where today it scans the ledger
+   (`core/ingest/landing.py:16-19`). The alternatives: rewrite the ledger at a purge, which
+   breaks its construction as append-only and every id computed from a row; or leave it, and a
+   digest of purged bytes stays.
+10. **D10, model output.** Recommended: kept by generation (§5.4). The alternative, outside the
+    snapshot, costs nothing and means `relate` and the dreams are never read at a past cut.
+11. **D11, the read-only principal at a cut.** Recommended: the present's list, applied to the
+    edges inside the cut (§6.4). The alternative, the list taken at the cut's tree, shows at a
+    past cut a file that was tracked then and is not now, which the head withholds, and makes the
+    grant a function of the cut.
+12. **D12, what the merge licenses.** Recommended: SN-1 and SN-2, which add tables and change no
+    reader. SN-3 to SN-8 change an erasure, the universe and what an instance keeps, and each is
+    licensed with its own pull request. The alternative, all eight at once, saves the owner seven
+    decisions and reviews the purge, the universe and retention together.
+
+## Parked decisions
+
+| id | decision | default recorded | re-entry condition |
+|---|---|---|---|
+| SN-a | the cadence of recorded cuts | a sensed commit, a moved trough, the owner's command | a date that resolves to a cut farther from it than a declared tolerance |
+| SN-b | the citation readings as rows valid over a range of commits | one whole reading a commit, as built | the store's size on an instance |
+| SN-c | the heads kept at some recorded cuts | none: every head is read from the log | reading every head at a cut past a tenth of a second on an instance |
+| SN-d | a second embedder identity's vectors kept beside the first | none: the present's identity | dn-two-phase-ingestion's open question 4 |
+| SN-e | lexical statistics stored per class and per recorded cut | computed from the mask | a lexical query at a past cut over its budget |
+| SN-f | `repo` as a graph of commits | the line of the branch the sensor reads | an instance whose history has merges or that reads several repositories |
+| SN-g | which recorded cuts are kept under a horizon | the records stay as attested claims; their chains' rows go | a consumer that must verify a cut under a horizon |
+| SN-h | generations with a diff for the causal fiber | recomputation with a memo | SNF-5 |
+
+## Falsifiers
+
+- **SNF-1 (the log is not the catalog's past):** after some sequence of writes the fold of the
+  log differs from the catalog, or a row of one is found without its row of the other. Then the
+  log is not written in the key's transaction and SN-1 does not land.
+- **SNF-2 (a position a document is needed):** a consumer that must name a cut holding one
+  document of a class at an older version and another at a newer one in an order the class's
+  chain did not have. Then chains are per document and decision D2 is reopened.
+- **SNF-3 (a name resolves far from what was meant):** a date, or a commit, whose recorded cut
+  lies farther from it than the tolerance SN-a declares. Then the cadence changes; the names do
+  not.
+- **SNF-4 (the cut read misleads):** readers take an answer at a lowered cut for the answer at
+  the cut asked, seen as `as of` sentences in the query log asked again without `as of` after an
+  answer with a lowered chain. Then such a sentence is refused (D4's first alternative).
+- **SNF-5 (recomputing the causal fiber is too slow):** a sentence that walks `C` at a past cut
+  over a second on a real instance, the memo warm. Then generations with a diff (SN-h).
+- **SNF-6 (every head is too slow):** `heads_at` past a tenth of a second on an instance's log.
+  Then the kept heads of SN-c.
+- **SNF-7 (the mask is too slow for the lexical statistics):** a lexical query at a past cut over
+  its budget at the instance's size. Then SN-e; the rule that the statistics are the mask's does
+  not change.
+- **SNF-8 (kept model output is never read):** no sentence under `as of` reads an archived
+  artifact or relation in a declared period. Then the archive stops and D10 takes its
+  alternative.
+- **SNF-9 (retention drops what is asked for):** cuts asked for under a declared horizon, or a
+  pass ordered by the field that drops rows later asked for more often than a pass ordered by
+  age. Then the window grows, or the order is age.
+- **SNF-10 (the stricter seal is the wrong default):** unseals become routine, as an instance
+  whose vault goes missing at rescans would show. Then D3 takes the looser seal, with its cost.
+- **SNF-11 (a transcription lies):** a built stage whose property test against a Lean statement
+  fails. A transcription defect; the stage does not land until it agrees.
+- **SNF-12 (an erasure leaks):** after a purge, a read at any cut or a scan of the instance's
+  files finds the purged words. Then SN-3's reach is incomplete and no stage after it is on.
+- **SNF-13 (append invariance fails on the code):** a sentence at a recorded cut that answers
+  differently after unrelated landings, the erasure and the grant unchanged; or `as of "head"`
+  that differs from no `as of`. Then some reader is not a function of the prefixes, and SNP-5
+  says which kind of store to look for.
+- **SNF-14 (the region is not what is asked):** questions about change that need the two
+  readings and cannot be put with the region. Then GD-4's form is built sooner, on the two
+  readings this note supplies.
+
+## Open questions
+
+- May a narrower grant name a date? The answer names a cut on its own chains only, but the
+  cadence of recorded cuts is itself a fact about when the stores were written.
+- The chat log and the attestation ledger have no erasure today except a reset. Their chain
+  tables digest commitments so that one can leave a hole; who may erase a turn is not decided
+  here.
+- Should the genesis of a class the plane holds be seeded from the plane's supersession log? It
+  would recover an order per path before the log existed, without positions across paths, and
+  not on an instance with no plane.
+- A purge does not reach a backup or a migration's archive. Whether a recorded cut is taken
+  before a purge, so that the purge's own moment is certified, belongs with that design.
+- On an instance that reads several repositories, is `repo` one chain a repository?
+
+## Cross-references
+
+**Formal (this branch):** `formal/Palace/Snapshot/Defs.lean` (`Store`, `Cut`, `head`, `grow`,
+`Extends`, `readAt`, `readBetween`, `view`, `present`, `AppendInvariant`, `PrefixOnly`, `foldAt`,
+`stateOf`, `stateAt`, `lastWrite`, `Gen`, `closeAt`, `landGen`, `gens`, `selects`, `genRead`,
+`prune`, `sealedAt`, `servedAt`, `servedNow`, `restrict`, `snapshot`, `redact`, `visible`,
+`compact`, `serve`, `committed`, `purge`, `commitments`, `contents`, `Consistent`, `generator`,
+`reached`, `Resolves`, `reachedIn`, `ResolvesIn`, `chainDigest`, `CollisionFree`, `Certificate`,
+`certify`, `Verifies`); `formal/Palace/Snapshot.lean` (the declarations §10 names, by law, and
+the `Witness` controls); `formal/PalaceTest/Snapshot.lean` (seeds 430 to 486); the families
+cited: `Palace/Clock.lean` (CLK-2: `IsCut`, `frontierCut`, `isCut_iff_not_crossed`,
+`IsCut.inter`, `IsCut.union`), `Palace/Ingress.lean` (ING-7), `Palace/Script.lean` (ING-17),
+`Palace/Derived.lean` (ING-19 to ING-21), `Palace/Plane.lean` (PLN-4), `Palace/Utility.lean`
+(UTL-2, UTL-4), `Palace/Sentence.lean` (QSA-1 to QSA-4, QSA-10).
+
+**Code (read at `e3e3ee47`, unchanged):** `core/sentence/grammar.py`, `ast.py`, `universe.py`,
+`execute.py` (`as of`, the universe, `read`); `core/query.py` (the modes, `note_graph`);
+`core/temporal/spine.py` (`CertifiedCut`, `cut_at`); `core/stores/catalog.py`, `versions.py`,
+`chatlog.py`, `chat_events.py`, `causal_edges.py`, `reference_edges.py`, `plane.py`,
+`vectorstore.py`, `lexical.py`, `memberships.py`, `derived.py`, `edges.py`, `claim_ops.py`,
+`authored_supersession.py`, `staging.py`, `observation_history.py`, `code_observations.py`,
+`runledger.py`, `verdicts.py`; `core/kernel/stores/rawstore.py`; `core/attestation/store.py`,
+`record.py`, `attestor.py`; `core/ingest/writer.py`, `landing.py`, `table.py`, `purge.py`,
+`derive.py`, `sync.py`; `core/chat_events.py`, `core/integrator.py`; `ops/code_sensor.py`,
+`ops/code_snapshot.py`, `ops/chat_sensor.py`, `ops/lifecycle/launcher.py`;
+`eval/predictions/ledger.py`.
+
+**Design:** global-event-clock §2.2 to §2.4 (the generators, Law C4, the certified frontier);
+limits-of-the-algebra L7; dn-query-sentence-algebra §2.3, §2.7, §2.9; dn-ingress D1, D3, D5
+(ING-7, the one writer); dn-ingress-language (ING-13 to ING-17); dn-two-phase-ingestion D1, D2
+(ING-19 to ING-21); vector-membership-store A3.5, A3.7 (noninterference, the purge);
+dn-utility-field §3.1, §4 (UTL-2, UTL-4) and its first open question; dn-graph-dynamics §6, §7.1
+(GD-4, the state at a cut); dn-decision-integrators (the integrators' layer);
+dn-mathematical-foundations §2.4 (design theorems and the ledger);
+`papers/2026-11-10-temporal-snapshot/paper.tex`.
