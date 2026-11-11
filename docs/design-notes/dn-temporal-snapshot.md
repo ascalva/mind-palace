@@ -788,7 +788,8 @@ taken at the greatest consistent cut under the frontier asked every position of 
 - It rises with what is served and with the frontier (`ResolvesIn.mono`): as the stages of §12
   give stores a past, the cut read climbs toward the cut asked and never falls.
 - When every position is served it is the resolution of the frontier (`resolvesIn_univ`), and at
-  the head it is the head (`resolvesIn_self`).
+  the head, which is consistent because a store holds the sources of its own events, it is the
+  head (`resolvesIn_self`).
 
 The answer is then exact for the cut it names: every law of §10 holds at the cut read. What the
 answer says is that cut. It carries one note with the cut asked, the cut read on the chains the
