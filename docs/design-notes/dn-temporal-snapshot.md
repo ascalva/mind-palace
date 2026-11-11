@@ -845,7 +845,7 @@ table is built that way, and §5.2 says why its versions are not the snapshot.
 | chat events, causal edges | the transcript as retained at the cut, and the commits inside the cut | recomputed at the cut, the present rows a cache of the head | 6 ms a session of 2,000 records `[MEASURED §11]`; no bytes | a sentence that walks the causal fiber at a past cut over a second on a real instance (SNF-5): then generations, written with a diff |
 | interpreted artifacts with their hyperedges, interpreted relation edges | a model's output: of nothing that can be computed again | generations, the replaced row archived with its interval | one archived row a replacement, which is thrown away today; how often a row is replaced is not measured | a measured churn so low that declaring them outside the snapshot loses nothing |
 | the relations a note declares | the note's text at a version, and the titles the catalog resolves at the cut | recomputed from the heads at the cut | one parse of a note's properties a head that has any, kept in a memo by digest; no bytes | nothing |
-| claim ops, authored supersessions | nothing: they are appended, keyed by their content | a position a first insert; the read at a cut is the rows at or under it | one integer a row | nothing |
+| claim ops, authored supersessions | nothing: they are appended, keyed by their content | a position a first insert; the read at a cut is the rows at or under it, a claim op served with what it names (§3.5) | one integer a row | nothing |
 | verdict dispositions | nothing: one row a verdict, appended (§2.2) | the key is the position: the read at a cut is the rows whose `verdict_seq` is at or under the cut on the verdicts' own sequence, each served with the claim it is about (§3.5) | nothing new | nothing |
 | the similarity backbone | the vectors of the support | recomputed, as today | nothing | nothing |
 | citation readings | the tree at the commit and the extractor that projected it | append-only rows, as built, each stamped with the extractor's version and the position on `att` of the projection that wrote it; the reading of a commit at a cut is its rows stamped at or under the cut | one integer and a short string a row, on 3,029,562 rows over 1,487 commits at 567 bytes a row in the repository's records | the store's size: then a row valid over a range of commits (SN-b) |
@@ -1595,12 +1595,12 @@ passes to the code only as an obligation of the stage that transcribes it.
   430, 432, 446. The test, at SN-1: over random sequences of catalog writes, `read_at(chain, c)` and
   `state_at` of every path at `c`, taken after every further write, equal the ones taken when `c`
   was the head.
-- **SNP-2 monotonicity.** The read at an earlier cut is a prefix, chain by chain, of the read at
-  a later one, and a cut of a cut is the meet (`readAt_mono`, `mem_readAt_of_le`,
-  `readAt_readAt`, `head_readAt`, `visible_mono`), and the filtered read of SNP-8 grows with
-  the cut (`Kept.mono`). Controls: the read at one cut taken for a
-  prefix of the read at any other (434); a cut of a cut taken for the join (500). Attacks 433,
-  435, 515. The test, at SN-1: for `a ≤ b`, `read_at(chain, a)` is a prefix of `read_at(chain, b)`.
+- **SNP-2 monotonicity.** The read at an earlier cut is a prefix, chain by chain, of the read at a
+  later one, and a cut of a cut is the meet (`readAt_mono`, `mem_readAt_of_le`, `readAt_readAt`,
+  `head_readAt`, `visible_mono`), and the filtered read of SNP-8 grows with the cut (`Kept.mono`).
+  Controls: the read at one cut taken for a prefix of the read at any other (434); a cut of a cut
+  taken for the join (500). Attacks 433, 435, 515. The test, at SN-1: for `a ≤ b`,
+  `read_at(chain, a)` is a prefix of `read_at(chain, b)`.
 - **SNP-3 composition.** The read at `a` followed by the read between `a` and `b` is the read at
   `b`, and two adjacent reads-between compose (`readAt_append_readBetween`, `readBetween_append`);
   a fold continued from a checkpoint over the delta is the fold of the prefix
@@ -1789,12 +1789,12 @@ the runs is given where they differed. `[MEASURED]`
 | `read` under `as of` | the same fakes, one reading at a commit of the checkout fourteen back and one at a sha of forty `d`s that git does not hold | at the commit git holds: that commit's blob and not the head's, under a note saying that `read` read the present, the hit carrying no commit; at the sha git does not hold: `HEAD`'s blob, the same note, the same hit |
 | row numbering | a table keyed by text, five rows, in a temporary file | after the last row was deleted the next insert was numbered 5 again; a vacuum after a delete in the middle kept the numbers |
 
-Not measured: anything on an instance's own stores; the size of a recorded cut, of a chain
-table's row and of a row of the log that a window emptied, which are arithmetic; how often a row of model output is replaced; the lexical
-statistics computed from a mask at a corpus's size; the causal fiber recomputed over a real
-instance's sessions, cold or warm; a vector search with superseded rows joined to the heads at a
-cut; the reads of the chat log and the attestation ledger through their chain tables; a
-retention pass. Each is the measurement of the stage that builds it.
+Not measured: anything on an instance's own stores; the size of a recorded cut, of a chain table's
+row and of a row of the log that a window emptied, which are arithmetic; how often a row of model
+output is replaced; the lexical statistics computed from a mask at a corpus's size; the causal fiber
+recomputed over a real instance's sessions, cold or warm; a vector search with superseded rows
+joined to the heads at a cut; the reads of the chat log and the attestation ledger through their
+chain tables; a retention pass. Each is the measurement of the stage that builds it.
 
 ## 12. The build order
 
