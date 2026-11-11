@@ -46,8 +46,11 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   `visible_sublist`, `redact_readAt`, `erased_invisible`); a kept derived row is served only when
   none of its sources is erased (`mem_serve_iff`); a key retired after a cut is served at no
   earlier cut, and growth of the chain changes a served value only by removing it
-  (`servedAt_append_of_retire`, `servedAt_append_of_no_retire`, `servedAt_of_append`). The control
-  is the erasure that deletes rows (`Witness.compact_moves`).
+  (`servedAt_append_of_retire`, `servedAt_append_of_no_retire`, `servedAt_of_append`); the looser
+  seal, under which a key is withheld only while it is not live, serves everything the stricter
+  one serves and is lifted by a later landing (`servedNow_of_servedAt`,
+  `Witness.servedNow_restores`). The control is the erasure that deletes rows
+  (`Witness.compact_moves`).
 * SNP-8, consistent cuts: closed under meet and join, so a sublattice of the cuts
   (`Consistent.inf`, `Consistent.sup`, `consistentCuts`); they are the clock's cuts, CLK-2, among
   the frontier cuts (`consistent_iff_isCut`); every frontier resolves to exactly one greatest
@@ -507,6 +510,58 @@ theorem servedAt_of_append {l t : List (κ × Option β)} {c : ℕ} {x : κ} {v 
     exact absurd h (by simp)
   · rwa [servedAt_append_of_no_retire hc ht] at h
 
+theorem isSome_join_foldl {t : List (κ × Option β)} {m : κ → Option (Option β)} {x : κ}
+    (hm : ((m x).join).isSome = true) (ht : ∀ e ∈ t, e.1 = x → e.2.isSome = true) :
+    (((t.foldl (fun (m : κ → Option (Option β)) (e : κ × Option β) ↦
+      Function.update m e.1 (some e.2)) m) x).join).isSome = true := by
+  induction t generalizing m with
+  | nil => exact hm
+  | cons e t ih =>
+    refine ih ?_ fun e' he' ↦ ht e' (List.mem_cons_of_mem _ he')
+    change ((Function.update m e.1 (some e.2) x).join).isSome = true
+    by_cases hx : e.1 = x
+    · have he := ht e List.mem_cons_self hx
+      rw [← hx, Function.update_self]
+      simpa using he
+    · rw [Function.update_of_ne (Ne.symm hx)]
+      exact hm
+
+/-- SNP-7 Under the looser seal too, a key that is not live now is served at no cut. -/
+theorem servedNow_of_not_live {l : List (κ × Option β)} {x : κ}
+    (h : (stateOf l x).join = none) (c : ℕ) : servedNow l c x = none := by
+  simp [servedNow, h]
+
+/-- SNP-4 At the head cut the looser seal serves what the store rewritten in place holds
+live. -/
+theorem servedNow_length (l : List (κ × Option β)) (x : κ) :
+    servedNow l l.length x = (stateOf l x).join := by
+  unfold servedNow
+  rw [stateAt_length]
+  cases (stateOf l x).join <;> rfl
+
+/-- SNP-7 The two seals are ordered: what the seal that a retire closes for good serves, the
+seal that a later landing lifts serves too. Whichever is chosen, the other bounds it. -/
+theorem servedNow_of_servedAt {l : List (κ × Option β)} {c : ℕ} {x : κ} {v : β}
+    (h : servedAt l c x = some v) : servedNow l c x = some v := by
+  have hstate := stateAt_of_servedAt h
+  have hseal : ∀ e ∈ l.drop c, e.1 = x → e.2.isSome = true := by
+    intro e he hx
+    by_contra hnone
+    have hs : sealedAt l c x = true :=
+      List.any_eq_true.2 ⟨e, he, by simpa [hx] using hnone⟩
+    simp [servedAt, hs] at h
+  have hfold := stateAt_eq_foldl l (Nat.le_max_left c l.length)
+  rw [stateAt_of_length_le (Nat.le_max_right c l.length),
+    List.take_of_length_le (Nat.le_max_right c l.length)] at hfold
+  have hlive : ((stateOf l x).join).isSome = true := by
+    rw [hfold]
+    exact isSome_join_foldl (by rw [hstate]; rfl) hseal
+  have hnot : ((stateOf l x).join).isNone = false := by
+    cases hj : (stateOf l x).join with
+    | none => rw [hj] at hlive; exact absurd hlive (by simp)
+    | some w => rfl
+  simp only [servedNow, hnot, Bool.false_eq_true, ↓reduceIte, hstate, Option.join_some]
+
 end Generations
 
 /-! ### SNP-6 The grant -/
@@ -909,6 +964,14 @@ theorem compact_moves :
     ∃ (E : ℕ → Bool) (s : Store Unit ℕ) (c : Cut Unit) (a : ℕ),
       a ∈ readAt (compact E s) c () ∧ a ∉ readAt s c () := by
   refine ⟨fun n ↦ n == 0, fun _ ↦ [0, 1], fun _ ↦ 1, 1, ?_, ?_⟩ <;> simp [readAt, compact]
+
+/-- The control for SNP-7's stricter seal: the looser seal is lifted by a later landing, so
+under it growth of the chain brings a retired key's past back to a cut inside the chain. -/
+theorem servedNow_restores :
+    ∃ (l t : List (Unit × Option ℕ)) (c : ℕ), c ≤ l.length ∧
+      servedNow l c () = none ∧ servedNow (l ++ t) c () = some 0 := by
+  refine ⟨[((), some 0), ((), none)], [((), some 1)], 1, by decide, ?_, ?_⟩ <;>
+    simp [servedNow, stateAt, stateOf]
 
 /-- The control for SNP-9: a digest that is not collision free pins nothing. Under addition two
 chains of one length and one digest differ. -/
