@@ -43,6 +43,10 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   invariant (`snapshot_narrow`, `snapshot_congr`, `snapshot_grow`). Restricting to chains commutes
   with the cut; filtering events before the cut does not, and a cut's positions count the events
   a filter hides (`restrict_readAt`, `Witness.filter_before_cut`, `Witness.position_channel`).
+  The grant and the erasure applied to one read keep these laws (`shown_narrow`, `shown_grow`,
+  `not_erased_of_mem_shown`). The cut read on the chains a grant names is a function of those
+  chains when they read from no chain outside them (`ResolvesIn.eq_on_of_closed`); the control
+  is a named chain that reads an unnamed one (`Witness.resolution_reads_unnamed`).
 * SNP-7, erasure dominance: no erased event is visible at any cut, a larger erasure shows a
   sublist, the store with holes keeps every position, and two stores that differ only in erased
   events give every derived view the same reading at every cut (`not_erased_of_mem_visible`,
@@ -53,19 +57,31 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   seal, under which a key is withheld only while it is not live, serves everything the stricter
   one serves and is lifted by a later landing (`servedNow_of_servedAt`,
   `Witness.servedNow_restores`). The control is the erasure that deletes rows
-  (`Witness.compact_moves`).
-* SNP-8, consistent cuts: closed under meet and join, so a sublattice of the cuts
-  (`Consistent.inf`, `Consistent.sup`, `consistentCuts`); they are the clock's cuts, CLK-2, among
-  the frontier cuts (`consistent_iff_isCut`); every frontier resolves to exactly one greatest
-  consistent cut under it, monotonically (`exists_resolves`, `Resolves.unique`, `Resolves.mono`);
-  and a consistent cut stays consistent as the store grows (`Consistent.of_grown`).
+  (`Witness.compact_moves`). For a keyed chain whose holes keep their keys, the read of a key at
+  a cut is its last write at or under the cut, a hole when that write is erased, and the three
+  reads agree on it (`stateAt_holes`, `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`,
+  `genRead_gens_holes`, `lastWrite_holes`); the control is the hole that loses its key, which
+  returns a superseded version or one from after the cut (`Witness.keyless_hole`).
+* SNP-8, resolution: the consistent cuts are the clock's cuts, CLK-2, among the frontier cuts
+  (`consistent_iff_isCut`), so their closure under meet and join is CLK-2's, read through that
+  equivalence (`Consistent.inf`, `Consistent.sup`, `consistentCuts`). What this law adds is
+  resolution: every frontier resolves to exactly one greatest consistent cut under it,
+  monotonically (`exists_resolves`, `Resolves.unique`, `Resolves.mono`); a consistent cut stays
+  consistent as the store grows (`Consistent.of_grown`); and a cut consistent for a recorded
+  bound on the references is consistent for the true ones (`Consistent.of_bound`).
 * SNP-9, certified cuts: the certificate of a cut verifies on every extension of the store, two
   stores that verify one certificate under a collision-free digest have the same read at its cut
   and so the same derived views, a certificate extends over the events since an earlier one, the
   meet and the join of two certified cuts are certified from the two certificates alone, and an
   erasure that keeps commitments keeps every certificate (`verifies_certify_of_extends`,
   `Verifies.readAt_eq`, `Verifies.view_eq`, `certify_digest_readBetween`, `certify_inf`,
-  `certify_sup`, `verifies_purge`).
+  `certify_sup`, `verifies_purge`). A certificate over commitments attests no erasure
+  (`verifies_purge_iff`); under a binding commitment it pins the events, so two stores that
+  verify it read the same store with holes under one erasure
+  (`Verifies.readAt_eq_of_committed`, `Verifies.contents_eq`, `contents_purge_committed`,
+  `Verifies.shown_eq`). The controls: a digest with collisions (`Witness.digest_collides`), a
+  seal written after the cut (`Witness.seal_not_certified`), a renamed chain
+  (`Witness.rename_breaks_certificate`).
 * SNP-10, the horizon: a generational store that drops the rows closed at or under a horizon
   reads, at every cut from the horizon on, the state recomputed from the whole prefix; under the
   horizon it is never wrong and reads what it lost as absent; horizons compose to the later one
@@ -73,8 +89,13 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   chains serve only some positions, every frontier resolves to exactly one greatest consistent
   cut among them, which rises with what is served and never passes the cut asked
   (`exists_resolvesIn`, `ResolvesIn.unique`, `ResolvesIn.mono`, `ResolvesIn.le_resolves`,
-  `resolvesIn_univ`). The control is the pruned store read under its horizon
-  (`Witness.prune_forgets`).
+  `resolvesIn_univ`). A chain that no other chain reads is lowered alone, every other chain
+  read as asked (`Consistent.update_of_unread`, `resolvesIn_update_of_unread`), and retention
+  commutes with growth (`prune_landGen`). The controls: the pruned store read under its horizon,
+  which cannot tell a lost key from one never written (`Witness.prune_forgets`,
+  `Witness.prune_indistinct`); a record on a chain that content reads, which drags every reader
+  down (`Witness.record_drags`); served sets that shrink, under which the cut read falls
+  (`Witness.served_set_shrinks`).
 -/
 
 @[expose] public section
@@ -580,6 +601,21 @@ theorem prune_prune (h h' : ℕ) (rs : List (Gen κ β)) :
   | none => rfl
   | some d => simp [max_lt_iff]
 
+/-- SNP-10 Retention commutes with growth: a store pruned at a horizon and then landed on, past
+the horizon, is the landed store pruned at the horizon. -/
+theorem prune_landGen {h p : ℕ} (hp : h < p) (rs : List (Gen κ β)) (e : κ × β) :
+    prune h (landGen rs p e) = landGen (prune h rs) p e := by
+  have hq : (fun r : Gen κ β ↦ r.died.all fun d ↦ decide (h < d)) ∘ closeAt e.1 p
+      = fun r ↦ r.died.all fun d ↦ decide (h < d) := by
+    funext r
+    simp only [Function.comp_apply, closeAt]
+    split_ifs with hr
+    · simp [hr.2, hp]
+    · rfl
+  unfold landGen prune
+  rw [List.filter_append, List.filter_map, hq]
+  simp
+
 /-- SNP-4 At the head cut nothing is sealed: a chain of landings and retires serves what the
 store rewritten in place holds live. -/
 theorem servedAt_length (l : List (κ × Option β)) (x : κ) :
@@ -609,8 +645,8 @@ theorem servedAt_append_of_retire {l t : List (κ × Option β)} {c : ℕ} {x : 
     exact Or.inr (List.any_eq_true.2 ⟨(x, none), h, by simp⟩)
   simp only [servedAt, hs, ↓reduceIte]
 
-/-- SNP-1 under the seal: growth that does not retire the key changes nothing served of it at
-a cut inside the chain. -/
+/-- SNP-7 Append invariance under the seal: growth that does not retire the key changes nothing
+served of it at a cut inside the chain. -/
 theorem servedAt_append_of_no_retire {l t : List (κ × Option β)} {c : ℕ} {x : κ}
     (hc : c ≤ l.length) (h : (x, none) ∉ t) : servedAt (l ++ t) c x = servedAt l c x := by
   have ht : (t.any fun e ↦ decide (e.1 = x) && e.2.isNone) = false := by
@@ -683,6 +719,72 @@ theorem servedNow_of_servedAt {l : List (κ × Option β)} {c : ℕ} {x : κ} {v
     | some w => rfl
   simp only [servedNow, hnot, Bool.false_eq_true, ↓reduceIte, hstate, Option.join_some]
 
+omit [DecidableEq κ] in
+theorem holes_append (E : κ × β → Bool) (l t : List (κ × β)) :
+    holes E (l ++ t) = holes E l ++ holes E t :=
+  List.map_append
+
+/-- The store rewritten in place, with holes: each key's last write, erased or not. -/
+theorem stateOf_holes (E : κ × β → Bool) (l : List (κ × β)) (x : κ) :
+    stateOf (holes E l) x = (stateOf l x).map fun v ↦ if E (x, v) then none else some v := by
+  induction l using List.reverseRecOn with
+  | nil => rfl
+  | append_singleton l e ih =>
+    rw [holes_append]
+    change stateOf (holes E l ++ [(e.1, if E e then none else some e.2)]) x = _
+    rw [stateOf_append_singleton, stateOf_append_singleton]
+    by_cases hx : e.1 = x
+    · subst hx
+      simp
+    · rw [Function.update_of_ne (Ne.symm hx), Function.update_of_ne (Ne.symm hx)]
+      exact ih
+
+/-- SNP-7 The keyed read under an erasure: on a chain whose holes keep their keys, the read of
+a key at a cut is its last write at or under the cut, as a hole when that write is erased. It is
+never an earlier write of the key and never a later one. -/
+theorem stateAt_holes (E : κ × β → Bool) (l : List (κ × β)) (c : ℕ) (x : κ) :
+    stateAt (holes E l) c x = (stateAt l c x).map fun v ↦ if E (x, v) then none else some v := by
+  unfold stateAt
+  rw [holes, ← List.map_take]
+  exact stateOf_holes E _ x
+
+/-- SNP-7 A key whose head at the cut is erased reads as erased at that cut. -/
+theorem stateAt_holes_of_erased {E : κ × β → Bool} {l : List (κ × β)} {c : ℕ} {x : κ} {v : β}
+    (h : stateAt l c x = some v) (hE : E (x, v) = true) :
+    stateAt (holes E l) c x = some none := by
+  rw [stateAt_holes, h, Option.map_some, hE]
+  rfl
+
+/-- SNP-7 No keyed read at any cut returns an erased value. -/
+theorem not_erased_of_stateAt_holes {E : κ × β → Bool} {l : List (κ × β)} {c : ℕ} {x : κ}
+    {v : β} (h : stateAt (holes E l) c x = some (some v)) :
+    stateAt l c x = some v ∧ E (x, v) = false := by
+  rw [stateAt_holes] at h
+  cases hs : stateAt l c x with
+  | none => rw [hs] at h; exact absurd h (by simp)
+  | some w =>
+    rw [hs, Option.map_some] at h
+    cases hE : E (x, w)
+    · rw [hE] at h
+      simp only [Bool.false_eq_true, ↓reduceIte, Option.some.injEq] at h
+      exact ⟨by rw [h], by rw [← h]; exact hE⟩
+    · rw [hE] at h
+      simp at h
+
+/-- SNP-7 The three reads agree on a chain with holes: the generational store of the chain with
+holes, read at a cut, is the keyed read under the erasure. -/
+theorem genRead_gens_holes (E : κ × β → Bool) (l : List (κ × β)) (c : ℕ) (x : κ) :
+    genRead (gens (holes E l)) c x
+      = (stateAt l c x).map fun v ↦ if E (x, v) then none else some v := by
+  rw [genRead_gens, stateAt_holes]
+
+/-- SNP-7 And so is the seek by key: the last row of the key at or under the cut, hole or
+not. -/
+theorem lastWrite_holes (E : κ × β → Bool) (l : List (κ × β)) (c : ℕ) (x : κ) :
+    lastWrite (holes E l) c x
+      = (stateAt l c x).map fun v ↦ if E (x, v) then none else some v := by
+  rw [← stateAt_eq_lastWrite, stateAt_holes]
+
 end Generations
 
 /-! ### SNP-6 The grant -/
@@ -745,6 +847,41 @@ theorem restrict_readAt (G : K → Prop) [DecidablePred G] (s : Store K α) (c :
     restrict G (fun _ ↦ true) (readAt s c) = readAt (restrict G (fun _ ↦ true) s) c := by
   funext k
   by_cases h : G k <;> simp [restrict, readAt, h]
+
+/-- SNP-1 for the composite reader: what an asker is shown at a cut inside the store is the
+same after any growth. -/
+theorem shown_grow (G : K → Prop) [DecidablePred G] (p E : α → Bool) {s : Store K α}
+    (t : Store K α) {c : Cut K} (h : c ≤ head s) :
+    shown G p E (grow s t) c = shown G p E s c :=
+  snapshot_grow G _ t h
+
+/-- SNP-7 for the composite reader: no erased event is shown at any cut, under any grant. -/
+theorem not_erased_of_mem_shown {G : K → Prop} [DecidablePred G] {p E : α → Bool}
+    {s : Store K α} {c : Cut K} {k : K} {a : α} (h : a ∈ shown G p E s c k) : E a = false := by
+  unfold shown snapshot restrict at h
+  split_ifs at h
+  · exact (by simpa using (List.mem_filter.1 h).2 : p a = true ∧ E a = false).2
+  · simp at h
+
+/-- SNP-6 for the composite reader: under a narrower grant and a larger erasure, what is shown
+is the restriction of what the wider grant is shown under the smaller erasure. -/
+theorem shown_narrow {G G' : K → Prop} [DecidablePred G] [DecidablePred G']
+    {p p' E E' : α → Bool} (hG : ∀ k, G k → G' k) (hp : ∀ a, p a = true → p' a = true)
+    (hE : ∀ a, E' a = true → E a = true) (s : Store K α) (c : Cut K) :
+    shown G p E s c = restrict G (fun a ↦ p a && !E a) (shown G' p' E' s c) :=
+  snapshot_narrow hG (fun a ha ↦ by
+    rw [Bool.and_eq_true] at ha ⊢
+    refine ⟨hp a ha.1, ?_⟩
+    cases h : E' a
+    · rfl
+    · have := hE a h
+      simp [this] at ha) s c
+
+/-- SNP-4 for the composite reader: at the head cut it is the grant's restriction of the store
+without the erased events. -/
+theorem shown_head (G : K → Prop) [DecidablePred G] (p E : α → Bool) (s : Store K α) :
+    shown G p E s (head s) = restrict G (fun a ↦ p a && !E a) s :=
+  snapshot_head G _ s
 
 end Grant
 
@@ -842,7 +979,7 @@ theorem commitments_purge (E : α → Bool) (t : Store K (C × Option α)) :
   funext k
   simp [commitments, purge, Function.comp_def]
 
-/-- SNP-7 What a reader reads of a committed store after an erasure is the store with holes. -/
+/-- SNP-9 What a reader reads of a committed store after an erasure is the store with holes. -/
 theorem contents_purge_committed (commit : α → C) (E : α → Bool) (s : Store K α) :
     contents (purge E (committed commit s)) = redact E s := by
   funext k
@@ -860,26 +997,6 @@ variable {K : Type*} {R : K → ℕ → K → ℕ → Prop}
 
 /-- The empty cut is consistent. -/
 theorem consistent_zero : Consistent R fun _ ↦ 0 := fun _ _ _ _ _ h ↦ absurd h (Nat.not_lt_zero _)
-
-/-- SNP-8 Consistent cuts are closed under the meet. -/
-theorem Consistent.inf {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
-    Consistent R (c ⊓ d) := fun k i k' j h hi ↦ by
-  have hi' : i < c k ∧ i < d k := lt_inf_iff.1 hi
-  exact lt_inf_iff.2 ⟨hc k i k' j h hi'.1, hd k i k' j h hi'.2⟩
-
-/-- SNP-8 And under the join. -/
-theorem Consistent.sup {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
-    Consistent R (c ⊔ d) := fun k i k' j h hi ↦ by
-  have hi' : i < c k ∨ i < d k := lt_sup_iff.1 hi
-  rcases hi' with hi' | hi'
-  · exact lt_sup_iff.2 (Or.inl (hc k i k' j h hi'))
-  · exact lt_sup_iff.2 (Or.inr (hd k i k' j h hi'))
-
-/-- SNP-8 The consistent cuts are a sublattice of the cuts, so a distributive lattice. -/
-def consistentCuts (R : K → ℕ → K → ℕ → Prop) : Sublattice (Cut K) where
-  carrier := {c | Consistent R c}
-  supClosed' := fun _ hc _ hd ↦ Consistent.sup hc hd
-  infClosed' := fun _ hc _ hd ↦ Consistent.inf hc hd
 
 /-- SNP-8 The consistent cuts are the clock's cuts (CLK-2) among the frontier cuts: a cut is
 consistent exactly when the events under its frontier are a down-set of the order the append
@@ -899,6 +1016,29 @@ theorem consistent_iff_isCut (R : K → ℕ → K → ℕ → Prop) (c : Cut K) 
   · intro h k i k' j hR hi
     by_contra hj
     exact h ⟨(k', j), (k, i), Or.inr hR, hi, hj⟩
+
+/-- Closure under the meet is CLK-2's: the frontier cut of a pointwise minimum is the
+intersection of the two cuts (`Clock.IsCut.frontier_inf`), read here through
+`consistent_iff_isCut`. -/
+theorem Consistent.inf {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
+    Consistent R (c ⊓ d) :=
+  (consistent_iff_isCut R _).2
+    (Clock.IsCut.frontier_inf Prod.fst Prod.snd ((consistent_iff_isCut R c).1 hc)
+      ((consistent_iff_isCut R d).1 hd))
+
+/-- And under the join, CLK-2's again (`Clock.IsCut.frontier_sup`). -/
+theorem Consistent.sup {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
+    Consistent R (c ⊔ d) :=
+  (consistent_iff_isCut R _).2
+    (Clock.IsCut.frontier_sup Prod.fst Prod.snd ((consistent_iff_isCut R c).1 hc)
+      ((consistent_iff_isCut R d).1 hd))
+
+/-- The consistent cuts as a sublattice of the cuts, so a distributive lattice: CLK-2's
+closure, packaged. -/
+def consistentCuts (R : K → ℕ → K → ℕ → Prop) : Sublattice (Cut K) where
+  carrier := {c | Consistent R c}
+  supClosed' := fun _ hc _ hd ↦ Consistent.sup hc hd
+  infClosed' := fun _ hc _ hd ↦ Consistent.inf hc hd
 
 /-- A frontier resolves to at most one cut. -/
 theorem Resolves.unique {f c c' : Cut K} (h : Resolves R f c) (h' : Resolves R f c') : c = c' :=
@@ -992,6 +1132,109 @@ theorem ResolvesIn.le_resolves {S : K → Set ℕ} {f c c' : Cut K} (h : Resolve
 theorem resolvesIn_self {S : K → Set ℕ} {f : Cut K} (h : Consistent R f)
     (hS : ∀ k, f k ∈ S k) : ResolvesIn R S f f :=
   ⟨h, hS, le_rfl, fun _ _ _ hd ↦ hd⟩
+
+/-- SNP-8 A recorded bound is sound: when every true source of an event lies at or under a
+recorded one on its chain, a cut consistent for the recorded references is consistent for the
+true ones. So a resolver may work from the head a row recorded at its writing. -/
+theorem Consistent.of_bound {R' : K → ℕ → K → ℕ → Prop}
+    (hb : ∀ k i k' j, R k i k' j → ∃ j', j ≤ j' ∧ R' k i k' j') {c : Cut K}
+    (h : Consistent R' c) : Consistent R c := fun k i k' j hr hi ↦ by
+  obtain ⟨j', hj, hr'⟩ := hb k i k' j hr
+  exact lt_of_le_of_lt hj (h k i k' j' hr' hi)
+
+/-- SNP-10 A chain that no other chain reads can be lowered alone: a consistent cut stays
+consistent when its position on such a chain is lowered, the chain's own references pointing
+backward. -/
+theorem Consistent.update_of_unread [DecidableEq K] {c : Cut K} {x : K} {p : ℕ}
+    (hc : Consistent R c) (hp : p ≤ c x) (hx : ∀ k i j, R k i x j → k = x ∧ j ≤ i) :
+    Consistent R (Function.update c x p) := fun k i k' j hr hi ↦ by
+  have hik : i < c k := by
+    by_cases hk : k = x
+    · subst hk
+      rw [Function.update_self] at hi
+      exact lt_of_lt_of_le hi hp
+    · rwa [Function.update_of_ne hk] at hi
+  by_cases hk' : k' = x
+  · subst hk'
+    obtain ⟨rfl, hji⟩ := hx k i j hr
+    rw [Function.update_self] at hi ⊢
+    exact lt_of_le_of_lt hji hi
+  · rw [Function.update_of_ne hk']
+    exact hc k i k' j hr hik
+
+/-- SNP-10 The local lowering: when the cut asked is consistent and every chain but one serves
+its position, and no other chain reads that one, the cut read is the cut asked with that chain
+at the greatest position it serves at or under the one asked. Every other chain is read as
+asked. The control is a chain that others read (`Witness.record_drags`). -/
+theorem resolvesIn_update_of_unread [DecidableEq K] {S : K → Set ℕ} {f : Cut K} {x : K} {p : ℕ}
+    (hf : Consistent R f) (hS : ∀ k, k ≠ x → f k ∈ S k)
+    (hx : ∀ k i j, R k i x j → k = x ∧ j ≤ i) (hp : p ∈ S x) (hpf : p ≤ f x)
+    (hmax : ∀ q ∈ S x, q ≤ f x → q ≤ p) : ResolvesIn R S f (Function.update f x p) := by
+  refine ⟨hf.update_of_unread hpf hx, fun k ↦ ?_, fun k ↦ ?_, fun d _ hdS hdf k ↦ ?_⟩
+  · by_cases hk : k = x
+    · subst hk
+      rwa [Function.update_self]
+    · rw [Function.update_of_ne hk]
+      exact hS k hk
+  · by_cases hk : k = x
+    · subst hk
+      rwa [Function.update_self]
+    · rw [Function.update_of_ne hk]
+  · by_cases hk : k = x
+    · subst hk
+      rw [Function.update_self]
+      exact hmax _ (hdS k) (hdf k)
+    · rw [Function.update_of_ne hk]
+      exact hdf k
+
+theorem ResolvesIn.le_on_of_closed {R' : K → ℕ → K → ℕ → Prop} {S S' : K → Set ℕ}
+    {f f' c c' : Cut K} (G : K → Prop)
+    (hclosed : ∀ k i k' j, G k → R' k i k' j → G k')
+    (hR : ∀ k i k' j, G k → R' k i k' j → R k i k' j) (hS : ∀ k, G k → S k ⊆ S' k)
+    (h0 : ∀ k, 0 ∈ S' k) (hf : ∀ k, G k → f k ≤ f' k) (h : ResolvesIn R S f c)
+    (h' : ResolvesIn R' S' f' c') : ∀ k, G k → c k ≤ c' k := by
+  classical
+  have hcons : Consistent R' fun k ↦ if G k then c k else 0 := by
+    intro k i k' j hr hi
+    by_cases hk : G k
+    · have hk' := hclosed k i k' j hk hr
+      simp only [hk, ↓reduceIte] at hi
+      simp only [hk', ↓reduceIte]
+      exact h.1 k i k' j (hR k i k' j hk hr) hi
+    · simp [hk] at hi
+  have hserved : ∀ k, (if G k then c k else 0) ∈ S' k := by
+    intro k
+    by_cases hk : G k
+    · simp only [hk, ↓reduceIte]
+      exact hS k hk (h.2.1 k)
+    · simp only [hk, ↓reduceIte]
+      exact h0 k
+  have hle : (fun k ↦ if G k then c k else 0) ≤ f' := by
+    intro k
+    by_cases hk : G k
+    · simp only [hk, ↓reduceIte]
+      exact (h.2.2.1 k).trans (hf k hk)
+    · simp only [hk, ↓reduceIte]
+      exact Nat.zero_le _
+  intro k hk
+  simpa [hk] using h'.2.2.2 _ hcons hserved hle k
+
+/-- SNP-6 The cut read on the chains a grant names is a function of those chains when they
+read from no chain outside them: two stores of references, served positions and frontiers that
+agree on such a set of chains resolve to cuts that agree on it. The control is a named chain
+that reads an unnamed one (`Witness.resolution_reads_unnamed`). -/
+theorem ResolvesIn.eq_on_of_closed {R' : K → ℕ → K → ℕ → Prop} {S S' : K → Set ℕ}
+    {f f' c c' : Cut K} (G : K → Prop)
+    (hclosed : ∀ k i k' j, G k → R k i k' j → G k')
+    (hR : ∀ k i k' j, G k → (R k i k' j ↔ R' k i k' j)) (hS : ∀ k, G k → S k = S' k)
+    (h0 : ∀ k, 0 ∈ S k) (h0' : ∀ k, 0 ∈ S' k) (hf : ∀ k, G k → f k = f' k)
+    (h : ResolvesIn R S f c) (h' : ResolvesIn R' S' f' c') : ∀ k, G k → c k = c' k :=
+  fun k hk ↦ le_antisymm
+    (h.le_on_of_closed G (fun a i b j ha hr ↦ hclosed a i b j ha ((hR a i b j ha).2 hr))
+      (fun a i b j ha hr ↦ (hR a i b j ha).2 hr) (fun a ha ↦ (hS a ha).subset) h0'
+      (fun a ha ↦ (hf a ha).le) h' k hk)
+    (h'.le_on_of_closed G hclosed (fun a i b j ha hr ↦ (hR a i b j ha).1 hr)
+      (fun a ha ↦ (hS a ha).superset) h0 (fun a ha ↦ (hf a ha).ge) h k hk)
 
 end Consistency
 
@@ -1088,6 +1331,51 @@ theorem verifies_purge {step : H → C → H} {z : Certificate K H} {t : Store K
     Verifies step h₀ z (commitments (purge E t)) := by
   rwa [commitments_purge]
 
+/-- SNP-9 And only the commitments: a store verifies a certificate after an erasure exactly
+when it did before, so a certificate attests no erasure. A copy taken before a purge verifies
+every certificate the purged store verifies. -/
+theorem verifies_purge_iff {step : H → C → H} {z : Certificate K H}
+    {t : Store K (C × Option α)} (E : α → Bool) :
+    Verifies step h₀ z (commitments (purge E t)) ↔ Verifies step h₀ z (commitments t) := by
+  rw [commitments_purge]
+
+/-- SNP-9 Under a binding commitment a certificate over commitments pins the events: two
+committed stores that verify one certificate, each after an erasure of its own, were made from
+the same events at its cut. -/
+theorem Verifies.readAt_eq_of_committed {step : H → C → H} (hstep : CollisionFree step)
+    {commit : α → C} (hcommit : Function.Injective commit) {z : Certificate K H}
+    {s s' : Store K α} (E E' : α → Bool)
+    (h : Verifies step h₀ z (commitments (purge E (committed commit s))))
+    (h' : Verifies step h₀ z (commitments (purge E' (committed commit s')))) :
+    readAt s z.cut = readAt s' z.cut := by
+  rw [commitments_purge] at h h'
+  funext k
+  have hk := congrFun (h.readAt_eq hstep h') k
+  simp only [readAt, commitments, committed, List.map_map] at hk
+  have hfun : (Prod.fst ∘ fun a : α ↦ (commit a, some a)) = commit := rfl
+  rw [hfun, ← List.map_take, ← List.map_take] at hk
+  exact List.map_injective_iff.2 hcommit hk
+
+/-- SNP-9 So what is read at a certified cut is pinned up to the erasure: two committed stores
+that verify one certificate read, at its cut and under one erasure, the same store with holes. -/
+theorem Verifies.contents_eq {step : H → C → H} (hstep : CollisionFree step)
+    {commit : α → C} (hcommit : Function.Injective commit) (E : α → Bool)
+    {z : Certificate K H} {s s' : Store K α}
+    (h : Verifies step h₀ z (commitments (purge E (committed commit s))))
+    (h' : Verifies step h₀ z (commitments (purge E (committed commit s')))) :
+    readAt (contents (purge E (committed commit s))) z.cut
+      = readAt (contents (purge E (committed commit s'))) z.cut := by
+  rw [contents_purge_committed, contents_purge_committed, redact_readAt, redact_readAt,
+    Verifies.readAt_eq_of_committed hstep hcommit E E h h']
+
+/-- SNP-9 for the composite reader: two stores that verify one certificate show the same at
+its cut under one grant and one erasure. The grant and the erasure are not in the certificate. -/
+theorem Verifies.shown_eq (hstep : CollisionFree step) (G : K → Prop) [DecidablePred G]
+    (p E : α → Bool) {z : Certificate K H} {s s' : Store K α} (h : Verifies step h₀ z s)
+    (h' : Verifies step h₀ z s') : shown G p E s z.cut = shown G p E s' z.cut := by
+  unfold shown snapshot
+  rw [h.readAt_eq hstep h']
+
 end Certified
 
 namespace Witness
@@ -1150,8 +1438,7 @@ theorem servedNow_restores :
     simp [servedNow, stateAt, stateOf]
 
 /-- The control for SNP-10: under the horizon the pruned store reads a key as absent where it
-held a value, and nothing in the rows that remain says which. So the horizon is recorded, and a
-cut under it is not served. -/
+held a value. So the horizon is recorded, and a cut under it is not served. -/
 theorem prune_forgets :
     ∃ (l : List (Unit × ℕ)) (h c : ℕ), c < h ∧
       genRead (prune h (gens l)) c () = none ∧ stateAt l c () = some 0 := by
@@ -1165,6 +1452,121 @@ theorem digest_collides :
     ∃ l l' : List ℕ, l.length = l'.length ∧
       chainDigest (· + ·) 0 l = chainDigest (· + ·) 0 l' ∧ l ≠ l' :=
   ⟨[1, 2], [2, 1], rfl, rfl, by decide⟩
+
+/-- The control for SNP-10, in its stronger form: nothing in the rows that remain tells a lost
+key from a key that was never there. Two chains have the same pruned store, and at one cut under
+the horizon a key held a value in the first and had never been written in the second. -/
+theorem prune_indistinct :
+    ∃ (l l' : List (ℕ × ℕ)) (h c : ℕ), c < h ∧
+      (prune h (gens l)).map (fun r ↦ (r.key, r.val, r.born, r.died))
+        = (prune h (gens l')).map (fun r ↦ (r.key, r.val, r.born, r.died)) ∧
+      stateAt l c 1 = some 0 ∧ stateAt l' c 1 = none :=
+  ⟨[(0, 0), (1, 0), (0, 1), (1, 1)], [(0, 0), (0, 2), (0, 1), (1, 1)], 4, 2, by decide,
+    by decide, by decide, by decide⟩
+
+/-- The control for SNP-7's keyed read: a hole that loses its key. Path `()` lands versions 1,
+2 and 3 and version 2 is erased. With the key kept, the read at cut 2 is a hole. A seek over the
+rows of the prefix that still carry the key returns version 1, which was superseded at the cut;
+a seek over the chain with the holes deleted returns version 3, which landed after it. -/
+theorem keyless_hole :
+    ∃ (l : List (Unit × ℕ)) (E : Unit × ℕ → Bool) (c : ℕ),
+      stateAt (holes E l) c () = some none ∧
+        stateOf ((l.take c).filter fun e ↦ !E e) () = some 1 ∧
+        lastWrite (l.filter fun e ↦ !E e) c () = some 3 :=
+  ⟨[((), 1), ((), 2), ((), 3)], fun e ↦ e.2 == 2, 2, by decide, by decide, by decide⟩
+
+/-- The control for SNP-9: a certificate attests no seal. A chain and its growth by a retire
+verify the certificate of one cut, under every digest, and serve different things at it. -/
+theorem seal_not_certified :
+    ∃ (l t : List (Unit × Option ℕ)) (c : ℕ),
+      (∀ (step : ℕ → Unit × Option ℕ → ℕ) (h₀ : ℕ),
+        Verifies step h₀ (certify step h₀ (fun _ : Unit ↦ l) fun _ ↦ c) fun _ ↦ l ++ t) ∧
+      servedAt l c () = some 5 ∧ servedAt (l ++ t) c () = none := by
+  refine ⟨[((), some 5)], [((), none)], 1, fun step h₀ ↦ ?_, by decide, by decide⟩
+  exact verifies_certify_of_extends (extends_grow (fun _ ↦ [((), some 5)]) fun _ ↦ [((), none)])
+    fun _ ↦ le_rfl
+
+/-- The control for SNP-9's fixed chain keys: a renamed chain is not an extension. The
+certificate of a cut does not verify on the store with its two chains exchanged, under any
+digest, so a chain is keyed by an id that a relabel does not change. -/
+theorem rename_breaks_certificate :
+    ∃ (s s' : Store Bool ℕ) (c : Cut Bool), c ≤ head s ∧ (∀ k, s' k = s (!k)) ∧
+      ∀ (step : ℕ → ℕ → ℕ) (h₀ : ℕ), ¬Verifies step h₀ (certify step h₀ s c) s' := by
+  refine ⟨fun k ↦ if k then [7] else [], fun k ↦ if k then [] else [7],
+    fun k ↦ if k then 1 else 0, fun k ↦ ?_, fun k ↦ ?_, ?_⟩
+  · cases k <;> simp [head]
+  · cases k <;> rfl
+  · rintro step h₀ ⟨h, -⟩
+    have := h true
+    simp [certify, head] at this
+
+/-- The control for SNP-10's local lowering: a record on a chain that content reads. Chain 0 is
+a landing log, chain 1 the attestations, chain 2 a chain `X`. The first attestation is a recorded
+cut that certifies the first event of `X`; the landing reads its own attestation, the second.
+The frontier asked is consistent, and the landing log and the attestations serve every position.
+`X` serves its empty prefix and the positions from 2 on. Then every cut the frontier resolves to
+among the served positions reads the landing log and the attestations at their empty prefixes:
+one chain read low drags down every chain that reads the chain the record sits on. -/
+theorem record_drags :
+    ∃ (R : ℕ → ℕ → ℕ → ℕ → Prop) (S : ℕ → Set ℕ) (f : Cut ℕ),
+      Consistent R f ∧ (∀ k, k ≠ 2 → S k = Set.univ) ∧
+        ∀ c, ResolvesIn R S f c → c 0 = 0 ∧ c 1 = 0 := by
+  refine ⟨fun k i k' j ↦ (k = 1 ∧ i = 0 ∧ k' = 2 ∧ j = 0) ∨ (k = 0 ∧ i = 0 ∧ k' = 1 ∧ j = 1),
+    fun k ↦ if k = 2 then {p | p = 0 ∨ 2 ≤ p} else Set.univ,
+    fun k ↦ if k = 0 then 1 else if k = 1 then 2 else 1, ?_, fun k hk ↦ by simp [hk], ?_⟩
+  · rintro k i k' j (⟨rfl, rfl, rfl, rfl⟩ | ⟨rfl, rfl, rfl, rfl⟩) _ <;> decide
+  · rintro c ⟨hc, hS, hcf, -⟩
+    have hX : c 2 = 0 := by
+      have h2 : c 2 = 0 ∨ 2 ≤ c 2 := by simpa using hS 2
+      have h1 : c 2 ≤ 1 := by simpa using hcf 2
+      omega
+    have hatt : c 1 = 0 := by
+      by_contra h
+      have := hc 1 0 2 0 (Or.inl ⟨rfl, rfl, rfl, rfl⟩) (Nat.pos_of_ne_zero h)
+      omega
+    have hland : c 0 = 0 := by
+      by_contra h
+      have := hc 0 0 1 1 (Or.inr ⟨rfl, rfl, rfl, rfl⟩) (Nat.pos_of_ne_zero h)
+      omega
+    exact ⟨hland, hatt⟩
+
+/-- The control for SNP-6's closed set of chains: the cut read on a chain a grant names depends
+on what a chain it reads serves. One relation and one frontier, served positions that agree on
+the named chain, and two different cuts read on it. -/
+theorem resolution_reads_unnamed :
+    ∃ (R : Bool → ℕ → Bool → ℕ → Prop) (S S' : Bool → Set ℕ) (f c c' : Cut Bool),
+      S true = S' true ∧ ResolvesIn R S f c ∧ ResolvesIn R S' f c' ∧ c true ≠ c' true := by
+  refine ⟨fun k i k' j ↦ k = true ∧ i = 0 ∧ k' = false ∧ j = 0, fun _ ↦ Set.univ,
+    fun k ↦ if k then Set.univ else {0}, fun _ ↦ 1, fun _ ↦ 1, fun _ ↦ 0, by simp, ?_, ?_,
+    by simp⟩
+  · refine resolvesIn_self (fun k i k' j h _ ↦ ?_) fun _ ↦ Set.mem_univ _
+    obtain ⟨-, -, -, rfl⟩ := h
+    exact Nat.one_pos
+  · refine ⟨consistent_zero, fun k ↦ ?_, fun _ ↦ Nat.zero_le _, fun d hd hS _ k ↦ ?_⟩
+    · cases k <;> simp
+    · have h0 : d false = 0 := by simpa using hS false
+      have h1 : d true = 0 := by
+        by_contra h
+        have := hd true 0 false 0 ⟨rfl, rfl, rfl, rfl⟩ (Nat.pos_of_ne_zero h)
+        omega
+      cases k
+      · exact h0.le
+      · exact h1.le
+
+/-- The control for SNP-10's monotonicity: it needs the served sets to grow. A store that keeps
+no past serves its empty prefix and its head, and loses its old head when it grows. Asked at 5
+while the head is 5 the cut read is 5; asked again at 5 after the head moved to 7 it is 0. -/
+theorem served_set_shrinks :
+    ∃ (S S' : Unit → Set ℕ) (f : Cut Unit),
+      ResolvesIn (fun _ _ _ _ ↦ False) S f f ∧
+        ResolvesIn (fun _ _ _ _ ↦ False) S' f fun _ ↦ 0 := by
+  refine ⟨fun _ ↦ {0, 5}, fun _ ↦ {0, 7}, fun _ ↦ 5, ?_, ?_⟩
+  · exact resolvesIn_self (fun _ _ _ _ h ↦ h.elim) fun _ ↦ by simp
+  · refine ⟨consistent_zero, fun _ ↦ by simp, fun _ ↦ Nat.zero_le _, fun d _ hS hdf u ↦ ?_⟩
+    have h1 : d u = 0 ∨ d u = 7 := by simpa using hS u
+    have h2 : d u ≤ 5 := hdf u
+    change d u ≤ 0
+    omega
 
 end Witness
 
