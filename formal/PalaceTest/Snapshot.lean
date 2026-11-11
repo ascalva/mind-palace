@@ -538,6 +538,20 @@ of what the wider grant is shown under the smaller erasure. -/
       (shown (fun k ↦ gr g' k = true) (pf c') (fun x ↦ pf e x || pf e' x) (st a b) (cu m m)))
     = true) 510
 
+/- SNP-7: the history served of a key at a cut ends at the value served there, and after a
+retire of the key it holds no version landed before the retire. -/
+#eval survives (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  ((historyAt (l.map ev) c x).getLast? == servedAt (l.map ev) c x
+    && historyAt (l.map ev ++ (x, none) :: t.map ev) (l.length + 1 + c) x
+      == if sealedAt (l.map ev ++ (x, none) :: t.map ev) (l.length + 1 + c) x then []
+        else sinceRetire ((t.map ev).take c) x) = true) 512
+
+/- Control: the versions of a key inside the cut, without the seal, hold versions landed
+before a retire. -/
+#eval refuted (∀ (l : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (((l.map ev).take c).filterMap (fun e ↦ if e.1 = x then e.2 else none)
+    == historyAt (l.map ev) c x) = true) 513
+
 /- Control for 432: a read between two cuts, the later past the head, changes with growth. -/
 #eval refuted (∀ (a b t : List (Fin 3)) (i m n : ℕ),
   same (readBetween (grow (st a b) (st t t)) (cu i i) (cu m n))
