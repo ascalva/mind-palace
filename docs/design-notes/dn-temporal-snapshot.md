@@ -582,15 +582,16 @@ Three things follow.
 
 ### 5.3 The lexical index
 
-The index keeps every version's units and postings and marks the head (`core/stores/lexical.py:
-56-82`, `:251-256`), and it computes its statistics at query time over the current units of the
-reader's classes: the unit count and the mean length (`lexical.py:316-321`) and each term's
-document frequency (`lexical.py:337-340`). `[ESTABLISHED]` At a cut the arithmetic is the same
-with one predicate changed: a unit counts when its version is its path's head at the cut, in
-place of `current = 1`. The collection size, the mean length and the document frequencies are
-then the masked set's own, which is what makes a score at a cut the score the index gave then
-under the same tokenizer. A clearance and a cut are the same kind of thing to this index: a mask
-over units whose statistics must be the mask's. `[DERIVED]`
+The index keeps every version's units and postings and marks the head
+(`core/stores/lexical.py:56-82`, `:251-256`), and it computes its statistics at query time over
+the current units of the reader's classes: the unit count and the mean length
+(`lexical.py:316-321`) and each term's document frequency (`lexical.py:337-340`).
+`[ESTABLISHED]` At a cut the arithmetic is the same with one predicate changed: a unit counts
+when its version is its path's head at the cut, in place of `current = 1`. The collection size,
+the mean length and the document frequencies are then the masked set's own, which is what makes
+a score at a cut the score the index gave then under the same tokenizer. A clearance and a cut
+are the same kind of thing to this index: a mask over units whose statistics must be the mask's.
+`[DERIVED]`
 
 The other forms cost more here. Recomputing means tokenizing every item alive at the cut, since
 the statistics are the collection's and not the support's: right for a few hundred notes, not for
@@ -757,9 +758,9 @@ whole-class relabel renames a chain, and nothing else moves a row between chains
 
 ### 6.4 A reader that is shown only named endpoints
 
-A read-only principal is being added that is shown a causal edge only when the edge ends at a
-commit or at a file git tracks at `HEAD`. That rule is an event filter in the sense of §6.3, and
-at a cut it is the present's filter applied to the edges inside the cut: an edge is shown when its
+Take a read-only principal that is shown a causal edge only when the edge ends at a commit or
+at a file git tracks at `HEAD`. That rule is an event filter in the sense of §6.3, and at a cut
+it is the present's filter applied to the edges inside the cut: an edge is shown when its
 witness turn is inside the cut on `chat`, its commit, if it ends at one, is inside the cut on
 `repo`, and its endpoint passes the list as the list stands now. The list is not taken at the
 cut's tree. `[DERIVED from SNP-6]` Two reasons. The grant is the asker's now, so a file that left
@@ -928,10 +929,10 @@ So the horizon is recorded, and a cut under it is not served.
 
 ### 9.1 What grows
 
-Nothing in the stores is dropped today except by a purge: a retired path's rows and a superseded
-version's rows stay in the plane and in the lexical index (`core/stores/plane.py:497-499`,
-`core/stores/lexical.py:260-265`). So the bytes of a past are mostly paid already, and the
-snapshot adds three things.
+A landing drops nothing today: a retired path's rows and a superseded version's rows stay in the
+plane and in the lexical index (`core/stores/plane.py:497-499`, `core/stores/lexical.py:260-265`),
+and rows go only with a purge or a reset. So the bytes of a past are mostly paid already, and
+the snapshot adds three things.
 
 | what | a | bytes | source |
 |---|---|---|---|
@@ -951,30 +952,36 @@ to stop paying one: a horizon makes it safe to drop.
 
 ### 9.2 The rule, counted in events
 
-Each chain declares a window `keep`, in positions. A retention pass, run at a recorded cut, moves
-the chain's horizon to the later of the horizon in force and the head less `keep`, and drops in
-this order:
+A chain can declare two windows, each in positions, and a retention pass runs at a recorded cut.
 
-1. the `horizon` row is appended, so the positions under it are unserved from that moment;
-2. the derived rows of the versions closed at or under it: lexical units and postings, plane
-   occupancies, and the atoms nothing retained holds;
-3. the raw objects no retained row names;
-4. the log's rows closed at or under it, the chain's digest at the horizon kept as its seed.
+- **A window for derived rows.** The derived rows of the versions closed at or under the head
+  less the window are dropped: lexical units and postings, plane occupancies, and the atoms
+  nothing retained holds. No horizon moves. The log and the raw objects stay, so every read of a
+  ledger at those cuts is still exact, and a derived row a cut asks for is pending and can be
+  derived again (§9.3).
+- **A window for the history.** The chain's horizon moves to the later of the horizon in force
+  and the head less the window. A `horizon` row is appended first, so the positions under it are
+  unserved from that moment; then the derived rows still under it, the raw objects no retained
+  row names, and the log's rows closed at or under it are dropped, the chain's digest at the
+  horizon kept as its seed.
 
-The order is the one the stores use for a cache: the horizon is declared first, so a crash in
-the middle leaves rows that are no longer served, never a position that is served and
-incomplete (the discipline of PLN-4, where a cache is stale only by excess). `[DERIVED]` The
-attestation ledger and the version chains are not pruned: they are the audit record, they are
-small, and they have no delete.
+The second is an exception to the rule that raw objects are kept
+(`core/kernel/stores/rawstore.py:1-8`), which only the owner's purge makes today, so it is the
+owner's to declare. Its order is the one the stores use for a cache: the horizon is declared
+first, so a crash in the middle leaves rows that are no longer served, never a position that is
+served and incomplete (the discipline of PLN-4, where a cache is stale only by excess).
+`[DERIVED]` The attestation ledger and the version chains are not pruned: they are the audit
+record, they are small, and they have no delete.
 
-The window is counted in events because wall time orders nothing (Law C4): the last ten thousand
+A window is counted in events because wall time orders nothing (Law C4): the last ten thousand
 landings of a class, not the last ninety days. It is one position a chain, not a number of
 versions an identity. Keeping the last `n` versions of each identity would leave no horizon:
 which cuts are exact would differ from one identity to the next, and the control of §8 says such
 a store cannot tell what it lost. `[INFERENCE, falsifier SNF-9]`
 
-The default instance declares no window and keeps everything; by the arithmetic above its log is
-megabytes a year. An instance that must bound its disk declares one (decision D8).
+The default instance declares neither window and keeps everything; by the arithmetic above its
+log is megabytes a year. An instance that must bound its disk declares the first, and the second
+only by its owner's decision (D8).
 
 ### 9.3 Lazy landing, in time
 
@@ -985,7 +992,7 @@ the head, and the rule is the one two-phase ingestion already has: the item is p
 semantic clause ranks it by the lexical index or reports it, and no vector is invented (ING-21).
 `[DERIVED from ING-19, ING-21]`
 
-Retention's second step and lazy derivation are then one mechanism run in two directions. A
+The first window of §9.2 and lazy derivation are then one mechanism run in two directions. A
 derived row is an entry of a cache of a function of a content digest and an identity (§5.2,
 §5.3): present or absent, reported when absent, derivable again from the raw object while the
 ledger holds it. The drain run over the versions a cut holds derives what a cut's readers ask
@@ -1181,10 +1188,11 @@ property-testing the transcription against the Lean statements; the laws a stage
   relation edges and claim ops; `relate` at a cut; a kept row served only with its sources.
   Tests: SNP-5 on random sequences of writes and replacements; `mem_serve_iff`'s test. Rollback:
   additive columns and tables.
-- **SN-7 retention.** The window a chain in the instance's configuration; the pass in the order
-  of §9.2; the `horizon` row; the horizon in the answers. Tests: SNP-10 as stated, and a pass
-  killed at each step leaving no served position incomplete. Rollback: none for dropped rows by
-  their nature; nothing runs unless a window is declared.
+- **SN-7 retention.** The two windows a chain in the instance's configuration; the pass of
+  §9.2; the `horizon` row; the horizon in the answers. Tests: SNP-10 as stated; a pass killed at
+  each step leaving no served position incomplete; a derived row dropped under the first window
+  reported pending and derived again. Rollback: none for dropped rows by their nature; nothing
+  runs unless a window is declared.
 - **SN-8 the delta.** `changed between` and `changed since` (§7.4); the integrator interface
   below. Tests: the region's union law, and equal reads at both cuts for an identity outside it.
 
@@ -1242,10 +1250,11 @@ Each with the recommendation and what the alternative costs.
    (§7.4). The alternatives: nothing, and every integrator and every question about change is a
    hand-written read; or a general two-cut adjective, which is a second universe a sentence and a
    pair sort, and which dn-graph-dynamics designs already as GD-4.
-8. **D8, retention.** Recommended: no window on the default instance, a declared window a chain
-   where the disk is bounded (§9.2). The alternatives: a window everywhere, which loses the
-   default instance's history to save megabytes a year; or the last `n` versions an identity,
-   which leaves no horizon to name.
+8. **D8, retention.** Recommended: no window on the default instance; where the disk is bounded,
+   a window for derived rows, which moves no horizon, and a window for the history only when the
+   owner declares one, since it drops raw objects (§9.2). The alternatives: a horizon everywhere,
+   which loses the default instance's history to save megabytes a year; or the last `n` versions
+   an identity, which leaves no horizon to name.
 9. **D9, the attestation ledger under a purge.** It still names a purged digest (§6.1), against
    the plane's rule that no content hash of purged text is kept. Recommended: from SN-3 on a
    landing's attestation names the log row's commitment in place of the content digest, so a

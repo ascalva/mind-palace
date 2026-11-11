@@ -395,13 +395,15 @@ executor does today, is the reader \Cref{thm:append} refutes. At the head the re
 present (\Cref{thm:compose}), so \texttt{as of "head"} is the sentence without the adjective.
 
 \paragraph{The horizon and retention.}
-A chain's horizon is set by the genesis of its log, by retention, or by a reset. Retention is a
-window per chain counted in positions. A pass appends a horizon row first and then drops, in
-order, the derived rows of the versions closed under it, the raw objects nothing retained names,
-and the log's rows, the digest at the horizon kept as the seed. Declaring the horizon first
-means a crash leaves rows that are unserved, never a position that is served and incomplete. A
-window counted per identity (the last $n$ versions of each) would leave no horizon, and
-\Cref{thm:horizon} says such a store cannot tell what it lost.
+A chain's horizon is set by the genesis of its log, by retention, or by a reset. Retention is
+counted in positions and has two levels. The derived rows of old versions can be dropped without
+moving a horizon: they are cache entries of a function of content, a cut that asks for one finds
+it pending, and it is derived again from the raw object. Moving the horizon drops raw objects and
+the log's rows, which only the store's owner declares. That pass appends a horizon row first, so
+a crash leaves rows that are unserved, never a position that is served and incomplete, and it
+keeps the digest at the horizon as the chain's seed. A window counted per identity (the last $n$
+versions of each) would leave no horizon, and \Cref{thm:horizon} says such a store cannot tell
+what it lost.
 
 \section{Evaluation}\label{sec:eval}
 
