@@ -16,12 +16,15 @@ from three; reads-from relations as lists of edges between events of the two cha
 under four; a digest that reads a chain as a numeral in base four, which is collision free, and
 one that adds, which is not. Beside the model the attacks carry one thing the library does not:
 an executable resolver, the descent that lowers a frontier until no event inside it has a source
-outside, tested against the definition of the greatest consistent cut by enumeration. The
-controls are the readings a build must not take: a read at a cut past the head, the store
-rewritten in place, generations without their closing stamp, an event filter before the cut, an
-erasure that deletes rows, a state served without the seal, the looser seal taken for a
-monotone one, kept rows served without their sources, a frontier taken for a cut, an additive digest, a digest over contents. They run when
-this module builds (`lake test`).
+outside, tested against the definition of the greatest consistent cut by enumeration; and, for
+the horizon, the positions a chain serves from ten bits, with the greatest consistent cut among
+them found by enumeration. The controls are the readings a build must not take: a read at a cut
+past the head, the store rewritten in place, generations without their closing stamp, a key's
+state taken for unchanged whatever the delta writes, an event filter before the cut, an erasure
+that deletes rows, a state served without the seal, the looser seal taken for a monotone one,
+kept rows served without their sources, a frontier taken for a cut, an additive digest, a digest
+over contents, the pruned store read under its horizon, a frontier lowered to the served
+positions without the descent. They run when this module builds (`lake test`).
 -/
 
 @[expose] public section
@@ -80,6 +83,29 @@ def lower (es : List Edge) (c : ℕ × ℕ) : ℕ × ℕ := (lowerAt es c 0, low
 nothing more, which is at most as many passes as the frontier has positions. -/
 def resolve (es : List Edge) (x y : ℕ) : Cut (Fin 2) :=
   cu ((lower es)^[x + y] (x, y)).1 ((lower es)^[x + y] (x, y)).2
+
+/-- The rows of a generational store as tuples, to compare two of them. -/
+def rowsOf (rs : List (Gen (Fin 3) (Fin 3))) : List (Fin 3 × Fin 3 × ℕ × Option ℕ) :=
+  rs.map fun r ↦ (r.key, r.val, r.born, r.died)
+
+/-- The positions a chain serves, from ten bits: its empty prefix always, and of the positions
+one to five those whose bit is set. -/
+def sv (m : Fin 1024) (k : Fin 2) (p : ℕ) : Bool :=
+  p == 0 || (decide (p ≤ 5) && m.val.testBit (5 * k.val + p - 1))
+
+/-- The greatest consistent cut under the frontier `(x, y)` among the served positions, by
+enumeration: the pointwise maximum of every consistent cut of the grid under the frontier whose
+two positions are served. -/
+def bestIn (es : List Edge) (p : Fin 2 → ℕ → Bool) (x y : ℕ) : ℕ × ℕ :=
+  (List.range 6).foldl (fun (acc : ℕ × ℕ) (u : ℕ) ↦
+    (List.range 6).foldl (fun (acc : ℕ × ℕ) (v : ℕ) ↦
+      if cons es (cu u v) && p 0 u && p 1 v && decide (u ≤ x) && decide (v ≤ y)
+      then (max acc.1 u, max acc.2 v) else acc) acc) (0, 0)
+
+/-- The greatest served position of a chain at or under a position: the frontier lowered to
+what is served, before any descent. -/
+def floorSv (p : Fin 2 → ℕ → Bool) (k : Fin 2) (x : ℕ) : ℕ :=
+  (List.range (x + 1)).foldl (fun (n : ℕ) (q : ℕ) ↦ if p k q then q else n) 0
 
 /-- A collision-free step: the chain read as a numeral in base four, digits one to three. -/
 def step4 (h : ℕ) (a : Fin 3) : ℕ := 4 * h + a.val + 1
@@ -192,6 +218,22 @@ def verifies (z : Certificate (Fin 2) ℕ) (s : Store (Fin 2) (Fin 3)) : Bool :=
     stateAt l (a + d) x == ((l.take (a + d)).drop a).foldl
       (fun (m : Fin 3 → Option (Fin 3)) (e : Fin 3 × Fin 3) ↦ Function.update m e.1 (some e.2))
       (stateAt l a) x) = true) 447
+
+/- SNP-3: an event read at the later cut was read at the earlier cut or lies in the delta. -/
+#eval survives (∀ (a b : List (Fin 3)) (i j m n : ℕ),
+  (List.finRange 2).all (fun k ↦
+    (readAt (st a b) (cu (i + m) (j + n)) k).all fun x ↦
+      (readAt (st a b) (cu i j) k).contains x
+        || (readBetween (st a b) (cu i j) (cu (i + m) (j + n)) k).contains x) = true) 475
+
+/- SNP-3: a key the writes between two cuts do not name has the same state at both. -/
+#eval survives (∀ (l : List (Fin 3 × Fin 3)) (a d : ℕ) (x : Fin 3),
+  (((l.take (a + d)).drop a).any (fun e ↦ e.1 == x)
+    || stateAt l (a + d) x == stateAt l a x) = true) 476
+
+/- Control: a key's state at two cuts is not the same whatever the delta writes. -/
+#eval refuted (∀ (l : List (Fin 3 × Fin 3)) (a d : ℕ) (x : Fin 3),
+  (stateAt l (a + d) x == stateAt l a x) = true) 477
 
 /- SNP-6: a narrower grant's snapshot is the restriction of a wider one's. -/
 #eval survives (∀ (a b : List (Fin 3)) (m : ℕ) (g g' : Fin 4) (c c' : Fin 8),
@@ -345,5 +387,53 @@ what a reader reads is the store with holes. -/
     chainDigest stepO 0 ((contents (purge (pf e) (committed commit3 (st a b))) k).take (cu m n k))
       == chainDigest stepO 0 ((contents (committed commit3 (st a b)) k).take (cu m n k)))
     = true) 472
+
+/- SNP-10: the generational store pruned at a horizon reads, at every cut from the horizon on,
+the state recomputed from the whole prefix. -/
+#eval survives (∀ (l : List (Fin 3 × Fin 3)) (h d : ℕ) (x : Fin 3),
+  (genRead (prune h (gens l)) (h + d) x == stateAt l (h + d) x) = true) 478
+
+/- SNP-10: at any cut the pruned store returns nothing or the value the key held there. -/
+#eval survives (∀ (l : List (Fin 3 × Fin 3)) (h c : ℕ) (x : Fin 3),
+  ((genRead (prune h (gens l)) c x).isNone
+    || genRead (prune h (gens l)) c x == stateAt l c x) = true) 479
+
+/- Control: the pruned store read at a cut under its horizon is not the state at the cut. -/
+#eval refuted (∀ (l : List (Fin 3 × Fin 3)) (h c : ℕ) (x : Fin 3),
+  (genRead (prune h (gens l)) c x == stateAt l c x) = true) 480
+
+/- SNP-10: pruning at two horizons is pruning at the later one. -/
+#eval survives (∀ (l : List (Fin 3 × Fin 3)) (h h' : ℕ),
+  (rowsOf (prune h (prune h' (gens l))) == rowsOf (prune (max h h') (gens l))) = true) 481
+
+/- SNP-10: among the served positions the greatest consistent cut under a frontier exists: the
+pointwise maximum of every consistent served cut under the frontier (all thirty-six of the grid)
+is consistent and served. -/
+#eval survives (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (cons es (at2 (bestIn es (sv m) x.val y.val))
+    && sv m 0 (bestIn es (sv m) x.val y.val).1
+    && sv m 1 (bestIn es (sv m) x.val y.val).2) = true) 482
+
+/- Control: the frontier lowered to the served positions, without the descent, is not always
+consistent. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  cons es (cu (floorSv (sv m) 0 x.val) (floorSv (sv m) 1 y.val)) = true) 483
+
+/- SNP-10: the cut read lies under the resolution of the frontier, and under the frontier
+lowered to the served positions. -/
+#eval survives (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (decide (at2 (bestIn es (sv m) x.val y.val) ≤ resolve es x.val y.val)
+    && decide ((bestIn es (sv m) x.val y.val).1 ≤ floorSv (sv m) 0 x.val)
+    && decide ((bestIn es (sv m) x.val y.val).2 ≤ floorSv (sv m) 1 y.val)) = true) 484
+
+/- SNP-10: the cut read rises with what is served. -/
+#eval survives (∀ (es : List Edge) (m m' : Fin 1024) (x y : Fin 6),
+  decide (at2 (bestIn es (fun k p ↦ sv m k p && sv m' k p) x.val y.val)
+    ≤ at2 (bestIn es (sv m) x.val y.val)) = true) 485
+
+/- SNP-10: when every position is served the cut read is the resolution of the frontier. -/
+#eval survives (∀ (es : List Edge) (x y : Fin 6),
+  (List.finRange 2).all (fun k ↦
+    at2 (bestIn es (fun _ _ ↦ true) x.val y.val) k == resolve es x.val y.val k) = true) 486
 
 end Palace.Snapshot.Attack

@@ -310,7 +310,9 @@ Roundoff and FloatModel, so it has no statements of its own):
   the read at a later one, and a cut of a cut is the meet; SNP-3 the read at `a` followed by the
   read between `a` and `b` is the read at `b` and adjacent reads-between compose, so a fold
   continued from a checkpoint over the events since is the fold of the prefix (a job's checkpoint
-  is a cut); SNP-4 the read at the head cut is the store, so `as of` the current cut is no
+  is a cut), an event or a pair of events read at the later cut was read at the earlier one or
+  lies in the delta, and a key the delta does not write has one state at both cuts; SNP-4 the
+  read at the head cut is the store, so `as of` the current cut is no
   `as of`; SNP-5 a reader is append invariant exactly when it reads only the prefixes, exactly
   when it is a derived view, and for keyed writes the generational store read at a cut is the
   state recomputed from the prefix and the last write inside it, with at most one generation of a
@@ -331,9 +333,15 @@ Roundoff and FloatModel, so it has no statements of its own):
   a collision-free digest have the same read at its cut and so the same derived views, a
   certificate extends over the events since an earlier one, the meet and the join of two
   certified cuts are certified from the two certificates alone, and an erasure that keeps a
-  commitment beside each event keeps every certificate. The controls as theorems: the reader
-  that ignores the cut, the store rewritten in place, an event filter applied before the cut, the
-  erasure that deletes rows, a digest with collisions. Design theorems (Palace and PalaceTest, no
+  commitment beside each event keeps every certificate; SNP-10 the horizon: a generational store
+  that drops the rows closed at or under a horizon reads, at every cut from the horizon on, the
+  state recomputed from the whole prefix, under the horizon it is never wrong and reads what it
+  lost as absent, horizons compose to the later one, and where the chains serve only some
+  positions (those from a horizon on, and the empty prefix) every frontier resolves to exactly
+  one greatest consistent cut among them, which rises with what is served and never passes the
+  cut asked. The controls as theorems: the reader that ignores the cut, the store rewritten in
+  place, an event filter applied before the cut, the erasure that deletes rows, a digest with
+  collisions, the pruned store read under its horizon. Design theorems (Palace and PalaceTest, no
   Spec rows): `as of` reads the citation graph at a commit and every other store as it is now.
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
@@ -865,24 +873,31 @@ at a gain above the rate the ceiling is fixed, on the first instance; at exponen
 not constant, on the first instance; and the greedy walk's empirical measure is not within `1/8`
 of the structural stationary distribution, on the first instance.
 
-The snapshot is attacked on the model's own definitions (seeds 430 to 474): stores of two
+The snapshot is attacked on the model's own definitions (seeds 430 to 486): stores of two
 chains over three events, cuts from two naturals, keyed chains over three keys, chains of
 landings and retires from codes, grants from two bits and event filters and erasures from three,
-reads-from relations as lists of edges between the two chains at positions under four, and a
-digest that reads a chain as a numeral in base four, which is collision free. Thirty attacks
+reads-from relations as lists of edges between the two chains at positions under four, a
+digest that reads a chain as a numeral in base four, which is collision free, and the positions
+a chain serves from ten bits. Thirty-nine attacks
 survived, every one all 500 instances: the read at a cut and between two cuts under growth; the
 prefix order and the meet; the two compositions and the journal; the head cut; the generational
 store against the recomputed state and the last write, one generation alive at most, the same
-under growth, and the keyed journal; the narrower grant, and the chains a snapshot reads; the
+under growth, and the keyed journal; an event of the later cut in the earlier one or in the
+delta, and the key the delta does not write; the narrower grant, and the chains a snapshot
+reads; the
 erasure (nothing erased visible, positions kept, the holes dropped), the retire that seals every
 earlier cut, growth that only removes, the two seals in their order, and the kept rows with their
 sources; the resolver, the
 meet and the join of consistent cuts, and the monotone resolution; the certificate under growth,
 the digest of a reversed chain, the certificate over the delta, at the meet and the join, and
-across an erasure on a committed store. The resolver is the one thing attacked that the library
+across an erasure on a committed store; the pruned generational store at and past its horizon,
+never wrong under it, and two horizons as the later one; and, among the served positions, the
+greatest consistent cut under a frontier found by enumeration, consistent and served, under the
+resolution of the frontier, rising with what is served, and equal to the resolution when every
+position is served. The resolver is the one thing attacked that the library
 does not define: the descent that lowers a frontier until no event inside it has a source
 outside, checked against the greatest consistent cut by enumerating the thirty-six cuts of the
-grid. The fifteen controls, each refuted: a read at a cut past the head changes with growth,
+grid. The eighteen controls, each refuted: a read at a cut past the head changes with growth,
 within 11 instances; the read at one cut is a prefix of the read at any other, within 6; the
 composition with the cuts in any order, within 6; the store rewritten in place as the state at a
 cut, within 5; generations without the closing stamp, which read a key's oldest write, within 18;
@@ -892,8 +907,10 @@ at a cut holds an event from after it, within 29; the state at a cut served with
 within 53; the looser seal taken for one under which growth only removes, within 48; the kept
 rows served without their sources, within 11; the frontier taken for a
 consistent cut, within 11; a consistent cut advanced by one position, within 12; the additive
-digest, under which a chain and its reverse agree, within 11; and a digest over the contents,
-which an erasure changes, within 14.
+digest, under which a chain and its reverse agree, within 11; a digest over the contents,
+which an erasure changes, within 14; a key's state taken for the same at two cuts whatever the
+delta writes, within 17; the pruned store read under its horizon as the state at the cut, within
+30; and a frontier lowered to the served positions without the descent, within 24.
 
 ## Build
 
