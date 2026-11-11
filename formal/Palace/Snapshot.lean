@@ -25,6 +25,9 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   `b`, and two adjacent reads-between compose (`readAt_append_readBetween`,
   `readBetween_append`); so a fold continued from a checkpoint over the events since is the fold
   of the whole prefix (`foldAt_readBetween`, `stateAt_eq_foldl`): a job's checkpoint is a cut.
+  An event read at the later cut was read at the earlier one or lies in the delta, a pair of
+  events likewise, and a key the delta does not write has one state at both cuts
+  (`mem_readAt_iff`, `pair_readAt`, `stateAt_eq_of_not_written`).
 * SNP-4, idempotence: the read at the head cut is the store, and every derived view at it is
   the derivation of the present (`readAt_head`, `view_head`, `genRead_gens_length`).
 * SNP-5, a derived view is a function of the prefixes: a reader is append invariant exactly when
@@ -63,6 +66,15 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   erasure that keeps commitments keeps every certificate (`verifies_certify_of_extends`,
   `Verifies.readAt_eq`, `Verifies.view_eq`, `certify_digest_readBetween`, `certify_inf`,
   `certify_sup`, `verifies_purge`).
+* SNP-10, the horizon: a generational store that drops the rows closed at or under a horizon
+  reads, at every cut from the horizon on, the state recomputed from the whole prefix; under the
+  horizon it is never wrong and reads what it lost as absent; horizons compose to the later one
+  (`genRead_prune`, `genRead_prune_gens`, `stateAt_of_genRead_prune`, `prune_prune`). Where the
+  chains serve only some positions, every frontier resolves to exactly one greatest consistent
+  cut among them, which rises with what is served and never passes the cut asked
+  (`exists_resolvesIn`, `ResolvesIn.unique`, `ResolvesIn.mono`, `ResolvesIn.le_resolves`,
+  `resolvesIn_univ`). The control is the pruned store read under its horizon
+  (`Witness.prune_forgets`).
 -/
 
 @[expose] public section
@@ -202,6 +214,25 @@ theorem foldAt_readBetween (f : β → α → β) (init : K → β) (s : Store K
         congrArg (fun l ↦ l.foldl f (init k)) (congrFun (readAt_append_readBetween s h) k).symm
     _ = _ := List.foldl_append
 
+/-- SNP-3 An event read at the later cut was read at the earlier cut or lies in the delta. -/
+theorem mem_readAt_iff {s : Store K α} {a b : Cut K} (h : a ≤ b) {k : K} {x : α} :
+    x ∈ readAt s b k ↔ x ∈ readAt s a k ∨ x ∈ readBetween s a b k := by
+  rw [← readAt_append_readBetween s h]
+  exact List.mem_append
+
+/-- SNP-3 The delta rule for a job that joins two chains: a pair of events read at the later
+cut was read at the earlier cut, or one of the two lies in the delta. So a job that kept the
+pairs of its checkpoint has only the pairs with a new member left to visit. -/
+theorem pair_readAt {s : Store K α} {a b : Cut K} (h : a ≤ b) {k k' : K} {x y : α}
+    (hx : x ∈ readAt s b k) (hy : y ∈ readAt s b k') :
+    (x ∈ readAt s a k ∧ y ∈ readAt s a k') ∨ x ∈ readBetween s a b k ∨
+      y ∈ readBetween s a b k' := by
+  rcases (mem_readAt_iff h).1 hx with hx | hx
+  · rcases (mem_readAt_iff h).1 hy with hy | hy
+    · exact Or.inl ⟨hx, hy⟩
+    · exact Or.inr (Or.inr hy)
+  · exact Or.inr (Or.inl hx)
+
 /-- SNP-5 A derived view reads only the prefixes. -/
 theorem prefixOnly_view (D : Store K α → β) : PrefixOnly (view D) := fun s c _ ↦ by
   change D (readAt s c) = D (readAt (readAt s c) c)
@@ -275,6 +306,24 @@ theorem stateAt_eq_foldl (l : List (κ × β)) {a b : ℕ} (h : a ≤ b) :
   have h1 : l.take a = (l.take b).take a := by rw [List.take_take, Nat.min_eq_left h]
   unfold stateAt stateOf
   rw [h1, ← List.foldl_append, List.take_append_drop]
+
+theorem foldl_update_of_ne {t : List (κ × β)} {m : κ → Option β} {x : κ}
+    (ht : ∀ e ∈ t, e.1 ≠ x) :
+    (t.foldl (fun (m : κ → Option β) (e : κ × β) ↦ Function.update m e.1 (some e.2)) m) x
+      = m x := by
+  induction t generalizing m with
+  | nil => rfl
+  | cons e t ih =>
+    rw [List.foldl_cons, ih fun e' he' ↦ ht e' (List.mem_cons_of_mem _ he')]
+    exact Function.update_of_ne (Ne.symm (ht e List.mem_cons_self)) _ _
+
+/-- SNP-3 The delta bounds the change: a key the writes between two cuts do not name has the
+same state at both. What changed between two cuts is found among the keys of the delta. -/
+theorem stateAt_eq_of_not_written (l : List (κ × β)) {a b : ℕ} (h : a ≤ b) {x : κ}
+    (hx : ∀ e ∈ (l.take b).drop a, e.1 ≠ x) : stateAt l b x = stateAt l a x := by
+  have h1 := congrFun (stateAt_eq_foldl l h) x
+  rw [h1]
+  exact foldl_update_of_ne hx
 
 theorem stateOf_eq_find? (l : List (κ × β)) (x : κ) :
     stateOf l x = (l.reverse.find? fun e ↦ decide (e.1 = x)).map Prod.snd := by
@@ -458,6 +507,78 @@ theorem length_filter_selects_le_one (l : List (κ × β)) (c : ℕ) (x : κ) :
       · exact (length_filter_landGen_of_stable (rs := gens l) (p := l.length + 1) (e := e)
           (q := selects c x) (fun r ↦ selects_closeAt_of_ne hx c _ r)
           (by simp [selects, Ne.symm hx])).le.trans ih
+
+/-- A row a cut selects is kept by every horizon at or under the cut. -/
+theorem keeps_of_selects {h c : ℕ} (hc : h ≤ c) {x : κ} {r : Gen κ β}
+    (hr : selects c x r = true) : (r.died.all fun d ↦ decide (h < d)) = true := by
+  have h2 : (r.died.all fun d ↦ decide (c < d)) = true := by
+    simp only [selects, Gen.aliveAt, Bool.and_eq_true] at hr
+    exact hr.2.2
+  cases hd : r.died with
+  | none => rfl
+  | some d =>
+    rw [hd] at h2
+    simp only [Option.all_some, decide_eq_true_eq] at h2 ⊢
+    omega
+
+theorem find?_prune {h c : ℕ} (hc : h ≤ c) (rs : List (Gen κ β)) (x : κ) :
+    (prune h rs).find? (selects c x) = rs.find? (selects c x) := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    by_cases hk : (r.died.all fun d ↦ decide (h < d)) = true
+    · have e : prune h (r :: rs) = r :: prune h rs := by simp [prune, hk]
+      rw [e, List.find?_cons, List.find?_cons, ih]
+    · have hs : ¬selects c x r = true := fun hs ↦ hk (keeps_of_selects hc hs)
+      have e : prune h (r :: rs) = prune h rs := by simp [prune, hk]
+      rw [e, List.find?_cons_of_neg hs, ih]
+
+/-- SNP-10 Retention is exact from the horizon on: dropping the generations closed at or under
+a horizon changes no read at a cut at or past it. -/
+theorem genRead_prune {h c : ℕ} (hc : h ≤ c) (rs : List (Gen κ β)) (x : κ) :
+    genRead (prune h rs) c x = genRead rs c x := by
+  unfold genRead
+  rw [find?_prune hc]
+
+/-- SNP-10 So the pruned generational store read at a cut from the horizon on is the state
+recomputed from the whole prefix, though the prefix is no longer held. -/
+theorem genRead_prune_gens {h c : ℕ} (hc : h ≤ c) (l : List (κ × β)) (x : κ) :
+    genRead (prune h (gens l)) c x = stateAt l c x := by
+  rw [genRead_prune hc, genRead_gens]
+
+/-- SNP-10 Under the horizon the pruned store is never wrong: a value it returns at a cut is the
+value the key held at the cut. What it has lost it reads as absent. -/
+theorem stateAt_of_genRead_prune {h c : ℕ} {l : List (κ × β)} {x : κ} {v : β}
+    (hv : genRead (prune h (gens l)) c x = some v) : stateAt l c x = some v := by
+  rw [← genRead_gens]
+  unfold genRead at hv ⊢
+  obtain ⟨r, hr, rfl⟩ := Option.map_eq_some_iff.1 hv
+  have hsel : selects c x r = true := List.find?_some hr
+  have hmem : r ∈ gens l := List.mem_of_mem_filter (List.mem_of_find?_eq_some hr)
+  have hfil : r ∈ (gens l).filter (selects c x) := List.mem_filter.2 ⟨hmem, hsel⟩
+  have hlen := length_filter_selects_le_one l c x
+  have heq : (gens l).filter (selects c x) = [r] := by
+    rcases hf : (gens l).filter (selects c x) with _ | ⟨a, _ | ⟨b, t⟩⟩
+    · rw [hf] at hfil
+      exact absurd hfil List.not_mem_nil
+    · rw [hf] at hfil
+      rw [List.mem_singleton.1 hfil]
+    · rw [hf] at hlen
+      simp at hlen
+  rw [← List.head?_filter, heq]
+  rfl
+
+omit [DecidableEq κ] in
+/-- SNP-10 Horizons compose: pruning at two horizons is pruning at the later one, so a horizon
+only ever advances. -/
+theorem prune_prune (h h' : ℕ) (rs : List (Gen κ β)) :
+    prune h (prune h' rs) = prune (max h h') rs := by
+  unfold prune
+  rw [List.filter_filter]
+  refine List.filter_congr fun r _ ↦ ?_
+  cases r.died with
+  | none => rfl
+  | some d => simp [max_lt_iff]
 
 /-- SNP-4 At the head cut nothing is sealed: a chain of landings and retires serves what the
 store rewritten in place holds live. -/
@@ -817,6 +938,61 @@ theorem Consistent.of_grown {R' : K → ℕ → K → ℕ → Prop} {h c : Cut K
   (hR k i k' j hr).elim (fun h0 ↦ hcons k i k' j h0 hi)
     fun hle ↦ absurd (lt_of_lt_of_le hi (hc k)) (not_lt.2 hle)
 
+/-- SNP-10 Every frontier resolves among the positions the chains serve, when every chain serves
+its empty prefix: among the consistent cuts under the frontier with every position served there
+is a greatest. This is the cut a read is taken at when a store cannot serve the cut asked. -/
+theorem exists_resolvesIn (R : K → ℕ → K → ℕ → Prop) {S : K → Set ℕ} (h0 : ∀ k, 0 ∈ S k)
+    (f : Cut K) : ∃ c, ResolvesIn R S f c := by
+  have hne : ∀ k, (reachedIn R S f k).Nonempty := fun k ↦
+    ⟨0, fun _ ↦ 0, consistent_zero, fun k' ↦ h0 k', fun _ ↦ Nat.zero_le _, rfl⟩
+  have hbdd : ∀ k, BddAbove (reachedIn R S f k) := fun k ↦
+    ⟨f k, by rintro n ⟨d, -, -, hd, rfl⟩; exact hd k⟩
+  refine ⟨fun k ↦ sSup (reachedIn R S f k), ?_, ?_, ?_, ?_⟩
+  · intro k i k' j hR hi
+    obtain ⟨d, hd, hS, hdf, hdk⟩ := Nat.sSup_mem (hne k) (hbdd k)
+    have hj : j < d k' := hd k i k' j hR (by rw [hdk]; exact hi)
+    exact lt_of_lt_of_le hj (le_csSup (hbdd k') ⟨d, hd, hS, hdf, rfl⟩)
+  · intro k
+    obtain ⟨d, -, hS, -, hdk⟩ := Nat.sSup_mem (hne k) (hbdd k)
+    change sSup (reachedIn R S f k) ∈ S k
+    rw [← hdk]
+    exact hS k
+  · intro k
+    exact csSup_le (hne k) (by rintro n ⟨d, -, -, hd, rfl⟩; exact hd k)
+  · intro d hd hS hdf k
+    exact le_csSup (hbdd k) ⟨d, hd, hS, hdf, rfl⟩
+
+/-- A frontier resolves among the served positions to at most one cut. -/
+theorem ResolvesIn.unique {S : K → Set ℕ} {f c c' : Cut K} (h : ResolvesIn R S f c)
+    (h' : ResolvesIn R S f c') : c = c' :=
+  le_antisymm (h'.2.2.2 c h.1 h.2.1 h.2.2.1) (h.2.2.2 c' h'.1 h'.2.1 h'.2.2.1)
+
+/-- SNP-10 The cut read rises with what is served and with the frontier: a store that gains a
+past, or a later cut asked, never lowers the cut read. -/
+theorem ResolvesIn.mono {S S' : K → Set ℕ} {f f' c c' : Cut K} (hS : ∀ k, S k ⊆ S' k)
+    (hf : f ≤ f') (h : ResolvesIn R S f c) (h' : ResolvesIn R S' f' c') : c ≤ c' :=
+  h'.2.2.2 c h.1 (fun k ↦ hS k (h.2.1 k)) (h.2.2.1.trans hf)
+
+/-- When every position is served the cut read is the resolution of the frontier. -/
+theorem resolvesIn_univ {f c : Cut K} :
+    ResolvesIn R (fun _ ↦ Set.univ) f c ↔ Resolves R f c := by
+  constructor
+  · rintro ⟨h1, -, h3, h4⟩
+    exact ⟨h1, h3, fun d hd hdf ↦ h4 d hd (fun _ ↦ Set.mem_univ _) hdf⟩
+  · rintro ⟨h1, h2, h3⟩
+    exact ⟨h1, fun _ ↦ Set.mem_univ _, h2, fun d hd _ hdf ↦ h3 d hd hdf⟩
+
+/-- SNP-10 The cut read is never past the cut asked: it lies under the resolution of the
+frontier, so a read under `as of` holds no event from after the cut it names. -/
+theorem ResolvesIn.le_resolves {S : K → Set ℕ} {f c c' : Cut K} (h : ResolvesIn R S f c)
+    (h' : Resolves R f c') : c ≤ c' :=
+  h'.2.2 c h.1 h.2.2.1
+
+/-- A consistent frontier every position of which is served is read as asked. -/
+theorem resolvesIn_self {S : K → Set ℕ} {f : Cut K} (h : Consistent R f)
+    (hS : ∀ k, f k ∈ S k) : ResolvesIn R S f f :=
+  ⟨h, hS, le_rfl, fun _ _ _ hd ↦ hd⟩
+
 end Consistency
 
 /-! ### SNP-9 Certified cuts -/
@@ -972,6 +1148,16 @@ theorem servedNow_restores :
       servedNow l c () = none ∧ servedNow (l ++ t) c () = some 0 := by
   refine ⟨[((), some 0), ((), none)], [((), some 1)], 1, by decide, ?_, ?_⟩ <;>
     simp [servedNow, stateAt, stateOf]
+
+/-- The control for SNP-10: under the horizon the pruned store reads a key as absent where it
+held a value, and nothing in the rows that remain says which. So the horizon is recorded, and a
+cut under it is not served. -/
+theorem prune_forgets :
+    ∃ (l : List (Unit × ℕ)) (h c : ℕ), c < h ∧
+      genRead (prune h (gens l)) c () = none ∧ stateAt l c () = some 0 := by
+  refine ⟨[((), 0), ((), 1)], 2, 1, by decide, ?_, ?_⟩
+  · decide
+  · decide
 
 /-- The control for SNP-9: a digest that is not collision free pins nothing. Under addition two
 chains of one length and one digest differ. -/

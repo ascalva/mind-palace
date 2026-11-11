@@ -21,7 +21,8 @@ What is derived can be held three ways, and the model has each: recomputed from 
 checkpoint over the events between two cuts, `foldAt`), or kept by generation (`gens`: one row
 per write, valid from the cut that contains it up to the cut that contains the key's next write,
 read by `genRead`). The store rewritten in place is `stateOf`, the fold of the whole chain, which
-has no past.
+has no past. Retention drops the generations closed at or under a horizon (`prune`), after which
+the store serves the cuts from the horizon on.
 
 Two things are parameters of a read and no function of the cut, because they are the present's:
 the asker's **grant** (`snapshot`: the chains it names and the events it may see named) and the
@@ -32,7 +33,9 @@ position kept; `servedAt`: a key retired after the cut is served at no earlier c
 
 Events may read from events of other chains (`R k i k' j`: the `i`-th event of chain `k` reads
 from the `j`-th of chain `k'`); a cut is **consistent** when every source of an event inside it is
-inside it, and a frontier **resolves** to the greatest consistent cut under it. A cut is
+inside it, and a frontier **resolves** to the greatest consistent cut under it, or, where a store
+serves only some positions (those from its horizon on, and the empty prefix), to the greatest
+consistent cut under it among the served positions (`ResolvesIn`). A cut is
 **certified** by the digest of each chain's prefix under a chain digest (`chainDigest`, a fold),
 and a later store **verifies** the certificate when its own prefixes have those digests. A store
 that keeps a commitment beside each event (`committed`) can lose an event's content to an erasure
@@ -163,6 +166,11 @@ def selects [DecidableEq κ] (c : ℕ) (x : κ) (r : Gen κ β) : Bool :=
 def genRead [DecidableEq κ] (rs : List (Gen κ β)) (c : ℕ) (x : κ) : Option β :=
   (rs.find? (selects c x)).map Gen.val
 
+/-- Retention by a horizon: the generations kept are those whose closing stamp, if any, lies past
+the horizon. A row closed at or under the horizon is alive at no cut from the horizon on. -/
+def prune (h : ℕ) (rs : List (Gen κ β)) : List (Gen κ β) :=
+  rs.filter fun r ↦ r.died.all fun d ↦ decide (h < d)
+
 /-- A key is sealed at a cut when the chain retires it after the cut: a retire, the write of
 `none`, among the events the cut does not contain. -/
 def sealedAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : Bool :=
@@ -261,6 +269,19 @@ def reached (R : K → ℕ → K → ℕ → Prop) (f : Cut K) (k : K) : Set ℕ
 at the cut that resolves it. -/
 def Resolves (R : K → ℕ → K → ℕ → Prop) (f c : Cut K) : Prop :=
   Consistent R c ∧ c ≤ f ∧ ∀ d, Consistent R d → d ≤ f → d ≤ c
+
+/-- The positions of chain `k` that some consistent cut under the frontier `f`, every position
+of which its chain serves, reaches. -/
+def reachedIn (R : K → ℕ → K → ℕ → Prop) (S : K → Set ℕ) (f : Cut K) (k : K) : Set ℕ :=
+  {n | ∃ d, Consistent R d ∧ (∀ k', d k' ∈ S k') ∧ d ≤ f ∧ d k = n}
+
+/-- The cut `c` resolves the frontier `f` among the positions the chains serve: `S k` is the set
+of positions at which the store of chain `k` can be read exactly (every position from its horizon
+on, and the empty prefix), and `c` is the greatest consistent cut under `f` every position of
+which is served. It is the cut a read is taken at when the cut asked cannot be served whole. -/
+def ResolvesIn (R : K → ℕ → K → ℕ → Prop) (S : K → Set ℕ) (f c : Cut K) : Prop :=
+  Consistent R c ∧ (∀ k, c k ∈ S k) ∧ c ≤ f ∧
+    ∀ d, Consistent R d → (∀ k, d k ∈ S k) → d ≤ f → d ≤ c
 
 end Consistency
 
