@@ -94,7 +94,8 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   cut among them, which rises with what is served and never passes the cut asked
   (`exists_resolvesIn`, `ResolvesIn.unique`, `ResolvesIn.mono`, `ResolvesIn.le_resolves`,
   `resolvesIn_univ`). A chain that no other chain reads is lowered alone, every other chain
-  read as asked (`Consistent.update_of_unread`, `resolvesIn_update_of_unread`), and retention
+  read as asked (`Consistent.update_of_unread`, `resolvesIn_update_of_unread`,
+  `resolvesIn_of_unread`), and retention
   commutes with growth (`prune_landGen`). The controls: the pruned store read under its horizon,
   which cannot tell a lost key from one never written (`Witness.prune_forgets`,
   `Witness.prune_indistinct`); a record on a chain that content reads, which drags every reader
@@ -1261,6 +1262,38 @@ theorem resolvesIn_update_of_unread [DecidableEq K] {S : K → Set ℕ} {f : Cut
       rw [Function.update_self]
       exact hmax _ (hdS k) (hdf k)
     · rw [Function.update_of_ne hk]
+      exact hdf k
+
+/-- SNP-10 The same for every chain that no other chain reads, at once: from a consistent cut
+asked, when the chains others read serve their positions, the cut read is the cut asked with
+each unread chain at the greatest position it serves at or under the one asked. -/
+theorem resolvesIn_of_unread {S : K → Set ℕ} {f p : Cut K} (U : K → Prop) [DecidablePred U]
+    (hf : Consistent R f) (hS : ∀ k, ¬U k → f k ∈ S k)
+    (hU : ∀ k i x j, U x → R k i x j → k = x ∧ j ≤ i)
+    (hp : ∀ x, U x → p x ∈ S x ∧ p x ≤ f x ∧ ∀ q ∈ S x, q ≤ f x → q ≤ p x) :
+    ResolvesIn R S f fun k ↦ if U k then p k else f k := by
+  have hle : ∀ k, (if U k then p k else f k) ≤ f k := fun k ↦ by
+    by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).2.1
+    · simp only [hk, ↓reduceIte]
+      exact le_rfl
+  refine ⟨fun k i k' j hr hi ↦ ?_, fun k ↦ ?_, hle, fun d _ hdS hdf k ↦ ?_⟩
+  · have hj := hf k i k' j hr (lt_of_lt_of_le hi (hle k))
+    by_cases hk' : U k'
+    · obtain ⟨rfl, hji⟩ := hU k i k' j hk' hr
+      exact lt_of_le_of_lt hji hi
+    · simp only [hk', ↓reduceIte]
+      exact hj
+  · by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).1
+    · simp only [hk, ↓reduceIte]
+      exact hS k hk
+  · by_cases hk : U k
+    · simp only [hk, ↓reduceIte]
+      exact (hp k hk).2.2 _ (hdS k) (hdf k)
+    · simp only [hk, ↓reduceIte]
       exact hdf k
 
 theorem ResolvesIn.le_on_of_closed {R' : K → ℕ → K → ℕ → Prop} {S S' : K → Set ℕ}
