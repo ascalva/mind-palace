@@ -28,7 +28,11 @@ positions without the descent, the floor and the descent each run once in either
 that loses its key, a chain that others read lowered alone, and each law of growth, order and
 composition with its hypothesis dropped or its sides exchanged. The served resolver is
 executable here too: the floor and the descent alternated until nothing moves, tested against
-the enumeration. They run when this module builds (`lake test`).
+the enumeration. So is the row filter: the rows no chain of sources leads outside the cut,
+tested against every set of rows of the two chains that lies inside the cut and holds its own
+sources; its controls are the filter without its closure, the prefix taken for the filtered
+read, and a chain that follows a lowered chain read as asked. They run when this module builds
+(`lake test`).
 -/
 
 @[expose] public section
@@ -127,6 +131,41 @@ def into0 (es : List Edge) : List Edge := es.filter fun e ↦ e.2.1 = 0
 
 /-- Chain 0 serves every position and chain 1 the positions of the mask. -/
 def sv1 (m : Fin 1024) (k : Fin 2) (q : ℕ) : Bool := k == 0 || sv m 1 q
+
+/-- The edges of a store whose chain 1 is read by itself and by chain 0, and whose chain 0 is
+read by itself alone, each chain's own references pointing backward: chain 0 follows chain 1. -/
+def foll (es : List Edge) : List Edge :=
+  es.filter fun e ↦ (e.1.1 = 0 || e.2.1 = 1) && (e.1.1 != e.2.1 || decide (e.2.2 ≤ e.1.2))
+
+/-- The eight events of two chains of four positions. -/
+def evs : List (Fin 2 × Fin 4) := (List.finRange 2).flatMap fun k ↦ (List.finRange 4).map (k, ·)
+
+/-- One pass of the row filter: the rows with a source outside the cut or a source already
+withheld. -/
+def withholdStep (es : List Edge) (c : ℕ × ℕ) (w : List (Fin 2 × Fin 4)) :
+    List (Fin 2 × Fin 4) :=
+  evs.filter fun x ↦ es.any fun e ↦
+    e.1 == x && (!decide (e.2.2.val < at2 c e.2.1) || w.contains e.2)
+
+/-- The executable row filter: the rows inside the cut that no chain of sources leads outside
+it, the pass run as many times as there are rows. -/
+def keptRows (es : List Edge) (c : ℕ × ℕ) : List (Fin 2 × Fin 4) :=
+  evs.filter fun x ↦
+    decide (x.2.val < at2 c x.1) && !((withholdStep es c)^[8] []).contains x
+
+/-- A set of rows from eight bits. -/
+def rowSet (m : Fin 256) : List (Fin 2 × Fin 4) :=
+  evs.filter fun x ↦ m.val.testBit (4 * x.1.val + x.2.val)
+
+/-- A set of rows lies inside the cut and holds the sources of its rows. -/
+def closedIn (es : List Edge) (c : ℕ × ℕ) (t : List (Fin 2 × Fin 4)) : Bool :=
+  t.all (fun x ↦ decide (x.2.val < at2 c x.1))
+    && es.all fun e ↦ !t.contains e.1 || t.contains e.2
+
+/-- The rows whose own sources lie inside the cut: the filter without its closure. -/
+def oneStep (es : List Edge) (c : ℕ × ℕ) : List (Fin 2 × Fin 4) :=
+  evs.filter fun x ↦ decide (x.2.val < at2 c x.1)
+    && es.all fun e ↦ !(e.1 == x) || decide (e.2.2.val < at2 c e.2.1)
 
 /-- An erasure of keyed writes by their value. -/
 def ek (e : Fin 8) (w : Fin 3 × Fin 3) : Bool := pf e w.2
@@ -629,5 +668,48 @@ the frontier. -/
 #eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
   (List.finRange 2).all (fun k ↦
     at2 (bestIn es (sv m) x.val y.val) k == resolve es x.val y.val k) = true) 508
+
+/- SNP-8: the filtered read is closed, and it is the greatest closed set of rows inside the
+cut: every such set lies in it. -/
+#eval survives (∀ (es : List Edge) (x y : Fin 6) (m : Fin 256),
+  (closedIn es (x.val, y.val) (keptRows es (x.val, y.val))
+    && (!closedIn es (x.val, y.val) (rowSet m)
+      || (rowSet m).all fun r ↦ (keptRows es (x.val, y.val)).contains r)) = true) 514
+
+/- SNP-2: a row kept at a cut is kept at every later cut. -/
+#eval survives (∀ (es : List Edge) (x y u v : Fin 6),
+  ((keptRows es (min x.val u.val, min y.val v.val)).all fun r ↦
+    (keptRows es (x.val, y.val)).contains r) = true) 515
+
+/- SNP-8: at a consistent cut the filter withholds nothing. -/
+#eval survives (∀ (es : List Edge) (x y : Fin 6),
+  (keptRows es (resolve es x.val y.val 0, resolve es x.val y.val 1)
+    == evs.filter fun r ↦ decide (r.2.val < resolve es x.val y.val r.1)) = true) 516
+
+/- Control: the rows whose own sources lie inside the cut are not closed: a row is withheld
+through a source that is withheld. -/
+#eval refuted (∀ (es : List Edge) (x y : Fin 6),
+  closedIn es (x.val, y.val) (oneStep es (x.val, y.val)) = true) 517
+
+/- Control: at a cut that is not consistent the prefix is not the filtered read. -/
+#eval refuted (∀ (es : List Edge) (x y : Fin 6),
+  (keptRows es (x.val, y.val) == evs.filter fun r ↦ decide (r.2.val < at2 (x.val, y.val) r.1))
+    = true) 518
+
+/- SNP-10: a chain that reads a lowered chain follows it. Chain 1 is read by itself and by
+chain 0, chain 0 by itself alone. From a consistent frontier the cut read has chain 1 at the
+greatest position it serves and chain 0 at the first of its events that reads chain 1 past
+that position. -/
+#eval survives (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (bestIn (foll es) (sv1 m) (resolve (foll es) x.val y.val 0) (resolve (foll es) x.val y.val 1)
+    == (lowerAt (foll es) (resolve (foll es) x.val y.val 0,
+        floorSv (sv1 m) 1 (resolve (foll es) x.val y.val 1)) 0,
+      floorSv (sv1 m) 1 (resolve (foll es) x.val y.val 1))) = true) 519
+
+/- Control: the chain that follows is not read as asked. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (bestIn (foll es) (sv1 m) (resolve (foll es) x.val y.val 0) (resolve (foll es) x.val y.val 1)
+    == (resolve (foll es) x.val y.val 0,
+      floorSv (sv1 m) 1 (resolve (foll es) x.val y.val 1))) = true) 520
 
 end Palace.Snapshot.Attack
