@@ -1,0 +1,922 @@
+module
+
+public import Palace.Snapshot.Defs
+public import Palace.Clock
+public import Mathlib.Data.List.Induction
+public import Mathlib.Data.List.ReduceOption
+public import Mathlib.Order.Lattice
+public import Mathlib.Order.Lattice.Nat
+public import Mathlib.Order.Sublattice
+
+/-!
+# The temporal snapshot: the laws of a read at a cut
+
+Design theorems of `docs/design-notes/dn-temporal-snapshot.md`, proved before any code reads a
+store at a cut, on the model of `Palace/Snapshot/Defs.lean`: a store is a family of append chains,
+a cut a prefix length for each. Cited from the note, not from the ledger.
+
+* SNP-1, append invariance: a read at a cut inside the store, a read between two such cuts and
+  every derived view of them are the same after any growth of the store (`readAt_grow`,
+  `readAt_of_extends`, `readBetween_grow`, `appendInvariant_view`). The control is the reader that
+  ignores the cut (`Witness.present_not_appendInvariant`).
+* SNP-2, monotonicity: the read at an earlier cut is a prefix of the read at a later one, and a
+  cut of a cut is the meet (`readAt_mono`, `readAt_readAt`, `head_readAt`).
+* SNP-3, composition: the read at `a` followed by the read between `a` and `b` is the read at
+  `b`, and two adjacent reads-between compose (`readAt_append_readBetween`,
+  `readBetween_append`); so a fold continued from a checkpoint over the events since is the fold
+  of the whole prefix (`foldAt_readBetween`, `stateAt_eq_foldl`): a job's checkpoint is a cut.
+* SNP-4, idempotence: the read at the head cut is the store, and every derived view at it is
+  the derivation of the present (`readAt_head`, `view_head`, `genRead_gens_length`).
+* SNP-5, a derived view is a function of the prefixes: a reader is append invariant exactly when
+  it reads only the prefixes, exactly when it is a derived view
+  (`appendInvariant_iff_prefixOnly`, `appendInvariant_iff_exists_view`). For a store of keyed
+  writes the three ways of holding it agree: the generational store read at a cut is the state
+  recomputed from the prefix (`genRead_gens`), it is the last write inside the prefix
+  (`stateAt_eq_lastWrite`), and at most one generation of a key is alive at a cut
+  (`length_filter_selects_le_one`). The store rewritten in place determines no read at a past
+  cut (`Witness.stateOf_forgets`).
+* SNP-6, grant restriction: a narrower grant's snapshot is the restriction of a wider one's, a
+  snapshot reads only the chains the grant names and the cut on them, and it is append
+  invariant (`snapshot_narrow`, `snapshot_congr`, `snapshot_grow`). Restricting to chains commutes
+  with the cut; filtering events before the cut does not, and a cut's positions count the events
+  a filter hides (`restrict_readAt`, `Witness.filter_before_cut`, `Witness.position_channel`).
+* SNP-7, erasure dominance: no erased event is visible at any cut, a larger erasure shows a
+  sublist, the store with holes keeps every position, and two stores that differ only in erased
+  events give every derived view the same reading at every cut (`not_erased_of_mem_visible`,
+  `visible_sublist`, `redact_readAt`, `erased_invisible`); a kept derived row is served only when
+  none of its sources is erased (`mem_serve_iff`); a key retired after a cut is served at no
+  earlier cut, and growth of the chain changes a served value only by removing it
+  (`servedAt_append_of_retire`, `servedAt_append_of_no_retire`, `servedAt_of_append`). The control
+  is the erasure that deletes rows (`Witness.compact_moves`).
+* SNP-8, consistent cuts: closed under meet and join, so a sublattice of the cuts
+  (`Consistent.inf`, `Consistent.sup`, `consistentCuts`); they are the clock's cuts, CLK-2, among
+  the frontier cuts (`consistent_iff_isCut`); every frontier resolves to exactly one greatest
+  consistent cut under it, monotonically (`exists_resolves`, `Resolves.unique`, `Resolves.mono`);
+  and a consistent cut stays consistent as the store grows (`Consistent.of_grown`).
+* SNP-9, certified cuts: the certificate of a cut verifies on every extension of the store, two
+  stores that verify one certificate under a collision-free digest have the same read at its cut
+  and so the same derived views, a certificate extends over the events since an earlier one, the
+  meet and the join of two certified cuts are certified from the two certificates alone, and an
+  erasure that keeps commitments keeps every certificate (`verifies_certify_of_extends`,
+  `Verifies.readAt_eq`, `Verifies.view_eq`, `certify_digest_readBetween`, `certify_inf`,
+  `certify_sup`, `verifies_purge`).
+-/
+
+@[expose] public section
+
+namespace Palace.Snapshot
+
+/-! ### SNP-1 to SNP-4 Reads -/
+
+section Reads
+
+variable {K α β : Type*}
+
+theorem extends_grow (s t : Store K α) : Extends s (grow s t) := fun _ ↦ List.prefix_append _ _
+
+/-- An extension of a store is the store grown: append is all that happened. -/
+theorem Extends.exists_grow {s s' : Store K α} (h : Extends s s') : ∃ t, s' = grow s t :=
+  ⟨fun k ↦ (s' k).drop (s k).length, funext fun k ↦ (List.prefix_iff_eq_append.1 (h k)).symm⟩
+
+theorem Extends.head_le {s s' : Store K α} (h : Extends s s') : head s ≤ head s' :=
+  fun k ↦ (h k).length_le
+
+/-- SNP-1 Append invariance: the read at a cut inside the store does not change when the store
+grows. -/
+theorem readAt_grow {s : Store K α} (t : Store K α) {c : Cut K} (h : c ≤ head s) :
+    readAt (grow s t) c = readAt s c :=
+  funext fun k ↦ List.take_append_of_le_length (h k)
+
+/-- SNP-1 The same over every extension: a later state of an append-only store reads, at a cut
+of an earlier state, what the earlier state read. -/
+theorem readAt_of_extends {s s' : Store K α} {c : Cut K} (h : Extends s s') (hc : c ≤ head s) :
+    readAt s' c = readAt s c := by
+  obtain ⟨t, rfl⟩ := h.exists_grow
+  exact readAt_grow t hc
+
+/-- SNP-1 The read between two cuts inside the store does not change when the store grows. -/
+theorem readBetween_grow {s : Store K α} (t : Store K α) (a : Cut K) {b : Cut K}
+    (h : b ≤ head s) : readBetween (grow s t) a b = readBetween s a b :=
+  funext fun k ↦ congrArg (List.drop (a k)) (List.take_append_of_le_length (h k))
+
+/-- SNP-1 Every derived view is append invariant. -/
+theorem appendInvariant_view (D : Store K α → β) : AppendInvariant (view D) :=
+  fun _ t _ h ↦ congrArg D (readAt_grow t h)
+
+theorem readAt_extends (s : Store K α) (c : Cut K) : Extends (readAt s c) s :=
+  fun k ↦ List.take_prefix (c k) (s k)
+
+/-- SNP-2 Monotonicity: the read at an earlier cut is a prefix, chain by chain, of the read at a
+later one. -/
+theorem readAt_mono (s : Store K α) {c d : Cut K} (h : c ≤ d) :
+    Extends (readAt s c) (readAt s d) :=
+  fun k ↦ List.take_prefix_take_left (h k)
+
+/-- SNP-2 An event read at a cut is read at every later cut. -/
+theorem mem_readAt_of_le {s : Store K α} {c d : Cut K} (h : c ≤ d) {k : K} {a : α}
+    (ha : a ∈ readAt s c k) : a ∈ readAt s d k :=
+  (readAt_mono s h k).subset ha
+
+/-- SNP-2 A cut of a cut is the meet of the two. -/
+theorem readAt_readAt (s : Store K α) (c d : Cut K) :
+    readAt (readAt s c) d = readAt s (d ⊓ c) :=
+  funext fun _ ↦ List.take_take
+
+theorem head_readAt (s : Store K α) (c : Cut K) : head (readAt s c) = c ⊓ head s :=
+  funext fun _ ↦ List.length_take
+
+theorem head_readAt_of_le {s : Store K α} {c : Cut K} (h : c ≤ head s) :
+    head (readAt s c) = c := by
+  rw [head_readAt, inf_of_le_left h]
+
+/-- SNP-4 A cut at or past the head reads the store. -/
+theorem readAt_of_head_le {s : Store K α} {c : Cut K} (h : head s ≤ c) : readAt s c = s :=
+  funext fun k ↦ List.take_of_length_le (h k)
+
+/-- SNP-4 Idempotence: the read at the head cut is the store. -/
+theorem readAt_head (s : Store K α) : readAt s (head s) = s := readAt_of_head_le le_rfl
+
+/-- SNP-4 Every derived view at the head cut is the derivation of the present: `as of` the
+current cut is no `as of`. -/
+theorem view_head (D : Store K α → β) (s : Store K α) : view D s (head s) = D s :=
+  congrArg D (readAt_head s)
+
+theorem drop_take_append_drop (l : List α) {a b : ℕ} (h : a ≤ b) :
+    (l.take b).drop a ++ l.drop b = l.drop a := by
+  conv_rhs => rw [← List.take_append_drop b l, List.drop_append]
+  congr 1
+  rcases Nat.le_total b l.length with hb | hb
+  · rw [List.length_take, Nat.min_eq_left hb, Nat.sub_eq_zero_of_le h, List.drop_zero]
+  · rw [List.drop_of_length_le hb, List.drop_nil]
+
+/-- SNP-3 Composition: the read at `a` followed by the read between `a` and `b` is the read at
+`b`. -/
+theorem readAt_append_readBetween (s : Store K α) {a b : Cut K} (h : a ≤ b) :
+    grow (readAt s a) (readBetween s a b) = readAt s b := by
+  funext k
+  have h1 : (s k).take (a k) = ((s k).take (b k)).take (a k) := by
+    rw [List.take_take, Nat.min_eq_left (h k)]
+  change (s k).take (a k) ++ ((s k).take (b k)).drop (a k) = (s k).take (b k)
+  rw [h1, List.take_append_drop]
+
+/-- SNP-3 Two adjacent reads-between compose. -/
+theorem readBetween_append (s : Store K α) {a b c : Cut K} (hab : a ≤ b) (hbc : b ≤ c) :
+    grow (readBetween s a b) (readBetween s b c) = readBetween s a c := by
+  funext k
+  have h1 : (s k).take (b k) = ((s k).take (c k)).take (b k) := by
+    rw [List.take_take, Nat.min_eq_left (hbc k)]
+  change ((s k).take (b k)).drop (a k) ++ ((s k).take (c k)).drop (b k)
+    = ((s k).take (c k)).drop (a k)
+  rw [h1]
+  exact drop_take_append_drop _ (hab k)
+
+/-- The read between the empty cut and a cut is the read at it. -/
+theorem readBetween_zero (s : Store K α) (b : Cut K) :
+    readBetween s (fun _ ↦ 0) b = readAt s b := rfl
+
+/-- The read between a cut and itself is empty. -/
+theorem readBetween_self (s : Store K α) (a : Cut K) : readBetween s a a = fun _ ↦ [] := by
+  funext k
+  refine List.drop_of_length_le ?_
+  rw [List.length_take]
+  exact Nat.min_le_left _ _
+
+/-- The read between a cut and the head is what the store appended since the cut. -/
+theorem readBetween_head (s : Store K α) (a : Cut K) :
+    readBetween s a (head s) = fun k ↦ (s k).drop (a k) := by
+  funext k
+  change ((s k).take (s k).length).drop (a k) = (s k).drop (a k)
+  rw [List.take_length]
+
+/-- SNP-3 The journal: a fold of the prefixes at a later cut is the fold at an earlier cut
+continued over the events between the two. A job that keeps its state and the cut it stopped at
+reads only the delta. -/
+theorem foldAt_readBetween (f : β → α → β) (init : K → β) (s : Store K α) {a b : Cut K}
+    (h : a ≤ b) (k : K) :
+    foldAt f init s b k = (readBetween s a b k).foldl f (foldAt f init s a k) :=
+  calc foldAt f init s b k
+      = ((s k).take (a k) ++ ((s k).take (b k)).drop (a k)).foldl f (init k) :=
+        congrArg (fun l ↦ l.foldl f (init k)) (congrFun (readAt_append_readBetween s h) k).symm
+    _ = _ := List.foldl_append
+
+/-- SNP-5 A derived view reads only the prefixes. -/
+theorem prefixOnly_view (D : Store K α → β) : PrefixOnly (view D) := fun s c _ ↦ by
+  change D (readAt s c) = D (readAt (readAt s c) c)
+  rw [readAt_readAt, inf_idem]
+
+/-- SNP-5 Two stores with the same prefixes at a cut give every derived view the same
+reading. -/
+theorem view_congr (D : Store K α → β) {s s' : Store K α} {c : Cut K}
+    (h : readAt s c = readAt s' c) : view D s c = view D s' c := congrArg D h
+
+/-- SNP-5 A reader is append invariant exactly when it reads only the prefixes. -/
+theorem appendInvariant_iff_prefixOnly (F : Store K α → Cut K → β) :
+    AppendInvariant F ↔ PrefixOnly F := by
+  constructor
+  · intro h s c hc
+    obtain ⟨t, ht⟩ := (readAt_extends s c).exists_grow
+    have hc' : c ≤ head (readAt s c) := le_of_eq (head_readAt_of_le hc).symm
+    calc F s c = F (grow (readAt s c) t) c := by rw [← ht]
+      _ = F (readAt s c) c := h _ t c hc'
+  · intro h s t c hc
+    rw [h (grow s t) c (hc.trans (extends_grow s t).head_le), readAt_grow t hc, ← h s c hc]
+
+/-- SNP-5 A reader is append invariant exactly when it is a derived view: on cuts inside the
+store, a function of the prefixes alone. -/
+theorem appendInvariant_iff_exists_view (F : Store K α → Cut K → β) :
+    AppendInvariant F ↔ ∃ D : Store K α → β, ∀ s c, c ≤ head s → F s c = view D s c := by
+  rw [appendInvariant_iff_prefixOnly]
+  constructor
+  · intro h
+    refine ⟨fun t ↦ F t (head t), fun s c hc ↦ ?_⟩
+    change F s c = F (readAt s c) (head (readAt s c))
+    rw [head_readAt_of_le hc]
+    exact h s c hc
+  · rintro ⟨D, hD⟩ s c hc
+    have hc' : c ≤ head (readAt s c) := le_of_eq (head_readAt_of_le hc).symm
+    rw [hD s c hc, hD (readAt s c) c hc']
+    exact prefixOnly_view D s c hc
+
+end Reads
+
+/-! ### SNP-5 A derived store, three ways -/
+
+section Generations
+
+variable {κ β : Type*} [DecidableEq κ]
+
+theorem stateOf_append_singleton (l : List (κ × β)) (e : κ × β) :
+    stateOf (l ++ [e]) = Function.update (stateOf l) e.1 (some e.2) := by
+  simp only [stateOf, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+theorem stateAt_length (l : List (κ × β)) : stateAt l l.length = stateOf l := by
+  unfold stateAt
+  rw [List.take_length]
+
+theorem stateAt_of_length_le {l : List (κ × β)} {c : ℕ} (h : l.length ≤ c) :
+    stateAt l c = stateOf l := by
+  unfold stateAt
+  rw [List.take_of_length_le h]
+
+/-- SNP-1 The state at a cut inside the chain does not change when the chain grows. -/
+theorem stateAt_append {l : List (κ × β)} (t : List (κ × β)) {c : ℕ} (h : c ≤ l.length) :
+    stateAt (l ++ t) c = stateAt l c := by
+  unfold stateAt
+  rw [List.take_append_of_le_length h]
+
+/-- SNP-3 The journal of the keyed state: the state at a later cut is the state at an earlier
+cut with the writes between the two applied in order. -/
+theorem stateAt_eq_foldl (l : List (κ × β)) {a b : ℕ} (h : a ≤ b) :
+    stateAt l b = ((l.take b).drop a).foldl
+      (fun (m : κ → Option β) (e : κ × β) ↦ Function.update m e.1 (some e.2)) (stateAt l a) := by
+  have h1 : l.take a = (l.take b).take a := by rw [List.take_take, Nat.min_eq_left h]
+  unfold stateAt stateOf
+  rw [h1, ← List.foldl_append, List.take_append_drop]
+
+theorem stateOf_eq_find? (l : List (κ × β)) (x : κ) :
+    stateOf l x = (l.reverse.find? fun e ↦ decide (e.1 = x)).map Prod.snd := by
+  induction l using List.reverseRecOn with
+  | nil => rfl
+  | append_singleton l e ih =>
+    rw [stateOf_append_singleton, List.reverse_append, List.reverse_singleton,
+      List.singleton_append]
+    by_cases hx : e.1 = x
+    · simp [hx]
+    · simp [hx, Function.update_of_ne (Ne.symm hx), ih]
+
+/-- SNP-5 The state at a cut is the last write of the key inside the prefix: one seek on an
+index of (key, position). -/
+theorem stateAt_eq_lastWrite (l : List (κ × β)) (c : ℕ) (x : κ) :
+    stateAt l c x = lastWrite l c x :=
+  stateOf_eq_find? _ x
+
+theorem closeAt_key (x : κ) (p : ℕ) (r : Gen κ β) : (closeAt x p r).key = r.key := by
+  unfold closeAt
+  split_ifs <;> rfl
+
+theorem closeAt_val (x : κ) (p : ℕ) (r : Gen κ β) : (closeAt x p r).val = r.val := by
+  unfold closeAt
+  split_ifs <;> rfl
+
+theorem closeAt_of_ne {x : κ} {r : Gen κ β} (h : r.key ≠ x) (p : ℕ) : closeAt x p r = r := by
+  simp only [closeAt, h, false_and, ↓reduceIte]
+
+/-- Closing a row at a position past the cut changes nothing the cut selects. -/
+theorem selects_closeAt_of_lt (x y : κ) {c p : ℕ} (h : c < p) (r : Gen κ β) :
+    selects c x (closeAt y p r) = selects c x r := by
+  unfold closeAt
+  split_ifs with hr
+  · simp [selects, Gen.aliveAt, hr.2, h]
+  · rfl
+
+/-- Closing the rows of one key changes nothing a read of another key selects. -/
+theorem selects_closeAt_of_ne {x y : κ} (h : x ≠ y) (c p : ℕ) (r : Gen κ β) :
+    selects c x (closeAt y p r) = selects c x r := by
+  by_cases hr : r.key = y
+  · have hx : r.key ≠ x := fun h' ↦ h (h'.symm.trans hr)
+    simp [selects, closeAt_key, hx]
+  · rw [closeAt_of_ne hr]
+
+/-- A row of the key closed at a position inside the cut is not selected, when every earlier
+closing stamp lies under that position. -/
+theorem selects_closeAt_self {y : κ} {n c : ℕ} (hc : n + 1 ≤ c) {r : Gen κ β}
+    (hr : ∀ d, r.died = some d → d ≤ n) : selects c y (closeAt y (n + 1) r) = false := by
+  unfold closeAt
+  split_ifs with h
+  · simp [selects, Gen.aliveAt, Nat.not_lt.2 hc]
+  · by_cases hk : r.key = y
+    · obtain ⟨d, hd⟩ := Option.ne_none_iff_exists'.1 fun h0 ↦ h ⟨hk, h0⟩
+      have hcd : ¬c < d := by have := hr d hd; omega
+      simp [selects, Gen.aliveAt, hd, hcd]
+    · simp [selects, hk]
+
+theorem gens_nil : gens ([] : List (κ × β)) = [] := rfl
+
+/-- The generational store is appended to, and one closing stamp is written: the landing of a
+write closes the key's open row and opens its own. -/
+theorem gens_append_singleton (l : List (κ × β)) (e : κ × β) :
+    gens (l ++ [e]) = landGen (gens l) (l.length + 1) e := by
+  simp [gens, gensRev]
+
+theorem died_le_of_mem_gens {l : List (κ × β)} {r : Gen κ β} (hr : r ∈ gens l) :
+    ∀ d, r.died = some d → d ≤ l.length := by
+  induction l using List.reverseRecOn generalizing r with
+  | nil => simp [gens_nil] at hr
+  | append_singleton l e ih =>
+    rw [gens_append_singleton] at hr
+    intro d hd
+    rw [List.length_append, List.length_singleton]
+    rcases List.mem_append.1 hr with hr | hr
+    · obtain ⟨r', hr', rfl⟩ := List.mem_map.1 hr
+      unfold closeAt at hd
+      split_ifs at hd with h
+      · have h1 : l.length + 1 = d := Option.some.inj hd
+        omega
+      · exact (ih hr' d hd).trans (Nat.le_succ _)
+    · rw [List.mem_singleton.1 hr] at hd
+      exact absurd hd (by simp)
+
+theorem find?_landGen_of_stable {rs : List (Gen κ β)} {p : ℕ} {e : κ × β}
+    {q : Gen κ β → Bool} (hq : ∀ r, q (closeAt e.1 p r) = q r)
+    (hnew : q ⟨e.1, e.2, p, none⟩ = false) :
+    ((landGen rs p e).find? q).map Gen.val = (rs.find? q).map Gen.val := by
+  have hcomp : q ∘ closeAt e.1 p = q := funext hq
+  unfold landGen
+  rw [List.find?_append, List.find?_map, hcomp, List.find?_singleton, hnew]
+  simp [Function.comp_def, closeAt_val]
+
+theorem find?_landGen_of_new {rs : List (Gen κ β)} {p : ℕ} {e : κ × β} {q : Gen κ β → Bool}
+    (hq : ∀ r ∈ rs, q (closeAt e.1 p r) = false) (hnew : q ⟨e.1, e.2, p, none⟩ = true) :
+    (landGen rs p e).find? q = some ⟨e.1, e.2, p, none⟩ := by
+  have hnone : (rs.map (closeAt e.1 p)).find? q = none := by
+    rw [List.find?_eq_none]
+    intro r hr
+    obtain ⟨r', hr', rfl⟩ := List.mem_map.1 hr
+    simp [hq r' hr']
+  simp only [landGen, List.find?_append, hnone, Option.none_or, List.find?_singleton, hnew,
+    ↓reduceIte]
+
+/-- SNP-5 Generations are recomputation: the generational store read at a cut is the state
+recomputed from the chain's prefix, at every cut. -/
+theorem genRead_gens (l : List (κ × β)) (c : ℕ) (x : κ) :
+    genRead (gens l) c x = stateAt l c x := by
+  induction l using List.reverseRecOn with
+  | nil => simp [genRead, gens_nil, stateAt, stateOf]
+  | append_singleton l e ih =>
+    rw [gens_append_singleton]
+    unfold genRead at ih ⊢
+    rcases Nat.lt_or_ge c (l.length + 1) with hc | hc
+    · rw [find?_landGen_of_stable (rs := gens l) (p := l.length + 1) (e := e) (q := selects c x)
+        (fun r ↦ selects_closeAt_of_lt x e.1 hc r)
+        (by simp [selects, Gen.aliveAt, Nat.not_le.2 hc]), ih,
+        stateAt_append [e] (Nat.le_of_lt_succ hc)]
+    · have hlen : (l ++ [e]).length ≤ c := by simpa using hc
+      rw [stateAt_of_length_le hlen, stateOf_append_singleton]
+      by_cases hx : x = e.1
+      · subst hx
+        rw [find?_landGen_of_new (rs := gens l) (p := l.length + 1) (e := e)
+          (q := selects c e.1) (fun r hr ↦ selects_closeAt_self hc (died_le_of_mem_gens hr))
+          (by simp [selects, Gen.aliveAt, hc])]
+        simp only [Option.map_some, Function.update_self]
+      · rw [find?_landGen_of_stable (rs := gens l) (p := l.length + 1) (e := e)
+          (q := selects c x) (fun r ↦ selects_closeAt_of_ne hx c _ r)
+          (by simp [selects, Ne.symm hx]), ih, Function.update_of_ne hx,
+          stateAt_of_length_le (Nat.le_of_succ_le hc)]
+
+/-- SNP-4 At the head cut the generational store reads the store rewritten in place. -/
+theorem genRead_gens_length (l : List (κ × β)) (x : κ) :
+    genRead (gens l) l.length x = stateOf l x := by
+  rw [genRead_gens, stateAt_length]
+
+/-- SNP-1 The generational store read at a cut inside the chain does not change when the chain
+grows, though the growth writes closing stamps into it. -/
+theorem genRead_gens_append {l : List (κ × β)} (t : List (κ × β)) {c : ℕ} (h : c ≤ l.length)
+    (x : κ) : genRead (gens (l ++ t)) c x = genRead (gens l) c x := by
+  rw [genRead_gens, genRead_gens, stateAt_append t h]
+
+theorem length_filter_landGen_of_stable {rs : List (Gen κ β)} {p : ℕ} {e : κ × β}
+    {q : Gen κ β → Bool} (hq : ∀ r, q (closeAt e.1 p r) = q r)
+    (hnew : q ⟨e.1, e.2, p, none⟩ = false) :
+    ((landGen rs p e).filter q).length = (rs.filter q).length := by
+  have hcomp : q ∘ closeAt e.1 p = q := funext hq
+  unfold landGen
+  rw [List.filter_append, List.filter_map, hcomp]
+  simp [hnew]
+
+theorem length_filter_landGen_of_new {rs : List (Gen κ β)} {p : ℕ} {e : κ × β}
+    {q : Gen κ β → Bool} (hq : ∀ r ∈ rs, q (closeAt e.1 p r) = false)
+    (hnew : q ⟨e.1, e.2, p, none⟩ = true) : ((landGen rs p e).filter q).length = 1 := by
+  have hnil : (rs.map (closeAt e.1 p)).filter q = [] := by
+    rw [List.filter_eq_nil_iff]
+    intro r hr
+    obtain ⟨r', hr', rfl⟩ := List.mem_map.1 hr
+    simp [hq r' hr']
+  unfold landGen
+  rw [List.filter_append, hnil]
+  simp [hnew]
+
+/-- SNP-5 At most one generation of a key is alive at a cut: the snapshot of a keyed store is a
+transversal of its chains. -/
+theorem length_filter_selects_le_one (l : List (κ × β)) (c : ℕ) (x : κ) :
+    ((gens l).filter (selects c x)).length ≤ 1 := by
+  induction l using List.reverseRecOn with
+  | nil => simp [gens_nil]
+  | append_singleton l e ih =>
+    rw [gens_append_singleton]
+    rcases Nat.lt_or_ge c (l.length + 1) with hc | hc
+    · exact (length_filter_landGen_of_stable (rs := gens l) (p := l.length + 1) (e := e)
+        (q := selects c x) (fun r ↦ selects_closeAt_of_lt x e.1 hc r)
+        (by simp [selects, Gen.aliveAt, Nat.not_le.2 hc])).le.trans ih
+    · by_cases hx : x = e.1
+      · subst hx
+        exact (length_filter_landGen_of_new (rs := gens l) (p := l.length + 1) (e := e)
+          (q := selects c e.1) (fun r hr ↦ selects_closeAt_self hc (died_le_of_mem_gens hr))
+          (by simp [selects, Gen.aliveAt, hc])).le
+      · exact (length_filter_landGen_of_stable (rs := gens l) (p := l.length + 1) (e := e)
+          (q := selects c x) (fun r ↦ selects_closeAt_of_ne hx c _ r)
+          (by simp [selects, Ne.symm hx])).le.trans ih
+
+/-- SNP-4 At the head cut nothing is sealed: a chain of landings and retires serves what the
+store rewritten in place holds live. -/
+theorem servedAt_length (l : List (κ × Option β)) (x : κ) :
+    servedAt l l.length x = (stateOf l x).join := by
+  simp [servedAt, sealedAt, stateAt_length]
+
+/-- SNP-7 What is served at a cut is what the key held at the cut: the seal only withholds. -/
+theorem stateAt_of_servedAt {l : List (κ × Option β)} {c : ℕ} {x : κ} {v : β}
+    (h : servedAt l c x = some v) : stateAt l c x = some (some v) := by
+  by_cases hs : sealedAt l c x = true
+  · simp [servedAt, hs] at h
+  · simp only [servedAt, hs] at h
+    exact Option.join_eq_some_iff.1 h
+
+theorem sealedAt_append {l : List (κ × Option β)} (t : List (κ × Option β)) {c : ℕ}
+    (hc : c ≤ l.length) (x : κ) :
+    sealedAt (l ++ t) c x = (sealedAt l c x || t.any fun e ↦ decide (e.1 = x) && e.2.isNone) := by
+  unfold sealedAt
+  rw [List.drop_append_of_le_length hc, List.any_append]
+
+/-- SNP-7 Erasure dominance for a retire: once the chain retires a key, no cut before the
+retire serves the key. -/
+theorem servedAt_append_of_retire {l t : List (κ × Option β)} {c : ℕ} {x : κ}
+    (hc : c ≤ l.length) (h : (x, none) ∈ t) : servedAt (l ++ t) c x = none := by
+  have hs : sealedAt (l ++ t) c x = true := by
+    rw [sealedAt_append t hc, Bool.or_eq_true]
+    exact Or.inr (List.any_eq_true.2 ⟨(x, none), h, by simp⟩)
+  simp only [servedAt, hs, ↓reduceIte]
+
+/-- SNP-1 under the seal: growth that does not retire the key changes nothing served of it at
+a cut inside the chain. -/
+theorem servedAt_append_of_no_retire {l t : List (κ × Option β)} {c : ℕ} {x : κ}
+    (hc : c ≤ l.length) (h : (x, none) ∉ t) : servedAt (l ++ t) c x = servedAt l c x := by
+  have ht : (t.any fun e ↦ decide (e.1 = x) && e.2.isNone) = false := by
+    rw [Bool.eq_false_iff]
+    intro h'
+    obtain ⟨⟨e1, e2⟩, he, hq⟩ := List.any_eq_true.1 h'
+    simp only [Bool.and_eq_true, decide_eq_true_eq, Option.isNone_iff_eq_none] at hq
+    obtain ⟨rfl, rfl⟩ := hq
+    exact h he
+  unfold servedAt
+  rw [sealedAt_append t hc, ht, Bool.or_false, stateAt_append t hc]
+
+/-- SNP-7 Growth of the chain changes a served value only by removing it. -/
+theorem servedAt_of_append {l t : List (κ × Option β)} {c : ℕ} {x : κ} {v : β}
+    (hc : c ≤ l.length) (h : servedAt (l ++ t) c x = some v) : servedAt l c x = some v := by
+  by_cases ht : (x, none) ∈ t
+  · rw [servedAt_append_of_retire hc ht] at h
+    exact absurd h (by simp)
+  · rwa [servedAt_append_of_no_retire hc ht] at h
+
+end Generations
+
+/-! ### SNP-6 The grant -/
+
+section Grant
+
+variable {K α : Type*}
+
+/-- SNP-6 A snapshot under a grant is append invariant. -/
+theorem snapshot_grow (G : K → Prop) [DecidablePred G] (p : α → Bool) {s : Store K α}
+    (t : Store K α) {c : Cut K} (h : c ≤ head s) :
+    snapshot G p (grow s t) c = snapshot G p s c := by
+  unfold snapshot
+  rw [readAt_grow t h]
+
+/-- Restricting twice is restricting to the chains both grants name and the events both
+let through. -/
+theorem restrict_restrict (G G' : K → Prop) [DecidablePred G] [DecidablePred G']
+    (p p' : α → Bool) (t : Store K α) :
+    restrict G p (restrict G' p' t) = restrict (fun k ↦ G k ∧ G' k) (fun a ↦ p a && p' a) t := by
+  funext k
+  by_cases h : G k <;> by_cases h' : G' k <;> simp [restrict, h, h', List.filter_filter]
+
+/-- SNP-6 Grant restriction: a narrower grant's snapshot is the restriction of a wider one's,
+at every cut. What a wider grant was shown at a cut bounds what a narrower one is shown there. -/
+theorem snapshot_narrow {G G' : K → Prop} [DecidablePred G] [DecidablePred G']
+    {p p' : α → Bool} (hG : ∀ k, G k → G' k) (hp : ∀ a, p a = true → p' a = true)
+    (s : Store K α) (c : Cut K) :
+    snapshot G p s c = restrict G p (snapshot G' p' s c) := by
+  funext k
+  by_cases h : G k
+  · have h' := hG k h
+    simp only [snapshot, restrict, h, h', ↓reduceIte, List.filter_filter]
+    refine List.filter_congr fun a _ ↦ ?_
+    cases hpa : p a
+    · rfl
+    · simp [hp a hpa]
+  · simp [snapshot, restrict, h]
+
+/-- SNP-6 Noninterference: a snapshot under a grant reads only the chains the grant names, and
+of the cut only its positions on them. Two stores that agree on those chains, at two cuts that
+agree on them, are one snapshot. -/
+theorem snapshot_congr (G : K → Prop) [DecidablePred G] (p : α → Bool) {s s' : Store K α}
+    {c c' : Cut K} (hs : ∀ k, G k → s k = s' k) (hc : ∀ k, G k → c k = c' k) :
+    snapshot G p s c = snapshot G p s' c' := by
+  funext k
+  by_cases h : G k
+  · simp [snapshot, restrict, readAt, h, hs k h, hc k h]
+  · simp [snapshot, restrict, h]
+
+/-- SNP-4 At the head cut a snapshot is the grant's restriction of the store. -/
+theorem snapshot_head (G : K → Prop) [DecidablePred G] (p : α → Bool) (s : Store K α) :
+    snapshot G p s (head s) = restrict G p s := by
+  unfold snapshot
+  rw [readAt_head]
+
+/-- SNP-6 Restricting to chains commutes with the cut: a grant that names whole chains may be
+applied before the read or after it. -/
+theorem restrict_readAt (G : K → Prop) [DecidablePred G] (s : Store K α) (c : Cut K) :
+    restrict G (fun _ ↦ true) (readAt s c) = readAt (restrict G (fun _ ↦ true) s) c := by
+  funext k
+  by_cases h : G k <;> simp [restrict, readAt, h]
+
+end Grant
+
+/-! ### SNP-7 The erasure -/
+
+section Erasure
+
+variable {K α β C : Type*}
+
+/-- SNP-7 The store with holes keeps every position. -/
+theorem head_redact (E : α → Bool) (s : Store K α) : head (redact E s) = head s :=
+  funext fun _ ↦ List.length_map _
+
+/-- SNP-7 Erasing with holes commutes with the cut: the positions of the events that stay are
+the positions they had. -/
+theorem redact_readAt (E : α → Bool) (s : Store K α) (c : Cut K) :
+    readAt (redact E s) c = redact E (readAt s c) :=
+  funext fun _ ↦ List.map_take.symm
+
+theorem reduceOption_map_hole (E : α → Bool) (l : List α) :
+    (l.map fun a ↦ if E a then none else some a).reduceOption = l.filter fun a ↦ !E a := by
+  induction l with
+  | nil => rfl
+  | cons a l ih =>
+    cases h : E a
+    · simp [h, List.reduceOption_cons_of_some, ih]
+    · simp [h, List.reduceOption_cons_of_none, ih]
+
+/-- SNP-7 What is visible at a cut is the store with holes read at the cut, the holes dropped. -/
+theorem visible_eq_reduceOption (E : α → Bool) (s : Store K α) (c : Cut K) (k : K) :
+    visible E s c k = (readAt (redact E s) c k).reduceOption := by
+  rw [redact_readAt]
+  exact (reduceOption_map_hole E _).symm
+
+/-- SNP-7 Erasure dominance: no erased event is visible at any cut. -/
+theorem not_erased_of_mem_visible {E : α → Bool} {s : Store K α} {c : Cut K} {k : K} {a : α}
+    (h : a ∈ visible E s c k) : E a = false := by
+  simpa using (List.mem_filter.1 h).2
+
+/-- SNP-7 A larger erasure shows a sublist of what a smaller one shows, at every cut. -/
+theorem visible_sublist {E E' : α → Bool} (h : ∀ a, E a = true → E' a = true)
+    (s : Store K α) (c : Cut K) (k : K) : (visible E' s c k).Sublist (visible E s c k) := by
+  refine List.monotone_filter_right _ fun a ha ↦ ?_
+  cases hE : E a
+  · rfl
+  · simp [h a hE] at ha
+
+/-- SNP-2 under an erasure: what is visible at an earlier cut is a prefix of what is visible
+at a later one. -/
+theorem visible_mono (E : α → Bool) (s : Store K α) {c d : Cut K} (h : c ≤ d) (k : K) :
+    visible E s c k <+: visible E s d k :=
+  (List.take_prefix_take_left (h k)).filter _
+
+/-- SNP-4 under an erasure: at the head cut what is visible is the store without the erased
+events. -/
+theorem visible_head (E : α → Bool) (s : Store K α) : visible E s (head s) = compact E s :=
+  funext fun _ ↦ congrArg (List.filter fun a ↦ !E a) List.take_length
+
+/-- SNP-1 under an erasure: growth of the store changes nothing visible at a cut inside it. -/
+theorem visible_grow (E : α → Bool) {s : Store K α} (t : Store K α) {c : Cut K}
+    (h : c ≤ head s) : visible E (grow s t) c = visible E s c :=
+  funext fun k ↦ congrArg (List.filter fun a ↦ !E a) (List.take_append_of_le_length (h k))
+
+/-- SNP-7 Two stores that differ only in erased events show the same at every cut. -/
+theorem visible_congr {E : α → Bool} {s s' : Store K α} (h : redact E s = redact E s')
+    (c : Cut K) : visible E s c = visible E s' c := by
+  funext k
+  rw [visible_eq_reduceOption, visible_eq_reduceOption, h]
+
+/-- SNP-7 So erased content is an argument of no read: every derivation of what is visible at
+a cut is the same on two stores that differ only in erased events. -/
+theorem erased_invisible (D : Store K α → β) {E : α → Bool} {s s' : Store K α}
+    (h : redact E s = redact E s') (c : Cut K) : D (visible E s c) = D (visible E s' c) :=
+  congrArg D (visible_congr h c)
+
+/-- SNP-7 A kept derived row is served exactly when none of its sources is erased. -/
+theorem mem_serve_iff {E : α → Bool} {rows : List (List α × β)} {r : List α × β} :
+    r ∈ serve E rows ↔ r ∈ rows ∧ ∀ a ∈ r.1, E a = false := by
+  simp [serve, List.mem_filter]
+
+/-- SNP-7 A larger erasure serves a sublist of the kept rows. -/
+theorem serve_sublist {E E' : α → Bool} (h : ∀ a, E a = true → E' a = true)
+    (rows : List (List α × β)) : (serve E' rows).Sublist (serve E rows) := by
+  refine List.monotone_filter_right _ fun r hr ↦ ?_
+  rw [List.all_eq_true] at hr ⊢
+  intro a ha
+  have h1 := hr a ha
+  cases hE : E a
+  · rfl
+  · simp [h a hE] at h1
+
+/-- SNP-9 An erasure on a committed store keeps every commitment in its place. -/
+theorem commitments_purge (E : α → Bool) (t : Store K (C × Option α)) :
+    commitments (purge E t) = commitments t := by
+  funext k
+  simp [commitments, purge, Function.comp_def]
+
+/-- SNP-7 What a reader reads of a committed store after an erasure is the store with holes. -/
+theorem contents_purge_committed (commit : α → C) (E : α → Bool) (s : Store K α) :
+    contents (purge E (committed commit s)) = redact E s := by
+  funext k
+  simp only [contents, purge, committed, redact, List.map_map]
+  refine List.map_congr_left fun a _ ↦ ?_
+  cases h : E a <;> simp [h]
+
+end Erasure
+
+/-! ### SNP-8 Consistent cuts -/
+
+section Consistency
+
+variable {K : Type*} {R : K → ℕ → K → ℕ → Prop}
+
+/-- The empty cut is consistent. -/
+theorem consistent_zero : Consistent R fun _ ↦ 0 := fun _ _ _ _ _ h ↦ absurd h (Nat.not_lt_zero _)
+
+/-- SNP-8 Consistent cuts are closed under the meet. -/
+theorem Consistent.inf {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
+    Consistent R (c ⊓ d) := fun k i k' j h hi ↦ by
+  have hi' : i < c k ∧ i < d k := lt_inf_iff.1 hi
+  exact lt_inf_iff.2 ⟨hc k i k' j h hi'.1, hd k i k' j h hi'.2⟩
+
+/-- SNP-8 And under the join. -/
+theorem Consistent.sup {c d : Cut K} (hc : Consistent R c) (hd : Consistent R d) :
+    Consistent R (c ⊔ d) := fun k i k' j h hi ↦ by
+  have hi' : i < c k ∨ i < d k := lt_sup_iff.1 hi
+  rcases hi' with hi' | hi'
+  · exact lt_sup_iff.2 (Or.inl (hc k i k' j h hi'))
+  · exact lt_sup_iff.2 (Or.inr (hd k i k' j h hi'))
+
+/-- SNP-8 The consistent cuts are a sublattice of the cuts, so a distributive lattice. -/
+def consistentCuts (R : K → ℕ → K → ℕ → Prop) : Sublattice (Cut K) where
+  carrier := {c | Consistent R c}
+  supClosed' := fun _ hc _ hd ↦ Consistent.sup hc hd
+  infClosed' := fun _ hc _ hd ↦ Consistent.inf hc hd
+
+/-- SNP-8 The consistent cuts are the clock's cuts (CLK-2) among the frontier cuts: a cut is
+consistent exactly when the events under its frontier are a down-set of the order the append
+chains and the reads-from references generate. -/
+theorem consistent_iff_isCut (R : K → ℕ → K → ℕ → Prop) (c : Cut K) :
+    Consistent R c ↔ Clock.IsCut (generator R) (Clock.frontierCut Prod.fst Prod.snd c) := by
+  rw [Clock.isCut_iff_not_crossed]
+  constructor
+  · rintro h ⟨a, b, hab, hb, ha⟩
+    have hb' : b.2 < c b.1 := hb
+    rcases hab with ⟨h1, h2⟩ | hR
+    · refine ha ?_
+      change a.2 < c a.1
+      rw [h1]
+      exact lt_trans h2 hb'
+    · exact ha (h _ _ _ _ hR hb')
+  · intro h k i k' j hR hi
+    by_contra hj
+    exact h ⟨(k', j), (k, i), Or.inr hR, hi, hj⟩
+
+/-- A frontier resolves to at most one cut. -/
+theorem Resolves.unique {f c c' : Cut K} (h : Resolves R f c) (h' : Resolves R f c') : c = c' :=
+  le_antisymm (h'.2.2 c h.1 h.2.1) (h.2.2 c' h'.1 h'.2.1)
+
+/-- SNP-8 Resolution is monotone: a later frontier resolves to a later cut. -/
+theorem Resolves.mono {f f' c c' : Cut K} (hf : f ≤ f') (h : Resolves R f c)
+    (h' : Resolves R f' c') : c ≤ c' :=
+  h'.2.2 c h.1 (h.2.1.trans hf)
+
+/-- A consistent frontier resolves to itself. -/
+theorem resolves_self {f : Cut K} (h : Consistent R f) : Resolves R f f :=
+  ⟨h, le_rfl, fun _ _ hd ↦ hd⟩
+
+/-- SNP-8 Every frontier resolves: among the consistent cuts under it there is a greatest. -/
+theorem exists_resolves (R : K → ℕ → K → ℕ → Prop) (f : Cut K) : ∃ c, Resolves R f c := by
+  have hne : ∀ k, (reached R f k).Nonempty := fun k ↦
+    ⟨0, fun _ ↦ 0, consistent_zero, fun _ ↦ Nat.zero_le _, rfl⟩
+  have hbdd : ∀ k, BddAbove (reached R f k) := fun k ↦
+    ⟨f k, by rintro n ⟨d, -, hd, rfl⟩; exact hd k⟩
+  refine ⟨fun k ↦ sSup (reached R f k), ?_, ?_, ?_⟩
+  · intro k i k' j hR hi
+    obtain ⟨d, hd, hdf, hdk⟩ := Nat.sSup_mem (hne k) (hbdd k)
+    have hj : j < d k' := hd k i k' j hR (by rw [hdk]; exact hi)
+    exact lt_of_lt_of_le hj (le_csSup (hbdd k') ⟨d, hd, hdf, rfl⟩)
+  · intro k
+    exact csSup_le (hne k) (by rintro n ⟨d, -, hd, rfl⟩; exact hd k)
+  · intro d hd hdf k
+    exact le_csSup (hbdd k) ⟨d, hd, hdf, rfl⟩
+
+/-- SNP-8 Consistency is append invariant: when the references a store gains by growing all
+start at events at or past its old head, a cut inside the old head that was consistent stays
+consistent. -/
+theorem Consistent.of_grown {R' : K → ℕ → K → ℕ → Prop} {h c : Cut K}
+    (hR : ∀ k i k' j, R' k i k' j → R k i k' j ∨ h k ≤ i) (hc : c ≤ h)
+    (hcons : Consistent R c) : Consistent R' c := fun k i k' j hr hi ↦
+  (hR k i k' j hr).elim (fun h0 ↦ hcons k i k' j h0 hi)
+    fun hle ↦ absurd (lt_of_lt_of_le hi (hc k)) (not_lt.2 hle)
+
+end Consistency
+
+/-! ### SNP-9 Certified cuts -/
+
+section Certified
+
+variable {K α C H : Type*} {step : H → α → H} {h₀ : H}
+
+theorem verifies_certify {s : Store K α} {c : Cut K} (h : c ≤ head s) :
+    Verifies step h₀ (certify step h₀ s c) s :=
+  ⟨h, fun _ ↦ rfl⟩
+
+/-- SNP-9 A certificate is append invariant: the certificate of a cut of a store verifies on
+every extension of the store. -/
+theorem verifies_certify_of_extends {s s' : Store K α} {c : Cut K} (h : Extends s s')
+    (hc : c ≤ head s) : Verifies step h₀ (certify step h₀ s c) s' :=
+  ⟨hc.trans h.head_le,
+    fun k ↦ congrArg (chainDigest step h₀) (congrFun (readAt_of_extends h hc) k)⟩
+
+theorem chainDigest_append_singleton (step : H → α → H) (h₀ : H) (l : List α) (a : α) :
+    chainDigest step h₀ (l ++ [a]) = step (chainDigest step h₀ l) a := by
+  simp only [chainDigest, List.foldl_append, List.foldl_cons, List.foldl_nil]
+
+/-- Under a collision-free step, two chains of one length with one digest are one chain. -/
+theorem eq_of_chainDigest_eq (hstep : CollisionFree step) {l l' : List α}
+    (hlen : l.length = l'.length)
+    (h : chainDigest step h₀ l = chainDigest step h₀ l') : l = l' := by
+  induction l using List.reverseRecOn generalizing l' with
+  | nil => exact (List.length_eq_zero_iff.1 hlen.symm).symm
+  | append_singleton l a ih =>
+    rcases List.eq_nil_or_concat l' with rfl | ⟨m, b, rfl⟩
+    · simp at hlen
+    · rw [List.concat_eq_append] at hlen h
+      rw [chainDigest_append_singleton, chainDigest_append_singleton] at h
+      obtain ⟨h1, rfl⟩ := hstep _ _ _ _ h
+      rw [List.concat_eq_append, ih (by simpa using hlen) h1]
+
+/-- SNP-9 A certificate pins the read: under a collision-free digest, two stores that verify
+one certificate have the same read at its cut. -/
+theorem Verifies.readAt_eq (hstep : CollisionFree step) {z : Certificate K H}
+    {s s' : Store K α} (h : Verifies step h₀ z s) (h' : Verifies step h₀ z s') :
+    readAt s z.cut = readAt s' z.cut := by
+  funext k
+  refine eq_of_chainDigest_eq hstep ?_ ((h.2 k).trans (h'.2 k).symm)
+  have hk : z.cut k ≤ (s k).length := h.1 k
+  have hk' : z.cut k ≤ (s' k).length := h'.1 k
+  change ((s k).take (z.cut k)).length = ((s' k).take (z.cut k)).length
+  rw [List.length_take, List.length_take, Nat.min_eq_left hk, Nat.min_eq_left hk']
+
+/-- SNP-9 So a snapshot is reproducible and checkable: every derived view at a certified cut
+is the same on every store that verifies the certificate. -/
+theorem Verifies.view_eq {β : Type*} (hstep : CollisionFree step) (D : Store K α → β)
+    {z : Certificate K H} {s s' : Store K α} (h : Verifies step h₀ z s)
+    (h' : Verifies step h₀ z s') : view D s z.cut = view D s' z.cut :=
+  congrArg D (h.readAt_eq hstep h')
+
+/-- SNP-9 A certificate extends: the digest at a later cut is the digest at an earlier cut
+continued over the events between the two, so certifying costs the delta. -/
+theorem certify_digest_readBetween (s : Store K α) {a b : Cut K} (h : a ≤ b) (k : K) :
+    (certify step h₀ s b).digest k
+      = chainDigest step ((certify step h₀ s a).digest k) (readBetween s a b k) :=
+  foldAt_readBetween step (fun _ ↦ h₀) s h k
+
+/-- SNP-9 The meet of two certified cuts is certified from the two certificates alone: on each
+chain, the digest of the one that is earlier there. -/
+theorem certify_inf (s : Store K α) (c d : Cut K) (k : K) :
+    (certify step h₀ s (c ⊓ d)).digest k
+      = if c k ≤ d k then (certify step h₀ s c).digest k else (certify step h₀ s d).digest k := by
+  by_cases h : c k ≤ d k
+  · simp only [h, ↓reduceIte]
+    change chainDigest step h₀ ((s k).take (c k ⊓ d k)) = chainDigest step h₀ ((s k).take (c k))
+    rw [inf_of_le_left h]
+  · simp only [h, ↓reduceIte]
+    change chainDigest step h₀ ((s k).take (c k ⊓ d k)) = chainDigest step h₀ ((s k).take (d k))
+    rw [inf_of_le_right (not_le.1 h).le]
+
+/-- SNP-9 And the join: on each chain, the digest of the one that is later there. -/
+theorem certify_sup (s : Store K α) (c d : Cut K) (k : K) :
+    (certify step h₀ s (c ⊔ d)).digest k
+      = if c k ≤ d k then (certify step h₀ s d).digest k else (certify step h₀ s c).digest k := by
+  by_cases h : c k ≤ d k
+  · simp only [h, ↓reduceIte]
+    change chainDigest step h₀ ((s k).take (c k ⊔ d k)) = chainDigest step h₀ ((s k).take (d k))
+    rw [sup_of_le_right h]
+  · simp only [h, ↓reduceIte]
+    change chainDigest step h₀ ((s k).take (c k ⊔ d k)) = chainDigest step h₀ ((s k).take (c k))
+    rw [sup_of_le_left (not_le.1 h).le]
+
+/-- SNP-9 Erasure keeps the certificate: a certificate over the commitments of a committed
+store verifies after any erasure of contents. -/
+theorem verifies_purge {step : H → C → H} {z : Certificate K H} {t : Store K (C × Option α)}
+    (E : α → Bool) (h : Verifies step h₀ z (commitments t)) :
+    Verifies step h₀ z (commitments (purge E t)) := by
+  rwa [commitments_purge]
+
+end Certified
+
+namespace Witness
+
+/-- The control for SNP-1: the reader that ignores the cut, which is what a verb reads of a
+store rewritten in place, is not append invariant. -/
+theorem present_not_appendInvariant :
+    ¬AppendInvariant (present fun s : Store Unit ℕ ↦ (s ()).length) := by
+  intro h
+  have h1 := h (fun _ ↦ []) (fun _ ↦ [0]) (fun _ ↦ 0) (fun _ ↦ le_rfl)
+  simp [present, grow] at h1
+
+/-- The control for SNP-5: the store rewritten in place determines no read at a past cut. Two
+chains leave one head state and had different states at the first cut. -/
+theorem stateOf_forgets :
+    ¬∃ G : (Unit → Option ℕ) → ℕ → Unit → Option ℕ,
+      ∀ (l : List (Unit × ℕ)) (c : ℕ), stateAt l c = G (stateOf l) c := by
+  rintro ⟨G, hG⟩
+  have h1 := congrFun (hG [((), 0), ((), 1)] 1) ()
+  have h2 := congrFun (hG [((), 1)] 1) ()
+  have e : stateOf [((), 0), ((), 1)] = stateOf [((), 1)] := by
+    funext u
+    simp [stateOf]
+  rw [e, ← h2] at h1
+  simp [stateAt, stateOf] at h1
+
+/-- The control for SNP-6: an event filter applied before the cut reads another thing than the
+snapshot, since it moves the positions. -/
+theorem filter_before_cut :
+    ∃ (s : Store Unit Bool) (c : Cut Unit),
+      readAt (restrict (fun _ ↦ True) id s) c ≠ snapshot (fun _ ↦ True) id s c := by
+  refine ⟨fun _ ↦ [false, true], fun _ ↦ 1, fun h ↦ ?_⟩
+  have h1 := congrFun h ()
+  simp [readAt, restrict, snapshot] at h1
+
+/-- The control for SNP-6: a cut's positions count the events an event filter hides. Two stores
+that agree on every admitted event have different snapshots at one cut, so within a chain a
+position tells how many hidden events came before: what must be hidden in number is hidden by
+chain. -/
+theorem position_channel :
+    ∃ (s s' : Store Unit Bool) (c : Cut Unit), (∀ k, (s k).filter id = (s' k).filter id) ∧
+      snapshot (fun _ ↦ True) id s c ≠ snapshot (fun _ ↦ True) id s' c := by
+  refine ⟨fun _ ↦ [false, true], fun _ ↦ [true], fun _ ↦ 1, fun _ ↦ rfl, fun h ↦ ?_⟩
+  have h1 := congrFun h ()
+  simp [readAt, restrict, snapshot] at h1
+
+/-- The control for SNP-7: an erasure that deletes rows moves the later ones up, so a read at a
+cut then holds an event from after the cut. -/
+theorem compact_moves :
+    ∃ (E : ℕ → Bool) (s : Store Unit ℕ) (c : Cut Unit) (a : ℕ),
+      a ∈ readAt (compact E s) c () ∧ a ∉ readAt s c () := by
+  refine ⟨fun n ↦ n == 0, fun _ ↦ [0, 1], fun _ ↦ 1, 1, ?_, ?_⟩ <;> simp [readAt, compact]
+
+/-- The control for SNP-9: a digest that is not collision free pins nothing. Under addition two
+chains of one length and one digest differ. -/
+theorem digest_collides :
+    ∃ l l' : List ℕ, l.length = l'.length ∧
+      chainDigest (· + ·) 0 l = chainDigest (· + ·) 0 l' ∧ l ≠ l' :=
+  ⟨[1, 2], [2, 1], rfl, rfl, by decide⟩
+
+end Witness
+
+end Palace.Snapshot
