@@ -35,24 +35,26 @@ Append Chains, Consistent Cuts, and What Erasure and Scope Do to a Snapshot}
 
 \begin{abstract}
 A query on a knowledge store can ask for the store as of a past moment. In the store studied here
-that reading exists for one relation, a citation graph indexed by commit, and every other store is
-read as it is now. We design the rest. A store is modelled as a family of append chains, a cut as a
+that reading exists for one relation, a citation graph indexed by commit, and for the files of
+its repository; every other store is read as it is now. We design the rest. A store is modelled as a family of append chains, a cut as a
 prefix length for each, and the read at a cut as the prefixes. Ten laws are machine-checked in
 Lean~4 over Mathlib. A read at a cut is unchanged by growth of the store, and a reader has that
 property exactly when it is a function of the prefixes. Reads at cuts are ordered and compose with
 reads between cuts, so a job's checkpoint is a cut. A derived store kept by generation reads what
 recomputation reads, with at most one generation of a key alive at a cut. A narrower grant's
 snapshot is the restriction of a wider one's, and positions on a shared chain count what a filter
-hides. Nothing erased is visible at any cut when an erasure leaves holes, and a seal keeps a
-retired identity out of earlier cuts. Consistent cuts form a sublattice, and every frontier
-resolves to one greatest consistent cut. The digest of each prefix certifies a cut and survives an
-erasure that keeps commitments. A store that drops old generations is exact from its horizon on,
-never wrong under it, and unable to tell what it lost. The last law gives the rule for an
-incomplete history: a read is taken at the greatest consistent cut among the positions the stores
-still serve, which never lies after the cut asked. Reading the code against the usual picture of
-ledgers and derived stores locates the one missing ledger, the past of the map from paths to
-content, and a log of 409 bytes a landing supplies it. Measurements on synthetic fixtures give the
-cost of its reads and show what an erasure leaves behind today.
+hides. Nothing erased is visible at any cut when an erasure leaves holes; a hole must keep its
+key, or a read by key returns a superseded version; and a seal keeps a retired identity, with
+its versions, out of earlier cuts. Every frontier resolves to one greatest consistent cut. The
+digest of each prefix certifies a cut, survives an erasure that keeps commitments, and attests
+no erasure. A store that drops old generations is exact from its horizon on, never wrong under
+it, and unable to tell what it lost. The last law gives the rule for an incomplete history: a
+read is taken at the greatest consistent cut among the positions the stores still serve, which
+never lies after the cut asked; a chain that nothing reads is lowered alone, and a chain that
+others read takes them down with it. Reading the code against the usual picture of ledgers and
+derived stores locates the one missing ledger, the past of the map from paths to content, and a
+log of about 400 bytes a landing on a synthetic fixture supplies it. Measurements on synthetic
+fixtures give the cost of its reads and show what an erasure leaves behind today.
 \end{abstract}
 
 \section{Introduction}
@@ -62,8 +64,8 @@ code land through one writer into a dozen stores (content-addressed raw objects,
 paths to content, version chains, a chat log, attestations, a vector plane, a lexical index, edge
 stores), and a sentence of a small query algebra reads them. A sentence may carry
 \texttt{as of "<cut>"}. Today that adjective moves one relation. The citation graph, which is
-stored as one whole reading per commit, is read at the commit named; every other verb reads the
-present, and the answer says so.
+stored by commit, is read at the commit named, and a file of the repository is read as that
+commit's blob; every other read is of the present, and the answer says so.
 
 Finishing the adjective is not a matter of adding a timestamp filter. The stores have no common
 clock: each has its own append order, and wall time is by rule never an ordering key. Some stores
@@ -71,20 +73,22 @@ keep their past and some are rewritten in place. Content can be erased, and an e
 not return through a snapshot. The asker's grant is today's, not the cut's. And a history is never
 complete: it starts somewhere, and retention may move the start. Each of these changes what
 ``the store as of a cut'' has to mean, and each can be stated and proved before any code reads a
-store at a cut. That is what this article does. The contributions:
+store at a cut. The contributions:
 \begin{enumerate}
 \item A model (\Cref{sec:model}) of a multi-store as a family of append chains with cuts, reads at
   and between cuts, derived views, a grant, an erasure and certificates.
-\item Ten laws (\Cref{sec:laws}), SNP-1 to SNP-10, machine-checked as 125 theorems, with the
-  failure modes as theorems too: the reader that ignores the cut, the store rewritten in place, a
-  filter applied before the cut, an erasure that deletes rows, a digest with collisions, a pruned
-  store read under its horizon.
+\item Ten laws (\Cref{sec:laws}), SNP-1 to SNP-10, machine-checked as 162 theorems, with fifteen
+  failure modes as theorems too, among them the reader that ignores the cut, the store rewritten
+  in place, a filter applied before the cut, an erasure that deletes rows, a hole that loses its
+  key, a digest with collisions, a pruned store read under its horizon, and a record of a cut
+  placed on a chain that content reads.
 \item A rule for incomplete histories (\Cref{thm:horizon}): among the positions the stores still
-  serve there is one greatest consistent cut under the cut asked, and a read taken there holds no
-  event from after the cut it names.
+  serve there is one greatest consistent cut under the cut asked, a read taken there holds no
+  event from after the cut it names, and it differs from the cut asked only on the chains that
+  could not serve when no other chain reads them.
 \item A design (\Cref{sec:design}) read off the code: the one ledger that is missing, how each
-  derived store is a function of a cut, what an erasure must reach, and what an answer says.
-\item Measurements on synthetic fixtures (\Cref{sec:eval}).
+  derived store is a function of a cut, what an erasure must reach, and what an answer says,
+  with measurements on synthetic fixtures (\Cref{sec:eval}).
 \end{enumerate}
 
 \section{Background and related work}
@@ -92,39 +96,32 @@ store at a cut. That is what this article does. The contributions:
 \paragraph{Consistent cuts.}
 Lamport's happened-before relation \cite{lamport1978time} orders events without a global clock; a
 global state is a consistent cut, a set of events closed under that order
-\cite{chandy1985snapshots}. Vector timestamps characterize the order
-\cite{fidge1988timestamps,mattern1989virtual}, and Mattern observed that the consistent cuts form
-a lattice \cite{mattern1989virtual}; the down-sets of any partial order form a distributive
+\cite{chandy1985snapshots}. Vector timestamps characterize the order, and the consistent cuts
+form a lattice \cite{mattern1989virtual}; the down-sets of any partial order form a distributive
 lattice \cite{birkhoff1937rings,davey2002lattices}. The store's own clock design already takes a
-cut to be a down-set of a derived event order with a per-store frontier. Here there is one
-writer, so no marker protocol is needed; what is needed is the greatest consistent cut under a
-frontier that a name selects, and its behaviour when some stores cannot serve a position.
+cut to be a down-set of a derived event order with a per-store frontier, and its ledger of laws
+already has their closure under meet and join. Here there is one writer, so no marker protocol
+is needed; what is needed is the greatest consistent cut under a frontier that a name selects,
+and its behaviour when some stores cannot serve a position.
 
 \paragraph{Temporal and multiversion data.}
 Temporal databases keep rows valid over a period, and system-versioned tables answer a query as
 of a system time \cite{snodgrass1999temporal,kulkarni2012sql2011}; multiversion concurrency
 control keeps versions so that a reader sees a state as of its start
 \cite{reed1978naming,bernstein1983mvcc}. Our generations are system-versioned rows whose period
-is counted in positions of an append chain, never in wall time, and \Cref{thm:forms} is the
-statement that such rows read what the log replays. Maintaining a derived view from the changes
-to its inputs is the subject of incremental view maintenance \cite{gupta1995views}; the delta
-between two cuts is its input here.
+is counted in positions of an append chain, never in wall time (\Cref{thm:forms}). Incremental
+view maintenance \cite{gupta1995views} takes the changes to a view's inputs; the delta between
+two cuts is that input here.
 
 \paragraph{Hash chains and commitments.}
 A hash chain makes an append-only history tamper-evident
 \cite{merkle1987signature,haber1991timestamp}. A chain over contents cannot survive an erasure of
-content, and a chain that keeps a plain hash of erased content leaves a test for that content. A
-salted commitment \cite{halevi1996commitment} whose salt is destroyed avoids both, and
-\Cref{thm:cert} says the certificates then survive.
+content, and a plain hash of erased content is a test for that content. A salted commitment
+\cite{halevi1996commitment} whose salt is destroyed avoids both (\Cref{thm:cert}).
 
 \paragraph{Noninterference.}
 A grant restricts what a reader may learn \cite{goguen1982security}. A position on a chain is
-itself data: it counts every event before it, hidden or not, which \Cref{thm:grant} turns into a
-design rule.
-
-\paragraph{The proof environment.}
-The laws are stated in Lean~4 \cite{moura2021lean4} over Mathlib \cite{mathlib2020}, in a library
-whose every declaration is replayed by Lean's kernel and five independent checkers.
+itself data: it counts every event before it, hidden or not (\Cref{thm:grant}).
 
 \section{The model}\label{sec:model}
 
@@ -156,9 +153,12 @@ For a set of chains $G$ and an event predicate $p$, the \emph{snapshot} is
 $\mathrm{snap}_{G,p}(s, c) = \mathrm{restrict}_{G,p}(\at{s}{c})$: the chains in $G$, each read at
 the cut and filtered by $p$. For an erasure predicate $E$, $\mathrm{redact}_E(s)$ replaces each
 erased event by a hole, $\mathrm{visible}_E(s, c)$ is $\at{s}{c}$ without the erased events, and
-$\mathrm{compact}_E(s)$ deletes them. In a chain of landings $(x, \mathrm{some}\,v)$ and retires
-$(x, \mathrm{none})$, the \emph{stricter seal} serves at $c$ the value $x$ held at $c$ unless a
-retire of $x$ lies after $c$; the \emph{looser seal} serves it unless $x$ is not live at the head.
+$\mathrm{compact}_E(s)$ deletes them. For a keyed chain, $\mathrm{holes}_E(l)$ replaces the value
+of each erased write by a hole and keeps its key. In a chain of landings $(x, \mathrm{some}\,v)$
+and retires $(x, \mathrm{none})$, the \emph{stricter seal} serves at $c$ the value $x$ held at
+$c$ unless a retire of $x$ lies after $c$, and as its \emph{history} the landings of $x$ inside
+$c$ that no retire follows; the \emph{looser seal} serves the value unless $x$ is not live at the
+head.
 \end{definition}
 
 \begin{definition}[Consistency, resolution, certificates]
@@ -205,8 +205,7 @@ List identities for \texttt{take} and \texttt{drop} (\lean{readAt_mono}, \lean{r
 \end{proof}
 The composition is what lets a job keep a checkpoint: its state at $b$ is its state at $a$
 continued over the delta, so a run and a rebuild agree. For a job that joins two chains, a pair
-read at $b$ was read at $a$ or has a member in the delta (\lean{pair_readAt}), the usual delta
-rule of view maintenance \cite{gupta1995views}.
+read at $b$ was read at $a$ or has a member in the delta (\lean{pair_readAt}).
 
 \begin{theorem}[SNP-5: three ways of holding a derived store]\label{thm:forms}
 For every chain $l$ of keyed writes, cut $c$ and key $x$,
@@ -228,49 +227,60 @@ If $G \subseteq G'$ and $p$ implies $p'$, then
 $\mathrm{snap}_{G,p}(s, c) = \mathrm{restrict}_{G,p}(\mathrm{snap}_{G',p'}(s, c))$. A snapshot
 depends only on the chains of $G$ and on the cut's positions on them, and it is append invariant.
 Restricting to whole chains commutes with the cut. Filtering events does not: there are stores
-that agree on every admitted event and differ in their snapshots at one cut.
+that agree on every admitted event and differ in their snapshots at one cut. The cut read
+(\Cref{thm:horizon}) on a set of chains that read from no chain outside it is a function of that
+set alone.
 \end{theorem}
 \begin{proof}[Sketch]
 Filters compose and are applied after the prefix (\lean{snapshot_narrow}, \lean{snapshot_congr},
 \lean{snapshot_grow}, \lean{restrict_readAt}). For the control, $[\mathrm{hidden}, a]$ and $[a]$
 read at position one give nothing and $a$ (\lean{Witness.filter_before_cut},
-\lean{Witness.position_channel}).
+\lean{Witness.position_channel}). For the last part, a resolved cut restricted to a closed set
+and zero elsewhere is consistent and served (\lean{ResolvesIn.eq_on_of_closed}; the control is
+\lean{Witness.resolution_reads_unnamed}).
 \end{proof}
 So what must be hidden in number is hidden by chain: where clearances separate rows, a chain per
-class.
+class. The law is about the rows a grant is shown. It passes to an answer that filters those
+rows, and not to a score, whose collection statistics are the reader's own.
 
 \begin{theorem}[SNP-7: erasure]\label{thm:erase}
 No erased event is in $\mathrm{visible}_E(s, c)$; a larger erasure shows a sublist; reading the
 store with holes commutes with the cut and keeps the head; and if
 $\mathrm{redact}_E(s) = \mathrm{redact}_E(s')$ then $D(\mathrm{visible}_E(s, c)) =
 D(\mathrm{visible}_E(s', c))$ for every $D$ and $c$. After $\mathrm{compact}_E$ a read at a cut
-can hold an event from after it. Under the stricter seal, once a chain retires a key no cut
-before the retire serves it, and for any growth $t$ a value served by $l \mathbin{+\!\!+} t$ at a
-cut inside $l$ was served by $l$. The looser seal serves everything the stricter one serves, and
-a landing after a retire brings the key's past back under it.
+can hold an event from after it. On $\mathrm{holes}_E(l)$ the state of a key at a cut is its
+last write at or under the cut, a hole when that write is erased, and the generational read and
+the seek by key agree with it; if a hole loses its key, a seek returns a superseded version, or
+one from after the cut. Under the stricter seal, once a chain retires a key no cut before the
+retire serves it, and for any growth $t$ a value served by $l \mathbin{+\!\!+} t$ at a cut inside
+$l$ was served by $l$; the history served ends at the value served, and at every cut after a
+retire it holds only landings after that retire. The looser seal serves everything the stricter
+one serves, and a landing after a retire brings the key's past back under it.
 \end{theorem}
 \begin{proof}[Sketch]
 Filtering and mapping commute with \texttt{take} (\lean{not_erased_of_mem_visible},
-\lean{visible_sublist}, \lean{redact_readAt}, \lean{head_redact}, \lean{erased_invisible}); the
-seal is a predicate on the suffix past the cut, which only grows
-(\lean{servedAt_append_of_retire}, \lean{servedAt_of_append}, \lean{servedNow_of_servedAt}). The
-controls are \lean{Witness.compact_moves} and \lean{Witness.servedNow_restores}.
+\lean{redact_readAt}, \lean{erased_invisible}, \lean{stateAt_holes}). The seal is a predicate
+on the suffix past the cut, which only grows (\lean{servedAt_of_append},
+\lean{historyAt_of_retire_inside}, \lean{servedNow_of_servedAt}). The controls are
+\lean{Witness.compact_moves}, \lean{Witness.keyless_hole} and \lean{Witness.servedNow_restores}.
 \end{proof}
 
-\begin{theorem}[SNP-8: consistent cuts]\label{thm:lattice}
-Consistent cuts are closed under pointwise meet and join and contain the empty cut, so they are a
-sublattice of the cuts. A cut is consistent exactly when the events under its frontier are a
-down-set of the order generated by the chains and by $R$. Every frontier is resolved by exactly
-one cut, monotonically in the frontier. If growth only adds references that start at or past the
-old head, a consistent cut inside the old head stays consistent.
+\begin{theorem}[SNP-8: resolution]\label{thm:lattice}
+A cut is consistent exactly when the events under its frontier are a down-set of the order
+generated by the chains and by $R$. Every frontier is resolved by exactly one cut, monotonically
+in the frontier. If growth only adds references that start at or past the old head, a consistent
+cut inside the old head stays consistent. If every source of an event lies at or under a
+recorded one on its chain, a cut consistent for the recorded references is consistent for $R$.
 \end{theorem}
 \begin{proof}[Sketch]
-Closure is pointwise (\lean{Consistent.inf}, \lean{Consistent.sup}, \lean{consistentCuts}); the
-down-set form is the clock's cut criterion, no generator edge crossing
-(\lean{consistent_iff_isCut}). For resolution take on each chain the supremum of the positions
-reached by consistent cuts under $f$: it is attained, and a source of an event under it is under
-the witness's position on the source's chain (\lean{exists_resolves}, \lean{Resolves.unique},
-\lean{Resolves.mono}, \lean{Consistent.of_grown}).
+The down-set form is the clock's cut criterion, no generator edge crossing
+(\lean{consistent_iff_isCut}). Closure under pointwise meet and join then is the clock's law for
+frontiers, already in the store's ledger, and is derived from it, not claimed here
+(\lean{Consistent.inf}, \lean{Consistent.sup}). For resolution take on each chain the supremum
+of the positions reached by consistent cuts under $f$: it is attained, and a source of an event
+under it is under the witness's position on the source's chain (\lean{exists_resolves},
+\lean{Resolves.unique}, \lean{Resolves.mono}, \lean{Consistent.of_grown},
+\lean{Consistent.of_bound}).
 \end{proof}
 
 \begin{theorem}[SNP-9: certificates]\label{thm:cert}
@@ -278,34 +288,51 @@ The certificate of a cut of $s$ verifies on every $s' \succeq s$. If the step is
 two stores that verify one certificate have the same read at its cut, hence the same derived
 views. The digest at $b$ is the digest at $a$ continued over $\btw{s}{a}{b}$, and the digests at
 $c \sqcap d$ and $c \sqcup d$ are, chain by chain, those of $c$ or of $d$. If the chain digests
-commitments kept beside the events, erasing contents changes no certificate, and the contents
-then read as the store with holes.
+commitments kept beside the events, a store verifies a certificate after an erasure of contents
+exactly when it did before, and the contents then read as the store with holes; if moreover the
+commitment is injective, two such stores that verify one certificate were made from the same
+events at its cut.
 \end{theorem}
 \begin{proof}[Sketch]
 Append invariance of the prefix; induction from the end for injectivity of the fold
 (\lean{verifies_certify_of_extends}, \lean{Verifies.readAt_eq}, \lean{Verifies.view_eq},
-\lean{certify_digest_readBetween}, \lean{certify_inf}, \lean{certify_sup}, \lean{verifies_purge},
-\lean{contents_purge_committed}). Under addition two chains of one length collide
+\lean{certify_digest_readBetween}, \lean{certify_inf}, \lean{certify_sup},
+\lean{verifies_purge_iff}, \lean{contents_purge_committed}); the last part is
+\lean{Verifies.readAt_eq_of_committed}. Under addition two chains of one length collide
 (\lean{Witness.digest_collides}).
 \end{proof}
+A certificate thus pins what it digests and nothing else. It attests no erasure, so a copy taken
+before an erasure verifies it and still holds what was erased; no seal, since a retire written
+after the cut changes what is served at it (\lean{Witness.seal_not_certified}); and no grant.
+Its chains are named, and a renamed chain no longer verifies
+(\lean{Witness.rename_breaks_certificate}).
 
 \begin{theorem}[SNP-10: the horizon]\label{thm:horizon}
 For $h \le c$, $\mathrm{read}(\mathrm{prune}_h(\mathrm{gens}(l)), c, x) = \mathrm{state}_c(l)(x)$.
 For any $c$, a value the pruned store returns at $c$ is $\mathrm{state}_c(l)(x)$; but there are
 $l$ and $c < h$ at which it returns nothing where a value stood.
-$\mathrm{prune}_h \circ \mathrm{prune}_{h'} = \mathrm{prune}_{\max(h, h')}$. If every $S_k$
-contains $0$, every frontier $f$ is resolved among the served positions by exactly one cut; that
-cut rises with the $S_k$ and with $f$, lies under the resolution of $f$, and equals it when every
-position is served.
+Two chains can have one pruned store and differ, at a cut under $h$, in whether a key had been
+written. $\mathrm{prune}_h \circ \mathrm{prune}_{h'} = \mathrm{prune}_{\max(h, h')}$. If every
+$S_k$ contains $0$, every frontier $f$ is resolved among the served positions by exactly one cut;
+that cut lies under the resolution of $f$, equals it when every position is served, and rises
+with $f$ and with served sets that grow. If $f$ is consistent, the chains in a set $U$ are read
+by no chain but themselves, and every chain outside $U$ serves its position, then the cut is $f$
+with each chain of $U$ at the greatest position it serves at or under $f$. Without the
+hypothesis on $U$ that fails: one chain read low can take every other chain to its empty prefix.
 \end{theorem}
 \begin{proof}[Sketch]
 A row alive at $c \ge h$ has no closing stamp at or under $h$, so pruning removes no row a read
 at $c$ selects; under $h$ a selected row is still the unique row alive in the full store
-(\lean{genRead_prune_gens}, \lean{stateAt_of_genRead_prune}, \lean{prune_prune},
-\lean{Witness.prune_forgets}). Resolution among served positions is the argument of
-\Cref{thm:lattice} with the supremum taken over served consistent cuts: the supremum on a chain
-is attained by one of them, so it is served (\lean{exists_resolvesIn}, \lean{ResolvesIn.unique},
-\lean{ResolvesIn.mono}, \lean{ResolvesIn.le_resolves}, \lean{resolvesIn_univ}).
+(\lean{genRead_prune_gens}, \lean{stateAt_of_genRead_prune}, \lean{prune_prune}); the two
+controls are \lean{Witness.prune_forgets} and \lean{Witness.prune_indistinct}. Resolution among
+served
+positions is the argument of \Cref{thm:lattice} with the supremum taken over served consistent
+cuts: the supremum on a chain is attained by one of them, so it is served
+(\lean{exists_resolvesIn}, \lean{ResolvesIn.unique}, \lean{ResolvesIn.mono},
+\lean{ResolvesIn.le_resolves}, \lean{resolvesIn_univ}). Lowering an unread chain breaks no
+reference, and no served consistent cut under $f$ is higher (\lean{resolvesIn_of_unread}). The
+controls are \lean{Witness.record_drags} and, for sets that shrink,
+\lean{Witness.served_set_shrinks}.
 \end{proof}
 
 \section{The design}\label{sec:design}
@@ -314,30 +341,34 @@ is attained by one of them, so it is served (\lean{exists_resolvesIn}, \lean{Res
 The usual picture has ledgers that only append and derived stores that are rewritten and can be
 recomputed. Read against the code it fails at one place that matters. The catalog, the map from a
 path to the content it holds and the idempotence key of every landing, is rewritten in place: an
-upsert, a tombstone flag, a delete. Version chains exist for one of four places; the attestation
-ledger names a digest and no path, once per action and digest; so for most items the sequence of
-contents a path held is recorded nowhere. Meanwhile the vector plane and the lexical index, which
+upsert, a tombstone flag, a delete. Version chains exist for one of four places; elsewhere the
+attestation ledger names a digest and no path, once per action and digest; so for most items the
+sequence of contents a path held is recorded nowhere. Meanwhile the vector plane and the lexical index, which
 the picture calls rewritten, keep every version's rows and move a flag. They are generations
 without a clock. A clock on their rows would be wrong, since a path that returns to earlier bytes
 makes the same rows current again, so a version's rows are valid on a set of intervals. The fix
-is one ledger: a \emph{landing log} in the catalog's own file, one hash chain per provenance
-class, a row per catalog write (class, position, kind, path, identity, digest, a salt, a
-commitment, the chain hash, the position of the path's next event), written by the catalog's own
-methods in the transaction of the row they write. The catalog is then the fold of the log
-(\Cref{thm:forms}), and every version-keyed store has a past: the log says which version a cut
-holds.
+is one ledger: a \emph{landing log} in the catalog's own file, hash chains that each hold one
+provenance class, a row per catalog write (chain, position, kind, a keyed hash of the path, path,
+identity, digest, a salt, a commitment, the chain hash, the position of the path's next event),
+written by the catalog's own methods in the transaction of the row they write. A chain has an id
+and its class is a label, so relabelling a class moves no row and breaks no certificate. The
+catalog is then the fold of the log (\Cref{thm:forms}), and every version-keyed store has a
+past: the log says which version a cut holds.
 
 \paragraph{Cuts, names, certificates.}
 A cut is one position per chain, about a dozen integers: the landing chains, the chat log, the
 attestations, the repository's commit, the generations of model output. It is not a position per
 document, which is millions of pairs on a large instance and adds nothing, since a frontier cut
 needs only its cross-store references checked. A cut is recorded, with the digest of every
-prefix, at the moments the stores are quiescent, and attested; the records form a chain. The
-adjective takes \texttt{head}, a record's id, a commit (the record made when the commit was
-read), or a date, which selects the last record whose wall bookmark is not later. Wall time is a
-lookup key there and orders nothing. Each row that reads another chain records that chain's head
-at its writing, which bounds its sources because there is one writer; the resolver compares
-those bounds.
+hashed prefix, when the writer's queue and its handoff are empty, and attested. The records form
+a chain of their own that no event reads: every landing reads the attestation ledger, so a
+record placed there would, by \Cref{thm:horizon}, take every landing chain down with any chain
+read below a position it certified. The adjective takes \texttt{head}, a record's id, a commit
+(the first record that holds it, with the repository lowered to the commit and resolved), or a
+date, which selects the last record whose wall bookmark is not later. Wall time is a lookup key
+there and orders nothing. Each row that reads another chain records that chain's head at its
+writing, which bounds its sources because there is one writer (\Cref{thm:lattice}); the resolver
+compares those bounds.
 
 \begin{algorithm}[t]
 \caption{The cut a read under \texttt{as of} is taken at. $S_k$: the positions chain $k$ serves.
@@ -368,9 +399,12 @@ at no new bytes. The lexical index is the same, and its collection statistics
 \cite{robertson2009bm25} at a cut are those of the units alive at the cut: a cut, like a
 clearance, is a mask whose statistics must be its own. The causal edges from session transcripts
 to commits and files are recomputed from the transcript as retained at the cut, which is cheap
-and also removes a dependence on job order that the stored rows have today. Model output cannot
-be recomputed and is kept by generation, the replaced row archived with its interval; a kept row
-is served only while every content it is about is alive and not erased. One storage form is
+and also removes a dependence on job order that the stored rows have today. The relations a note
+declares in its own text are recomputed too. A commit's citation edges are stamped with the
+projection that wrote them, since a later extractor adds edges under an old commit and the
+reading would otherwise grow under a cut that did not move. Model output cannot be recomputed
+and is kept by generation, the replaced row archived with its interval; a kept row is served
+only while every content it was derived from is alive at the cut and not erased. One storage form is
 ruled out as the carrier of a snapshot: the vector table's own versioned manifests. An erased
 text stays readable through an earlier manifest until a compaction that removes every earlier
 manifest (\Cref{sec:eval}), so a manifest version cannot be both the position of a snapshot and
@@ -378,19 +412,21 @@ within reach of an erasure. The cut is a predicate on rows taken from the log.
 
 \paragraph{Erasure and scope.}
 Both are parameters of a read, not functions of the cut. A purge empties the log's row and keeps
-its position, its commitment and its hash (\Cref{thm:erase,thm:cert}); the salt goes with the
-content, so the commitment cannot be tested against a guess. A retire seals the identity's
-earlier cuts under the stricter seal, lifted only by an owner's act. The looser seal would let a
-new note written at a deleted note's path, which by default inherits its identity, bring the
-deleted versions back. The grant is the asker's now, an event filter is applied after the read,
+its position, its commitment, its hash and the keyed hash of its path, so that a read by path
+finds the hole (\Cref{thm:erase,thm:cert}); the salt goes with the content, so the commitment
+cannot be tested against a guess. A retire seals the identity's earlier cuts under the stricter
+seal, lifted only by an owner's act. A new note written at a deleted note's path inherits its
+identity by default; the looser seal would bring the deleted versions back at earlier cuts, and
+without the seal on the history they would stand under the new note at every later one. The grant is the asker's now, an event filter is applied after the read,
 and an answer names the cut only on the chains the grant names (\Cref{thm:grant}).
 
 \paragraph{What an answer says.}
 A store may be unable to serve the cut asked: it keeps no past yet, or the cut is under its
 horizon. The read is then taken at the cut \Cref{alg:resolve} returns, which by
 \Cref{thm:horizon} exists, is unique, never lies after the cut asked and rises as stores gain a
-past. The answer is exact for that cut and names it, chain by chain, with the reason wherever it
-differs from the cut asked. Reading such a store at the present instead, which is what the
+past. Every chain that can fail to serve a recorded cut is read by no recorded bound, so only
+those chains are lowered. The answer is exact for that cut and names it, chain by chain, with
+the reason wherever it differs from the cut asked. Reading such a store at the present instead, which is what the
 executor does today, is the reader \Cref{thm:append} refutes. At the head the read is the
 present (\Cref{thm:compose}), so \texttt{as of "head"} is the sentence without the adjective.
 
@@ -402,39 +438,40 @@ it pending, and it is derived again from the raw object. Moving the horizon drop
 the log's rows, which only the store's owner declares. That pass appends a horizon row first, so
 a crash leaves rows that are unserved, never a position that is served and incomplete, and it
 keeps the digest at the horizon as the chain's seed. A window counted per identity (the last $n$
-versions of each) would leave no horizon, and \Cref{thm:horizon} says such a store cannot tell
-what it lost.
+versions of each) would leave no horizon to record.
 
 \section{Evaluation}\label{sec:eval}
 
 \paragraph{What is proved.}
 \Cref{thm:append,thm:compose,thm:forms,thm:grant,thm:erase,thm:lattice,thm:cert,thm:horizon} are
 machine-checked in \lean{formal/Palace/Snapshot.lean} over \lean{formal/Palace/Snapshot/Defs.lean}
-on Lean v4.36.0-rc2 and the Mathlib it pins: 125 theorems, eight of them the controls, no
-\lean{sorry}, and the axioms of all 5{,}122 library declarations audited (\lean{propext},
-\lean{Classical.choice}, \lean{Quot.sound} only). The library's export, 56{,}098 declarations
-from \lean{Init} up, is replayed by Lean's kernel and by \lean{leanchecker-paranoid},
-\lean{lean4lean}, \lean{nanoda}, \lean{con-leche} and \lean{con-ron}. These are design theorems:
-no code relies on them yet, so they are not among the 328 statements the library restates
-separately and judges against its ledger of laws.
+on Lean~4 \cite{moura2021lean4}, v4.36.0-rc2, and the Mathlib \cite{mathlib2020} it pins: 162
+theorems, fifteen of them the controls, no
+\lean{sorry}, and the axioms of all 5{,}176 library declarations audited (\lean{propext},
+\lean{Classical.choice}, \lean{Quot.sound} only). The library's export, 56{,}159 declarations
+from \lean{Init} up, is replayed by Lean's kernel and five independent checkers. These are
+design theorems: no code relies on them yet, so they are not among the 328 statements the
+library restates separately and judges against its ledger of laws.
 
 \paragraph{The attacks.}
 The definitions compute, so they are attacked as they are with property-based testing
-(\lean{formal/PalaceTest/Snapshot.lean}, seeds 430 to 486, 500 draws each): stores of two chains
+(\lean{formal/PalaceTest/Snapshot.lean}, seeds 430 to 513, 500 draws each): stores of two chains
 over three events, keyed chains over three keys, chains of landings and retires, grants and
 erasures from bit masks, reads-from relations as edge lists, a base-four digest, served positions
-from ten bits. Thirty-nine attacks survive every draw. \Cref{alg:resolve}'s descent, which the
-library does not define, is checked against the definition by enumerating every cut under the
-frontier, and the served resolution by taking the pointwise maximum of every consistent served
-cut. Eighteen controls are refuted within 53 draws: among them a read at a cut past the head,
-generations without the closing stamp, an event filter before the cut, an erasure that deletes
-rows, the state served without the seal, an additive digest, the pruned store read under its
-horizon, and a frontier lowered to the served positions without the descent.
+from ten bits. Forty-five attacks survive every draw. \Cref{alg:resolve}, which the library does
+not define, is run as written, the floor and the descent alternated, and agrees on every draw
+with the pointwise maximum of every consistent served cut under the frontier. Thirty-nine
+controls are refuted within 53 draws: among them a read at a cut past the head, generations
+without the closing stamp, an event filter before the cut, an erasure that deletes rows, a seek
+over rows that lost their key, the state served without the seal, an additive digest, the pruned
+store read under its horizon, a chain that others read lowered alone, and the floor and the
+descent each run once, in either order.
 
 \paragraph{What is measured.}
 All on synthetic fixtures built by each probe, on one machine (Apple M2 Pro, SQLite 3.54.1,
-LanceDB 0.33.0), with other work running; no instance was read. \Cref{tab:measure} gives the
-figures.
+LanceDB 0.33.0), with other work running; no instance was read. The probes are not in the
+repository, which holds no code for this design yet; the design note describes each fixture, and
+each build stage commits its harness. \Cref{tab:measure} gives the figures.
 
 \begin{table}[t]
 \centering
@@ -443,13 +480,14 @@ figures.
 \toprule
 probe & result \\
 \midrule
-landing log, $10^6$ events over $10^5$ paths, hashed, one transaction &
-  409 bytes a row with its two indexes; 50{,}000 to 54{,}000 rows a second \\
-one path at the middle cut & 3 to 4 $\mu$s through the path index; 6 to 7 ms when the planner
-  takes the primary key \\
-the delta of 1{,}000 positions & 0.69 ms \\
-every head at a cut & 149 to 163 ms at the middle; 246 to 285 ms at the head \\
-the chain's hash from the first row; the stored hash at a position & 0.8 s; 3 $\mu$s \\
+landing log, $10^6$ events over $10^5$ paths, keyed and hashed, one transaction &
+  396 to 434 bytes a row with its three indexes; 35{,}000 to 42{,}000 rows a second \\
+one path at the middle cut; its seven versions & 3 $\mu$s and 9 $\mu$s through the key index;
+  49 to 57 ms when the planner takes the primary key; after a version's row is emptied the
+  seek returns the hole \\
+the delta of 1{,}000 positions & 0.64 to 0.69 ms \\
+every head at a cut & 147 to 166 ms at the middle; 240 to 275 ms at the head \\
+the chain's hash from the first row; the stored hash at a position & 0.7 to 0.8 s; 3 $\mu$s \\
 lexical index, 500 items, 4 chunks, 3 versions &
   4{,}179 bytes a unit at 122 postings; 0.67 of the units superseded \\
 a purge of both versions of a note, on the test suite's throwaway store &
@@ -463,35 +501,36 @@ re-deriving a session of 2{,}000 records & 6 ms \\
 \caption{Measurements on synthetic fixtures. Ranges are across two runs.}\label{tab:measure}
 \end{table}
 
-The log's cost is small against what the stores already keep: no store drops a superseded
-version today, so most bytes of a past are paid whether or not anything reads them. The purge
-row is the finding that orders the build: the stores that would be read at a cut are the ones an
-erasure does not reach, so the erasure's reach lands before the first stage that reads a
-superseded version.
+The log's cost is small against what the stores already keep: the vector plane and the lexical
+index drop no superseded version today, so most bytes of a past are paid already. Reading every
+head from the log alone passes a tenth of a second at about a quarter of a million events in a
+chain, past which heads are kept at recorded cuts. The purge row orders the build: the stores
+that would be read at a cut are the ones an erasure does not reach, so the erasure's reach lands
+before the first stage that reads a superseded version.
 
 \section{Limitations}
 
 The model has one writer: a chain is a list, and nothing is said of two writers. Collision
-freedom is a hypothesis of \Cref{thm:cert}, not a theorem about a hash function. The descent of
-\Cref{alg:resolve} is attacked, not proved; the library proves the cut it must return exists and
-is unique. A repository history with merges is a partial order and not a chain; the clock's
-down-set laws cover it, the chain model does not. The owner's unseal is not in the model of the
-seal. Every measurement is on a synthetic fixture: the cost of the lexical statistics from a
-mask at a corpus's size, of a vector search joined to the heads at a cut, and of a retention
-pass are not measured. The attestation ledger still names an erased digest, and what to do
-about it is left to the store's owner.
+freedom and a binding commitment are hypotheses of \Cref{thm:cert}, not theorems about a hash
+function. \Cref{alg:resolve} is attacked, not proved; the library proves the cut it must return
+exists and is unique. The laws of the grant and the erasure are laws of a reader that reads
+through them; that every reader in the code does is an obligation of the build, and no single
+reader in the model applies the resolution, the grant, the erasure and the seal together. A
+repository history with merges is a partial order, which the clock's down-set laws cover and
+the chain model does not. Every measurement is on a synthetic fixture and cannot yet be repeated from the
+repository: the cost of the lexical statistics from a mask at a corpus's size, of a vector
+search joined to the heads at a cut, and of a retention pass are not measured. The attestation
+ledger still names an erased digest; the note proposes a salted commitment in its place and
+leaves the choice to the store's owner.
 
 \section{Future work}
 
-The build is eight stages, each shipped with its tests and its rollback: the landing log, with
-its reads and no reader; recorded cuts, names and the resolver; the erasure's reach and the seal;
-the notes, vectors and lexical index at a cut, with the answer naming the cut read; the causal
-edges recomputed at a cut; model output by generation; retention; and the delta, as a region of
-what changed between two cuts and as the input of integrator jobs whose checkpoint is a cut.
-Each stage transcribes its laws and property-tests the transcription against the Lean
-statements, at which point the laws enter the ledger. Two further readings wait on these: the
-velocity of an identity over a window of cuts, and a field of use folded over its own log, which
-\Cref{thm:compose} makes exact as of a cut.
+The build is eight stages, each shipped with its tests and its rollback: the landing log;
+recorded cuts, names and the resolver; the erasure's reach and the seal; the notes, vectors and
+lexical index at a cut; the causal edges at a cut; model output by generation; retention; and
+the delta between two cuts, as a region and as the input of jobs whose checkpoint is a cut. Each
+stage transcribes its laws and property-tests the transcription against the Lean statements, at
+which point the laws enter the ledger.
 
 \section{Conclusion}
 
@@ -500,8 +539,7 @@ through the present's grant and the present's erasure. Stated that way its prope
 theorems: it does not change as the store grows, it composes with the delta, every derived store
 that can be read at a cut is a function of the prefixes, and an incomplete history has one best
 cut under any cut asked. The same statements located what the code lacked, a ledger of the
-catalog's past, and what it must not do, which is to answer a question about the past from the
-present.
+catalog's past, and what it must not do: answer a question about the past from the present.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
