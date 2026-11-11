@@ -71,12 +71,12 @@ as of a cut (dn-utility-field, open question 1).
    (§3.4, §3.5).** Every frontier resolves to exactly one such cut. That consistent cuts are
    closed under meet and join is CLK-2's, already in the ledger. Wall time selects a frontier by
    lookup in the bookmarks and orders nothing. `[THEOREM: SNP-8, CLK-2]`
-4. **A cut is certified by the digest of each hashed chain's prefix, recorded on a chain of
-   records that nothing reads (§3.3, §3.6).** A certificate verifies on every later state of the
+4. **A cut is certified by the digest of each hashed chain's prefix, recorded on a chain of records
+   that no other chain reads (§3.3, §3.6).** A certificate verifies on every later state of the
    store and, under a collision-free digest, pins the prefix it digests. For the landing log that
    prefix is the commitments, so under a binding commitment it pins the events. It attests no
-   erasure, no seal and no grant: those are the present's, and an answer at a certified cut is
-   the same on two stores for one erasure, one grant and one set of seals. `[THEOREM: SNP-9]`
+   erasure, no seal and no grant: those are the present's, and an answer at a certified cut is the
+   same on two stores for one erasure, one grant and one set of seals. `[THEOREM: SNP-9]`
 5. **Derived data is a function of the prefixes, held store by store in the cheapest of the
    equal ways (§5):** version-keyed rows selected by the log for vectors and lexical units,
    recomputation for the causal fiber and for the relations a note declares, kept generations
@@ -89,8 +89,10 @@ as of a cut (dn-utility-field, open question 1).
    cannot serve the cut asked, the cut read is the greatest consistent cut among the positions
    the stores serve, and the answer names it chain by chain. A chain that no other chain reads is
    lowered alone; a chain that others read takes its readers down with it, which is why a
-   recorded cut is kept off the chains that content reads. `[THEOREM: SNP-10; INFERENCE for the
-   surface, falsifier SNF-4]`
+   recorded cut is kept off the chains that content reads, and why a row that reads a landing
+   without being a landing's own record, a pass attestation or a row of model output, is
+   withheld by a filter of the read and lowers no position (§3.5). `[THEOREM: SNP-8, SNP-10;
+   INFERENCE for the surface, falsifier SNF-4]`
 8. **History is exact from the horizon, and the horizon is an event of the chain (§8).** A
    store that drops old generations reads every cut from its horizon on exactly, and a cut under
    the horizon is not served. `[THEOREM: SNP-10]`
@@ -126,9 +128,9 @@ flight; one of them keeps text, the rejected requests, and §6.1 names it for th
 ### 1.4 What is proved, what is measured, what is open
 
 Proved, in `formal/Palace/Snapshot.lean` over `formal/Palace/Snapshot/Defs.lean`: SNP-1 to SNP-10
-as §10 states them, 161 theorems, fifteen of them the controls; attacked in
-`formal/PalaceTest/Snapshot.lean` (seeds 430 to 513: forty-five attacks, every one surviving all
-500 instances, and thirty-nine negative controls, each refuted). They are design theorems: no
+as §10 states them, 175 theorems, eighteen of them the controls; attacked in
+`formal/PalaceTest/Snapshot.lean` (seeds 430 to 520: forty-nine attacks, every one surviving
+all 500 instances, and forty-two negative controls, each refuted). They are design theorems: no
 code relies on them, so they have no row in `docs/LAWS.md` and no statement in `formal/Spec/`;
 §12 says when they enter the ledger. Some of what §6 and §7 require holds by the construction of
 the model and not by a theorem about the code: §10 says which, law by law.
@@ -319,7 +321,7 @@ prefix length of it. `[DERIVED from global-event-clock §2.2, generator g1]`
 | `staging` | the staging store | its generation | recorded |
 | `runs` | the run ledger, with the structural snapshot of a pass | a sequence number | recorded as insertion order |
 | `use` | the utility field's use log (dn-utility-field §3.1) | the tick | not built |
-| `cuts` | the recorded cuts (§3.3) | `seq` | not built; no chain reads it |
+| `cuts` | the recorded cuts (§3.3) | `seq` | not built; it reads every chain it certifies, and no other chain reads it |
 
 Four choices are made here.
 
@@ -518,7 +520,10 @@ landing reads from the attestation ledger. If records sat on that ledger, a chai
 serve only a position below one a record certified would exclude the record, the ledger's
 prefix would stop before it, and every landing attested later would go with it: one chain read
 low can take a landing chain to its empty prefix (`Witness.record_drags`). On a chain of
-their own, which no event reads, the records constrain nothing (§3.5). `[THEOREM: SNP-10]`
+their own, which no event of another chain reads, a record takes no chain down. Its own chain
+does go down with a chain it certifies: the chain of records is read at its last record every
+position of which the cut read holds, and nothing follows it (`resolvesIn_of_followed`,
+`Witness.record_follows`; §7.1). `[THEOREM: SNP-10]`
 
 Since each record is the head of every chain at some moment and chains only grow, the recorded
 cuts are totally ordered. A record is about 2.7 kilobytes by arithmetic from its fields, not
@@ -568,12 +573,27 @@ references between the chains of §3.1 are these. `[ESTABLISHED: read off the wr
 - the attestation of a sensed commit, and of a projection of it, reads from the commit
   (`ops/code_sensor.py:413-418`, `:489-492`);
 - a citation edge reads from its commit and from the projection that wrote it;
+- a recorded cut reads from the prefix of every chain it certifies and from the record before
+  it, and no row of another chain reads a recorded cut;
+- the attestation of a pass reads from the landings of the notes the pass read. The dreamer's
+  and the curator's attestations sit on the ledger the landings' attestations sit on, name the
+  notes' digests as their inputs (`core/dreaming/dreamer.py:144-148`, `:223-227`;
+  `core/curator/curator.py:167-171`; `core/attestation/record.py:57`) and take as parents the
+  attestations that produced those digests (`core/attestation/attestor.py:64-69`);
+- a dream claim of the run ledger reads from the landings of the digests it rests on
+  (`core/stores/runledger.py:90-97`);
 - an interpreted artifact reads from the digests its `derived_from` names, through the artifacts
   it names there, and from the attestation its `attestation_id` names
   (`core/stores/derived.py:186-191`); an interpreted relation edge reads from the landings of its
   two endpoint digests;
-- a recorded cut reads from the prefix of every chain it certifies, and nothing reads a
-  recorded cut.
+- a claim op reads from the note or the artifact its `claim_id` names, and a supersede from the
+  conclusion artifact the same call wrote, its `related_id` (`core/stores/claim_ops.py:45`,
+  `:161-163`); a verdict's disposition reads from the claim or artifact it is about
+  (`core/verdict/dispositions.py:59-64`).
+
+The first four are **resolved**: the resolver follows them, and the cut read is consistent for
+them. The last four are **filtered**: the resolver does not follow them, and a row that has one
+is served at a cut only when its sources are. Both are taken up below, after the definition.
 
 A causal edge reads from the turn that witnessed it and, when it ends at a commit, from the
 commit (`causal_edges.py:58-60`, `integrator.py:134-137`); it is recomputed at a cut (§5.5), so
@@ -601,22 +621,69 @@ fact whose sources lie after the cut, every cross-chain reference closed. `[THEO
 So ING-7's invariant, that a key implies its rows, holds at every consistent cut and not only at
 the head: a cut that holds a landing holds its attestation and its version. `[DERIVED]`
 
-**Where the references are recorded.** The resolver has to know, for an event, where its sources
-lie. A landing records the head of `att` at its writing (`att_head`); an attestation of a
-commit names the commit; a recorded cut carries its whole frontier. With one writer a row's
+**Where the resolved references are recorded.** The resolver has to know, for an event, where
+its sources lie. A landing records the head of `att` at its writing (`att_head`); an attestation
+of a commit names the commit; a recorded cut carries its whole frontier. With one writer a row's
 sources were all written before it, so the head at its writing bounds them, the bound rises
 along the chain, and it is sound: a cut consistent for the recorded bounds is consistent for the
-true references (`Consistent.of_bound`). It can only make fewer cuts consistent. `[THEOREM:
-SNP-8; DERIVED from the one-writer rule, dn-ingress D3, for the bound]`
+true references they bound (`Consistent.of_bound`). It can only make fewer cuts consistent. The
+theorem's hypothesis is a recorded bound at or above every true reference, so it speaks of the
+resolved references and of no other. `[THEOREM: SNP-8; DERIVED from the one-writer rule,
+dn-ingress D3, for the bound]`
 
-**Rows that are filtered, not resolved.** An interpreted row records no head of the chains it
-reads, and it needs none. No chain reads the `interp` chains, so their positions constrain no
-other chain (`resolvesIn_update_of_unread`), and the closure of their own references is kept row
-by row: a row is in the read at a cut when its position is at or under the cut, the attestation
-it names is at or under the cut on `att`, and every digest its sources reach is a head at the
-cut (§5.4). A row whose sources lie outside the cut is withheld and a later row whose sources
-lie inside is served. That read is a derived view of the prefixes (SNP-5) which holds no fact
-whose sources lie after the cut; it is not the prefix of the chain. `[DERIVED]`
+**Rows that are filtered, not resolved.** The other references must not be given to the
+resolver. A pass attestation sits on `att`, which every landing reads, and it reads landings.
+Resolved, that reference would put `att` below the first pass that read a landing outside the
+cut, and every landing chain attested after that pass would fall with it: a landing chain read
+low behind a history window would take the other landing chains to the positions they had when
+that pass ran, which is the cascade of a record kept on the ledger, through a pass
+(`Witness.pass_drags`). So the closure of these references is kept row by row. A row is
+**withheld** at a cut when it fails a test of its own, when a source of it lies outside the cut,
+or when a source of it is withheld (`Withheld`); the read at a cut is the rows inside the cut
+that are not withheld (`Kept`). `[THEOREM: SNP-8 for the control; INFERENCE for the choice,
+falsifier SNF-16]` What a row's sources and its own test are, store by store:
+
+- **A pass attestation:** an attestation whose inputs name the digests of notes it did not itself
+  land, which today are the dreamer's and the curator's. Its chain-table row records, at its
+  writing, the landing chains that held its inputs and the head of each. It is withheld when the cut
+  read lies under one of those heads. The head stands for the landings the pass read, which lie at
+  or under it, so the bound can only withhold more; it is a position and names no digest, so a purge
+  or a history window, which empty rows and move no position, change nothing in what is withheld.
+  The ledger is read by sequence number with those rows left out.
+- **A row of the run ledger.** A run's chain-table row records the same pairs, and a dream
+  claim is served when its run is.
+- **An interpreted artifact and an interpreted relation edge.** §5.4: the attestation the row
+  names is kept at the cut, and every digest its sources reach is a head at the cut and is not
+  erased or sealed.
+- **A claim op and a disposition.** The note or the artifact it names is served at the cut,
+  and for a supersede the conclusion artifact as well.
+
+What is proved of the filtered read, for any reads-from relation and any test. `[THEOREM:
+SNP-8, with SNP-1 and SNP-2 for the last item]`
+
+- It is closed: every source of a kept row is kept, so it lies inside the cut (`Kept.source`,
+  `Kept.passes`). The read holds no fact whose sources lie after the cut, for every reference
+  of the list above, whatever cut the resolver returned.
+- It withholds no more than it must: every set of rows inside the cut that pass their test and
+  that holds its own sources is kept (`kept_of_closed`).
+- It never withholds a row all of whose references are resolved. The landings, the attestations
+  of landings and of commits, and the commits read only one another, by resolved references, so
+  at a cut consistent for those references every one of them inside the cut is kept
+  (`kept_of_resolved`). The filter takes rows out of `att`, `runs` and the `interp` chains and
+  takes no landing.
+- At a cut consistent for every reference, where every row passes its test, it withholds
+  nothing and the read is the prefix (`kept_iff_of_consistent`). For the attestations and the
+  runs, whose test is empty, that is the case at the head, since a store holds the sources of
+  its own rows, and at a recorded cut every position of which is served.
+- For a test that does not depend on the cut it is monotone, a row kept at a cut being kept at
+  every later one, and it is append invariant (`Kept.mono`, `kept_grown_iff`).
+
+So the cut read is consistent for the resolved references, and the read at it is filtered for
+the rest. That read is a derived view of the prefixes (SNP-5), and on `att`, `runs` and the
+`interp` chains it is not the prefix. The control is the store of `Witness.pass_drags` with the
+pass's reference filtered: the landing chain behind its window is lowered alone, the prefix at
+that cut holds a pass whose landing is outside it, and the filtered read withholds the pass and
+keeps the attestation after it and the other class's landing (`Witness.pass_withheld`).
 
 **The resolver.** A name that selects a recorded cut needs none while every chain serves the
 record's positions: the record is consistent. Otherwise it is two steps alternated until
@@ -880,14 +947,17 @@ differs between the two stores.
   link to the pass that wrote it is the attestation it names (`derived.py:59`).
 
 So a kept row is in the read at a cut when four things hold: it was written at or under the cut
-on its own chain; the attestation it names, if any, is at or under the cut on `att`; every
+on its own chain; the attestation it names, if any, is kept at the cut on `att`, which for a
+pass attestation is more than lying under the cut (§3.5); every
 digest its sources reach is some path's head at the cut, where an artifact's sources are
 followed through the artifacts it names, each as it stood at the cut, down to digests (the
 store refuses a cycle, `derived.py:186-189`); and none of those digests is erased or sealed
-(`mem_serve_iff`). `[THEOREM: SNP-7 for the erasure; DERIVED for the rest]` This is the row
-filter of §3.5: it withholds a row and lowers no position. Until SN-6 builds it the `interp`
-chains serve two positions, the empty prefix and the head (§7.1), and lowering them moves no
-other chain, since nothing reads them.
+(`mem_serve_iff`). `[THEOREM: SNP-7 for the erasure, SNP-8 for the closure; DERIVED for the
+rest]` This is the row filter of §3.5: it withholds a row and lowers no position. Until SN-6
+builds it the `interp` chains serve two positions, the empty prefix and the head (§7.1).
+Lowering them moves no chain outside them but the chain of records, which follows (§7.1): the
+other references into them are their own, a claim op's to an artifact and an artifact's to
+another, and those are the filter's.
 
 ### 5.5 The causal fiber
 
@@ -1104,7 +1174,9 @@ at a recorded cut: the record's positions are fixed, `att` is never pruned, so i
 and the references of the events inside the cut do not change as the store grows
 (`Consistent.of_grown`). What a narrower grant can learn through the cut shown is only that
 `att` or `repo` did not serve a position, which is a fact about the instance and no class's
-data. `[DERIVED]`
+data. The filtered references do not enter the cut shown, since the resolver does not follow
+them. A row withheld because a chain the grant does not name was read low tells the asker that
+that chain did not serve the cut, the same kind of fact. `[DERIVED]`
 
 Two consequences for the surface. An answer names the cut it read on the chains the asker's grant
 names and on no other, and the bounds a row records (§3.5) are never shown: `att` mixes every
@@ -1154,15 +1226,31 @@ that position is outside the cut, and so is everything that reads those events
 (`Witness.record_drags`). A chain that no other chain reads is lowered alone: from a consistent
 cut asked, the cut read is the cut asked with each such chain at the greatest position it
 serves at or under the one asked, and every other chain as asked (`resolvesIn_of_unread`, and
-`resolvesIn_update_of_unread` for one chain). `[THEOREM: SNP-10]` The design is arranged so that
-the second case is the only one that occurs at a recorded cut. The references the resolver
-records are a landing's to `att` and an attestation's to `repo` (§3.5). Neither `att` nor
-`repo` has a horizon that moves: the attestation ledger is never pruned (§9.2) and `repo` is
-git's. Every chain that can fail to serve a recorded position, a landing chain behind a history
-window, a chain that keeps no past yet, the use log behind its horizon, is read by no recorded
-bound. And the recorded cuts, which read every chain, sit on a chain nothing reads (§3.3). So at
-a recorded cut each chain that cannot serve is lowered alone and the others are read as
-recorded. `[DERIVED]`
+`resolvesIn_update_of_unread` for one chain). And a chain that reads a lowered chain, and that
+nothing but itself reads, follows it and takes nothing with it: it is read at the greatest
+position it serves whose events read the lowered chains inside their new positions
+(`resolvesIn_of_followed`). `[THEOREM: SNP-10]`
+
+The design is arranged so that, among the references the resolver follows, the second and the
+third case are the only ones that occur at a recorded cut. Those references are a landing's to
+`att`, an attestation's to `repo` and a record's to every chain it certifies (§3.5). Neither
+`att` nor `repo` has a horizon that moves: the attestation ledger is never pruned (§9.2) and
+`repo` is git's. Every chain that can fail to serve a recorded position, a landing chain behind
+a history window, a chain that keeps no past yet, the use log behind its horizon, is read
+through a resolved reference by one chain only, the chain of records, which no other chain
+reads (§3.3). So at a recorded cut each chain that cannot serve is lowered to the greatest
+position it serves; the chain of records is lowered with them, to its last record every
+position of which the cut read holds (`Witness.record_follows`); and every other chain is read
+as recorded. `[DERIVED]`
+
+That is a statement about positions, and it holds for the resolved references only. A row that
+reads a lowered chain through a filtered reference, a pass attestation, a dream claim, an
+interpreted row or a claim op, leaves the read by the filter of §3.5 and moves no position: at
+a cut where a landing chain is read at its empty prefix, every pass attestation that read a
+landing of that chain is withheld, with the artifacts that name it, and `att` keeps its
+position. Resolving those references instead would bring the cascade back through `att`
+(`Witness.pass_drags`, against `Witness.pass_withheld`). `[THEOREM: SNP-8 for the two
+controls]`
 
 **When the cut read falls.** The monotonicity needs the served positions to grow. They do not
 always. A store that keeps no past serves its empty prefix and its head, and loses its old head
@@ -1175,9 +1263,10 @@ note]`
 
 The answer is then exact for the cut it names: every law of §10 holds at the cut read. What the
 answer says is that cut. It carries one note with the cut asked, the cut read on the chains the
-asker's grant names (§6.3), and each chain on which the two differ with the reason: the store
-keeps no past, the cut is under the chain's horizon, or the stage that reads the store at a cut
-is not built. For example, on an instance where the interpreted relation edges do not yet keep
+asker's grant names (§6.3), and each chain on which the two differ with the reason: the store keeps
+no past, the cut is under the chain's horizon, or the stage that reads the store at a cut is not
+built. Where the filter withheld rows because a chain was read low, the note says of which store and
+how many. For example, on an instance where the interpreted relation edges do not yet keep
 generations:
 
 ```
@@ -1206,7 +1295,7 @@ The mode of a clause follows from its scope (`core/query.py:273-281`).
 | semantic | `near`, `diffuse S`, `reach S`, `relate` | the heads of the clause's classes, from the log; their vectors by content address and the lexical index for the pending ones (§5.2, §5.3); the backbone recomputed among them | SN-4; `relate` SN-6 |
 | structural | `reach F`, `diffuse F`, `walk` over `F` | the citation reading of the cut's commit, as projected at or under the cut (§5.1) | today for a commit projected once; SN-4 for one projected again |
 | temporal | `trace`, `reach D`, `walk` over `D`, `changed` (§7.4) | the history served of the identity at the cut (§6.2): the log's rows of the identity at or under the cut, after its last retire | SN-4; `changed` SN-8 |
-| causal | `reach C`, `walk` over `C`, `witness` | the causal fiber recomputed at the cut (§5.5); an attestation at or under the cut on `att` | SN-5 |
+| causal | `reach C`, `walk` over `C`, `witness` | the causal fiber recomputed at the cut (§5.5); an attestation kept at the cut on `att` (§3.5) | SN-5 |
 
 | species | at a cut |
 |---|---|
@@ -1232,8 +1321,9 @@ The mode of a clause follows from its scope (`core/query.py:273-281`).
   the version before it (`stateAt_holes_of_erased`); a sealed identity reads as nothing (§6). A
   transcript turn: the chat log's row when its number is at or under the cut. A curated row:
   what landed through the catalog as a note is; a row with no landing is not read (§5.6).
-- **`witness`.** The record when it lies inside the cut: an attestation by its number on `att`, a
-  causal edge by its turn and its commit, a citation edge by its commit.
+- **`witness`.** The record when it lies inside the cut: an attestation by its number on `att`,
+  and a pass attestation only when the landings it read are inside the cut as well (§3.5); a
+  causal edge by its turn and its commit; a citation edge by its commit.
 - **`assume`.** The overlay applied to the universe of the cut read: a hypothetical at a past cut.
 - **`do`.** A request is a whole sentence and takes no adjective (`core/sentence/grammar.py:4-5`),
   so it cannot be written under `as of`: a write has no past.
@@ -1313,12 +1403,14 @@ So the horizon is recorded, and a cut under it is not served.
   recorded cut (§3.3). It only advances.
 - **What a question before it gets.** The chain is read at the greatest position it serves at
   or under the one asked, which under a horizon is its empty prefix, and the answer says the cut
-  is under the chain's horizon and names the first cut the chain serves. Every other chain is
-  read as asked: the chains that have a horizon above a recorded position are chains no recorded
-  bound reads, so each is lowered alone (§7.1, `resolvesIn_of_unread`). What follows a lowered
-  landing chain is the rows about it: an interpreted row whose sources are not heads at the cut
-  read is withheld by its own filter (§5.4). A sentence all of whose chains are under their
-  horizons returns the note and no hit.
+  is under the chain's horizon and names the first cut the chain serves. Every other chain but
+  one is read as asked. Among the references the resolver follows, a chain that has a horizon
+  above a recorded position is read by the chain of records alone, so each such chain is
+  lowered alone and the chain of records with them, to its last record that the cut read holds
+  (§7.1, `resolvesIn_of_followed`). What else follows a lowered landing chain is the rows about
+  it, by the filter and not by position: a pass attestation, a dream claim, an interpreted row
+  or a claim op whose sources are not inside the cut read is withheld (§3.5, §5.4). A sentence
+  all of whose chains are under their horizons returns the note and no hit.
 - **What that means today.** A commit read before the log exists resolves, on every chain but
   `repo`, under the horizon: `as of` such a commit reads the citation graph and the repository's
   files at the commit and nothing else. For a commit projected once, and held by the checkout,
@@ -1387,7 +1479,9 @@ served and incomplete (the discipline of PLN-4, where a cache is stale only by e
 `[DERIVED]` The attestation ledger and the version chains are not pruned: they are the audit
 record, they are small, and they have no delete. That the ledger keeps every position is also
 what §7.1 rests on: `att` is the one chain every landing reads, so a horizon on it would take
-the landing chains down with it.
+the landing chains down with it. The converse is why a pass attestation's reference to a
+landing is filtered and not resolved (§3.5): resolved, a history window on one landing chain
+would lower `att`, and through it every other landing chain.
 
 A window is counted in events because wall time orders nothing (Law C4): the last ten thousand
 landings of a class, not the last ninety days. It is one position a chain, not a number of
@@ -1427,11 +1521,12 @@ as of a cut is the fold of the prefix, continued from a kept checkpoint over the
 dn-utility-field: the field's clock is a chain of the cut, `use`, and the field as of a cut is
 then exact. Two more things follow.
 
-- **The use log has a natural horizon.** A site left alone returns within `ε` of its baseline
-  after `log(c/(lam ε))/lam` ticks (UTL-2, `idle_window`), so a horizon that far behind the head,
-  with the field's state at the horizon kept, is exact from the horizon on and loses nothing a
-  reader of the present could see. No other chain reads the use log, so a cut under its horizon
-  lowers that chain and no other (§7.1). `[DERIVED from UTL-2, SNP-3 and SNP-10]`
+- **The use log has a natural horizon.** A site left alone returns within `ε` of its baseline after
+  `log(c/(lam ε))/lam` ticks (UTL-2, `idle_window`), so a horizon that far behind the head, with the
+  field's state at the horizon kept, is exact from the horizon on and loses nothing a reader of the
+  present could see. No chain but the chain of records reads the use log, so a cut under its horizon
+  lowers that chain, the chain of records with it, and no other (§7.1). `[DERIVED from UTL-2, SNP-3
+  and SNP-10]`
 - **The field could order what retention drops.** The order a pass drops in is by age: the
   oldest closed versions first. When a window forces a choice among the derived rows of
   superseded versions, the ones whose sites stand at the baseline were not used for anything
@@ -1447,21 +1542,23 @@ now. The Lean names are in `formal/Palace/Snapshot.lean`, the attacks and contro
 it is a theorem and what holds because the model was built that way, since the second kind
 passes to the code only as an obligation of the stage that transcribes it.
 
-- **SNP-1 append invariance.** A read at a cut inside the store, a read between two such cuts
-  and every derived view are unchanged by any growth of the store (`readAt_grow`,
-  `readAt_of_extends`, `readBetween_grow`, `appendInvariant_view`), also under an erasure and a
-  grant (`visible_grow`, `snapshot_grow`, `shown_grow`) and for the keyed forms (`stateAt_append`,
-  `genRead_gens_append`). By construction: a store is a family of lists, so growth is append
-  and nothing else. That the code's stores only append below a cut is what the stage's test
-  checks. Controls: the reader that ignores the cut (`Witness.present_not_appendInvariant`); a
-  read at a cut past the head (431, 487, 488). Attacks 430, 432, 446. The test, at SN-1: over
-  random sequences of catalog writes, `read_at(chain, c)` and `state_at` of every path at `c`,
-  taken after every further write, equal the ones taken when `c` was the head.
+- **SNP-1 append invariance.** A read at a cut inside the store, a read between two such cuts and
+  every derived view are unchanged by any growth of the store (`readAt_grow`, `readAt_of_extends`,
+  `readBetween_grow`, `appendInvariant_view`), also under an erasure and a grant (`visible_grow`,
+  `snapshot_grow`, `shown_grow`), for the keyed forms (`stateAt_append`, `genRead_gens_append`) and
+  for the filtered read of SNP-8 (`kept_grown_iff`). By construction: a store is a family of lists,
+  so growth is append and nothing else. That the code's stores only append below a cut is what the
+  stage's test checks. Controls: the reader that ignores the cut
+  (`Witness.present_not_appendInvariant`); a read at a cut past the head (431, 487, 488). Attacks
+  430, 432, 446. The test, at SN-1: over random sequences of catalog writes, `read_at(chain, c)` and
+  `state_at` of every path at `c`, taken after every further write, equal the ones taken when `c`
+  was the head.
 - **SNP-2 monotonicity.** The read at an earlier cut is a prefix, chain by chain, of the read at
   a later one, and a cut of a cut is the meet (`readAt_mono`, `mem_readAt_of_le`,
-  `readAt_readAt`, `head_readAt`, `visible_mono`). Controls: the read at one cut taken for a
+  `readAt_readAt`, `head_readAt`, `visible_mono`), and the filtered read of SNP-8 grows with
+  the cut (`Kept.mono`). Controls: the read at one cut taken for a
   prefix of the read at any other (434); a cut of a cut taken for the join (500). Attacks 433,
-  435. The test, at SN-1: for `a ≤ b`, `read_at(chain, a)` is a prefix of `read_at(chain, b)`.
+  435, 515. The test, at SN-1: for `a ≤ b`, `read_at(chain, a)` is a prefix of `read_at(chain, b)`.
 - **SNP-3 composition.** The read at `a` followed by the read between `a` and `b` is the read at
   `b`, and two adjacent reads-between compose (`readAt_append_readBetween`, `readBetween_append`);
   a fold continued from a checkpoint over the delta is the fold of the prefix
@@ -1536,10 +1633,24 @@ passes to the code only as an obligation of the stage that transcribes it.
   `Consistent.of_bound`). The consistent cuts are CLK-2's cuts among the frontier cuts
   (`consistent_iff_isCut`), so their closure under meet and join is CLK-2, cited and not
   claimed here (`Consistent.inf`, `Consistent.sup` and `consistentCuts`, derived from
-  `Clock.IsCut.frontier_inf` and `Clock.IsCut.frontier_sup`; `consistent_zero` for the bottom). Controls: a frontier
-  taken for a cut (462); a consistent cut advanced by one position (464); resolution taken to
-  fall as the frontier rises (490). Attacks 461, 463, 465. The test, at SN-2: the resolver
-  against enumeration on small stores, and no recorded cut with a reference crossing it.
+  `Clock.IsCut.frontier_inf` and `Clock.IsCut.frontier_sup`; `consistent_zero` for the bottom).
+  The references the resolver does not follow are kept by a filter of the read: a row is
+  withheld when it fails its own test, when a source of it lies outside the cut or when a
+  source of it is withheld. The filtered read holds the sources of its rows, is the greatest
+  such set inside the cut, is the prefix at a cut consistent for every reference, and never
+  withholds a row whose references are all resolved (`Kept.source`, `Kept.passes`,
+  `kept_of_closed`, `kept_iff_of_consistent`, `kept_of_resolved`, on `Withheld.anti` and
+  `Withheld.of_grown`). By construction: which references are resolved and which filtered is
+  the design's reading of the writers (§3.5), and that every reader of `att`, `runs` and the
+  `interp` chains at a cut goes through the filter is the stages' to transcribe. Controls: a
+  frontier taken for a cut (462); a consistent cut advanced by one position (464); resolution
+  taken to fall as the frontier rises (490); a pass attestation's reference resolved, which
+  lowers a landing chain that serves its position (`Witness.pass_drags`); the prefix read where
+  that reference is filtered, which is not closed (`Witness.pass_withheld`, 518); the filter
+  without its closure (517). Attacks 461, 463, 465, 514, 516. The test, at SN-2: the resolver
+  against enumeration on small stores, and no recorded cut with a resolved reference crossing
+  it; at SN-5 and SN-6: at every cut, no row served whose source, by any reference of §3.5, is
+  outside the cut or withheld, and at the head no row withheld that the present read returns.
 - **SNP-9 certified cuts.** A certificate verifies on every extension of the store; under a
   collision-free digest two stores that verify one certificate have the same prefix of every
   digested chain at its cut and the same derived views of it; a certificate extends over the
@@ -1559,41 +1670,44 @@ passes to the code only as an obligation of the stage that transcribes it.
   Attacks 466, 467, 469, 470, 471. The test, at SN-2: a certificate verifies after any further
   writes, on a copy of the files and after a purge, and fails when one row under the cut is
   edited or a chain is given another id.
-- **SNP-10 the horizon.** A generational store pruned at a horizon is exact at every cut from
-  the horizon on and never wrong under it; horizons compose to the later one; pruning commutes
-  with a later landing (`genRead_prune`, `genRead_prune_gens`, `stateAt_of_genRead_prune`,
-  `prune_prune`, `prune_landGen`). Among the positions the chains serve, every frontier resolves
-  to exactly one greatest consistent cut, which never passes the cut asked and rises with the
-  frontier and with served positions that grow (`exists_resolvesIn`, `ResolvesIn.unique`,
-  `ResolvesIn.mono`, `ResolvesIn.le_resolves`, `resolvesIn_univ`, `resolvesIn_self`). A chain
-  that no other chain reads is lowered alone, and so is every such chain at once
-  (`Consistent.update_of_unread`, `resolvesIn_update_of_unread`, `resolvesIn_of_unread`).
+- **SNP-10 the horizon.** A generational store pruned at a horizon is exact at every cut from the
+  horizon on and never wrong under it; horizons compose to the later one; pruning commutes with a
+  later landing (`genRead_prune`, `genRead_prune_gens`, `stateAt_of_genRead_prune`, `prune_prune`,
+  `prune_landGen`). Among the positions the chains serve, every frontier resolves to exactly one
+  greatest consistent cut, which never passes the cut asked and rises with the frontier and with
+  served positions that grow (`exists_resolvesIn`, `ResolvesIn.unique`, `ResolvesIn.mono`,
+  `ResolvesIn.le_resolves`, `resolvesIn_univ`, `resolvesIn_self`). A chain that no other chain reads
+  is lowered alone, and so is every such chain at once (`Consistent.update_of_unread`,
+  `resolvesIn_update_of_unread`, `resolvesIn_of_unread`); a chain that reads the lowered chains, and
+  that nothing but itself reads, follows them and takes nothing with it (`resolvesIn_of_followed`).
   Controls: the pruned store read under its horizon, which cannot tell a lost key from one never
   written (`Witness.prune_forgets`, `Witness.prune_indistinct`, 480); a record on a chain that
-  content reads (`Witness.record_drags`); a chain that others read lowered alone (499); served
-  positions that shrink (`Witness.served_set_shrinks`, 507); a frontier lowered to the served
-  positions without the descent (483); the floor and the descent each run once, in either order
-  (493, 494); pruning at the earlier of two horizons (491); the cut read taken to reach the
-  floor, or the resolution of the frontier (506, 508). Attacks 478, 479, 481, 482, 484, 485,
-  486, 492, 498. The test, at SN-2: the served resolver against enumeration; at SN-4: the cut
-  read is under the cut asked on every chain, and at a recorded cut it differs from the record
-  only on chains that could not serve; at SN-7: every read at a cut from the horizon on is the
-  same before and after a retention pass.
+  content reads (`Witness.record_drags`); a chain of records taken to be read as recorded when a
+  chain it certifies is lowered (`Witness.record_follows`, 520); a chain that others read lowered
+  alone (499); served positions that shrink (`Witness.served_set_shrinks`, 507); a frontier lowered
+  to the served positions without the descent (483); the floor and the descent each run once, in
+  either order (493, 494); pruning at the earlier of two horizons (491); the cut read taken to reach
+  the floor, or the resolution of the frontier (506, 508). Attacks 478, 479, 481, 482, 484, 485,
+  486, 492, 498, 519. The test, at SN-2: the served resolver against enumeration; at SN-4: the cut
+  read is under the cut asked on every chain, and at a recorded cut it differs from the record only
+  on the chains that could not serve and on the chain of records; at SN-7: every read at a cut from
+  the horizon on is the same before and after a retention pass.
 
-What the model leaves out, said plainly. A chain is a list and a store a family of lists: one
-writer is assumed, and nothing is said of two. Events are opaque, and so is the stores' SQL. The
-set of chain keys is fixed: a relabel is not in the model, which is why a chain has an id that a
-relabel does not change (§3.1). The hash's collision freedom and the commitment's binding are
-hypotheses of SNP-9 (`CollisionFree`, an injective `commit`), not theorems about SHA-256. The
-`unseal` and `horizon` events are not in the model of the seal, and the owner's gate on them is
-the code's. There is no single reader in the model that applies the cut's resolution, the
-grant, the erasure and the seal together: `shown` composes the grant and the erasure over one
-read, the seal is stated on a keyed chain, and the resolution on cuts; the sentence's reader
-applies the resolution first, then `shown`, then the seal to each keyed read, and that order is
-the code's to transcribe. The row filter of an interpreted chain (§3.5) is a derived view, not a
-prefix. A repository history with merges is covered by CLK-2's down-sets and not by the chain
-model (§3.1). The resolver, the descent and its alternation with the floor, is attacked, not
-proved.
+What the model leaves out, said plainly. A chain is a list and a store a family of lists: one writer
+is assumed, and nothing is said of two. Events are opaque, and so is the stores' SQL. The set of
+chain keys is fixed: a relabel is not in the model, which is why a chain has an id that a relabel
+does not change (§3.1). The hash's collision freedom and the commitment's binding are hypotheses of
+SNP-9 (`CollisionFree`, an injective `commit`), not theorems about SHA-256. The `unseal` and
+`horizon` events are not in the model of the seal, and the owner's gate on them is the code's. There
+is no single reader in the model that applies the cut's resolution, the grant, the erasure and the
+seal together: `shown` composes the grant and the erasure over one read, the seal is stated on a
+keyed chain, and the resolution on cuts; the sentence's reader applies the resolution first, then
+`shown`, then the seal to each keyed read, and that order is the code's to transcribe. The row
+filter of §3.5 is in the model as `Kept`, with the reads-from relation and each row's own test as
+parameters; what the code's rows read is §3.5's reading of the writers and no theorem, and the bound
+a pass attestation records is argued there, not proved. The filtered read is a derived view, not a
+prefix. A repository history with merges is covered by CLK-2's down-sets and not by the chain model
+(§3.1). The resolver, the descent and its alternation with the floor, is attacked, not proved.
 
 ## 11. Measurements
 
@@ -1687,17 +1801,19 @@ property-testing the transcription against the Lean statements; the laws a stage
 
   Rollback: the tables are additive and unread, so dropping them restores the file; a build
   that stops writing them and resumes later appends a `horizon`.
-- **SN-2 cuts.** The chain tables, each with its running hash and its genesis followed by a
-  horizon, for `chat`, `att`, `staging` and `runs`; `att_head` filled from then on; the
-  extractor's version and the projection's position on `att` stamped on new citation edges,
-  the edges already held stamped with the genesis; the `cuts` table of §3.3, a record at a
+- **SN-2 cuts.** The chain tables, each with its running hash and its genesis followed by a horizon,
+  for `chat`, `att`, `staging` and `runs`; `att_head` filled from then on; on the chain-table row of
+  a pass attestation and of a run, the landing chains that held its inputs and the head of each
+  (§3.5); the extractor's version and the projection's position on `att` stamped on new citation
+  edges, the edges already held stamped with the genesis; the `cuts` table of §3.3, a record at a
   trough that moved and on command, and an attestor method that builds and signs an attestation
   without appending it; the four names, with every name that resolves to nothing refused; the
   resolver of §3.5, the floor and the descent alternated; a command, `mind-palace cut` with
   `record`, `list` and `verify`. Tests: SNP-8 and SNP-9 as stated; the served resolver against
-  enumeration; a record refused inside a job. SNP-8 enters the ledger as resolution, with its
-  closure cited to CLK-2's row, and SNP-9 with it. Rollback: additive tables and columns; the
-  names fall back to today's.
+  enumeration; a record refused inside a job, and refused with jobs queued and no daemon; a cut read
+  below a record on one chain reading the chain of records at its last record under it. SNP-8 enters
+  the ledger as resolution, with its closure cited to CLK-2's row, and SNP-9 with it. Rollback:
+  additive tables and columns; the names fall back to today's.
 - **SN-3 the erasure's reach and the seal.** A purge removes the lexical units, nulls the
   version rows' digests, removes the relation edges and artifacts that name the digest, opens
   the curated store, nulls the support and text of the dream claims and the digest and payload
@@ -1717,24 +1833,32 @@ property-testing the transcription against the Lean statements; the laws a stage
   the commit on a `read` hit. Tests: `as of "head"` against no `as of` over the query battery
   (`eval/query_battery.py`); a sentence at a recorded cut asked before and after unrelated
   landings and after a re-projection; SNP-6 with two grants, as §10 states it; the cut read
-  under the cut asked, and equal to the record but for the chains that could not serve.
-  Rollback: one configuration switch under `[query]`, off being today's behaviour.
+  under the cut asked, and equal to the record but for the chains that could not serve and the
+  chain of records. Rollback: one configuration switch under `[query]`, off being today's behaviour.
 - **SN-5 the causal fiber at a cut.** The recomputation of §5.5 with its memo; edges named by
-  session, order and endpoint; the transcript integrator's checkpoint a cut on `chat` and `repo`.
-  Tests: the two job orders giving one result; the prefix that ends before a result; the stored
-  rows at the head equal to the recomputation. Rollback: the stored rows stay the head's cache.
+  session, order and endpoint; the transcript integrator's checkpoint a cut on `chat` and `repo`;
+  `witness` at a cut, the ledger read by sequence number with the pass attestations filtered (§3.5).
+  Tests: the two job orders giving one result; the prefix that ends before a result; the stored rows
+  at the head equal to the recomputation; a pass attestation withheld at a cut that lacks a landing
+  it read, the attestations after it served, and none withheld at the head. Rollback: the stored
+  rows stay the head's cache.
 - **SN-6 model output by generation.** A sequence number, a running hash and a history table
-  for the interpreted artifacts and the interpreted relation edges, a chain each, and a
-  sequence number for the claim ops and the authored supersessions; the authored relations
-  recomputed at a cut; `relate` at a cut; a kept row served only with its sources and its
-  attestation inside the cut (§5.4). Tests: SNP-5 on random sequences of writes and
-  replacements; `mem_serve_iff`'s test; an artifact replaced over the same titles served with
+  for the interpreted artifacts and the interpreted relation edges, a chain each; a sequence
+  number and a running hash for the claim ops and the authored supersessions, which need no
+  history table since no row of theirs is replaced; the authored relations recomputed at a cut;
+  `relate` at a cut; a kept row served only with its sources inside the cut and its attestation
+  kept there, a claim op only with the artifacts it names, a dream claim only with its run
+  (§3.5, §5.4). Tests: SNP-5 on random sequences of writes and replacements; `mem_serve_iff`'s
+  test; SNP-8's filter as §10 states it; an artifact replaced over the same titles served with
   the sources each generation had. Rollback: additive columns and tables.
 - **SN-7 retention.** The two windows a chain in the instance's configuration; the pass of
   §9.2; the `horizon` row; the horizon in the answers. Tests: SNP-10 as stated; a pass killed at
   each step leaving no served position incomplete; a derived row dropped under the first window
   reported pending and derived again; a cut asked under a landing chain's new horizon read with
-  every other chain as recorded. Rollback: none for dropped rows by their nature; nothing runs
+  every other landing chain, `att` and `repo` as recorded, the chain of records at its last
+  record under the cut read, and the rows that read a landing of the lowered chain withheld;
+  after a pass, `verify` of the chain passing from its first row and a certificate taken before
+  the pass still verifying. Rollback: none for dropped rows by their nature; nothing runs
   unless a window is declared.
 - **SN-8 the delta.** `changed between` and `changed since` (§7.4); the integrator interface
   below. Tests: the region's union law, and equal reads at both cuts for an identity outside it.
@@ -1787,7 +1911,10 @@ give, and what each alternative costs is the answers it changes, which the entry
    today it does not (§2.3, item 8).
 4. **D4, a store that cannot serve the cut asked.** Recommended: read at the greatest consistent
    cut among the positions the stores serve, and name it (§7.1). With the recorded cuts on a
-   chain of their own (D13) that lowers only the chains that could not serve. The alternatives:
+   chain of their own (D13), and the rows that read a landing without being its record filtered
+   and not resolved (§3.5), that lowers only the chains that could not serve and the chain of
+   records; the rows that read what was lowered are withheld and counted in the answer's note.
+   The alternatives:
    refuse the sentence, after which `as of` answers nothing that touches a store without a past
    until SN-6, and nothing under a horizon ever; or keep today's behaviour, which answers from
    after the cut and changes as the store grows.
@@ -1849,8 +1976,9 @@ give, and what each alternative costs is the answers it changes, which the entry
     instance keeps, and each is licensed with its own pull request. The alternative, all eight
     at once, saves the owner seven decisions and reviews the purge, the universe and retention
     together.
-13. **D13, where a recorded cut is kept.** Recommended: a chain of its own that nothing reads,
-    its attestation in its own row (§3.3). The alternative, a row of the attestation ledger,
+13. **D13, where a recorded cut is kept.** Recommended: a chain of its own that no other chain
+    reads, its attestation in its own row (§3.3). That chain is read at its last record under
+    the cut read, and takes nothing with it. The alternative, a row of the attestation ledger,
     is one table fewer and signs a record where every other attestation is signed; but every
     landing reads that ledger, so a chain read below a position a record certified, as a
     landing chain behind a history window is, can take every landing chain to its empty prefix
@@ -1919,10 +2047,16 @@ give, and what each alternative costs is the answers it changes, which the entry
 - **SNF-14 (the region is not what is asked):** questions about change that need the two
   readings and cannot be put with the region. Then GD-4's form is built sooner, on the two
   readings this note supplies.
-- **SNF-15 (a lowering is not local):** at a recorded cut, a chain read below the record though
-  it serves the record's position. Then some chain that can fail to serve is read through a
-  recorded bound, the premise of §7.1 is false for it, and that reference is found and moved
-  off the resolver's bounds or the chain is kept whole.
+- **SNF-15 (a lowering is not local):** at a recorded cut, a chain other than the chain of
+  records read below the record though it serves the record's position. Then some chain that
+  can fail to serve is read through a resolved reference by a chain that content reads, the
+  premise of §7.1 is false for it, and that reference is found and moved to the filter of §3.5
+  or the chain is kept whole.
+- **SNF-16 (a filtered row is served without its source):** at some cut, a pass attestation, a
+  dream claim, an interpreted row or a claim op served while a row it reads, by a reference of
+  §3.5 or one that list missed, is outside the cut or withheld. Then the list of §3.5 is
+  incomplete or a reader goes around the filter, and the stage that reads that store at a cut
+  does not land until it is closed.
 
 ## Open questions
 
@@ -1947,14 +2081,14 @@ Each with the default the stages build on until it is decided.
 `stateOf`, `stateAt`, `lastWrite`, `Gen`, `closeAt`, `landGen`, `gens`, `selects`, `genRead`,
 `prune`, `sealedAt`, `servedAt`, `servedNow`, `restrict`, `snapshot`, `redact`, `visible`,
 `compact`, `serve`, `committed`, `purge`, `commitments`, `contents`, `Consistent`, `generator`,
-`reached`, `Resolves`, `reachedIn`, `ResolvesIn`, `chainDigest`, `CollisionFree`, `Certificate`,
-`certify`, `Verifies`, and `sinceRetire`, `historyAt`, `holes`, `shown`);
-`formal/Palace/Snapshot.lean` (the declarations §10 names, by law, and the fifteen `Witness`
-controls); `formal/PalaceTest/Snapshot.lean` (seeds 430 to 513); the families cited:
+`reached`, `Resolves`, `reachedIn`, `ResolvesIn`, `Withheld`, `Kept`, `chainDigest`,
+`CollisionFree`, `Certificate`, `certify`, `Verifies`, and `sinceRetire`, `historyAt`, `holes`,
+`shown`); `formal/Palace/Snapshot.lean` (the declarations §10 names, by law, and the eighteen
+`Witness` controls); `formal/PalaceTest/Snapshot.lean` (seeds 430 to 520); the families cited:
 `Palace/Clock.lean` (CLK-2: `IsCut`, `frontierCut`, `isCut_iff_not_crossed`, `IsCut.inter`,
-`IsCut.union`, `IsCut.frontier_inf`, `IsCut.frontier_sup`), `Palace/Ingress.lean` (ING-7), `Palace/Script.lean` (ING-17),
-`Palace/Derived.lean` (ING-19 to ING-21), `Palace/Plane.lean` (PLN-4), `Palace/Utility.lean`
-(UTL-2, UTL-4), `Palace/Sentence.lean` (QSA-1 to QSA-4, QSA-10).
+`IsCut.union`, `IsCut.frontier_inf`, `IsCut.frontier_sup`), `Palace/Ingress.lean` (ING-7),
+`Palace/Script.lean` (ING-17), `Palace/Derived.lean` (ING-19 to ING-21), `Palace/Plane.lean`
+(PLN-4), `Palace/Utility.lean` (UTL-2, UTL-4), `Palace/Sentence.lean` (QSA-1 to QSA-4, QSA-10).
 
 **Code (read at `e3e3ee47`, unchanged):** `core/sentence/grammar.py`, `ast.py`, `universe.py`,
 `execute.py` (`as of`, the universe, `read`); `core/query.py` (the modes, `note_graph`);
