@@ -213,7 +213,8 @@ the state files are left out, each with its reason (§1.3).
 | code and agent observations, current readings (`core/stores/code_observations.py:246`, `core/stores/agent_observations.py:205`) with their history (`core/stores/observation_history.py:46-56`) | the interpreter's generation per identity | (store, identity, interpreter) | nothing: a superseding write archives the old generation first, and it is never dropped (`code_observations.py:211-254`); a reset wipes the current readings and keeps the history (`ops/lifecycle/launcher.py:1765`, `:1776`, `:111-118`). This is generations as built, the form §5.4 takes |
 | run ledger, verdicts (`core/stores/runledger.py:140`, `:161`; `core/stores/verdicts.py:145`) | insertion order | the row's id | nothing; a dream claim keeps the digests it rests on and its surface text (`runledger.py:90-97`) |
 | structural snapshots (`core/complex/temporal.py:41-58`, `:208`) | a sequence of its own, one row a dream pass (`core/dreaming/dreamer.py:288`) | `snapshot_id` | nothing: invariants of the graph as it stood at the pass, appended |
-| claim ops (`core/stores/claim_ops.py:40-48`) | none: `at` is wall time | a hash of (kind, claim, related, text) (`core/kernel/recursion_ops.py:134-135`) | nothing but the bookmark: a row is keyed by its whole content, so the `INSERT OR REPLACE` of a second application (`claim_ops.py:73`) only stamps `at` again. An append-only set with no position; no model writes it (`claim_ops.py:14-15`) |
+| claim ops (`core/stores/claim_ops.py:40-48`) | none: `at` is wall time | a hash of (kind, claim, related, text) (`core/kernel/recursion_ops.py:134-135`) | nothing but the bookmark: a row is keyed by its whole content, so the `INSERT OR REPLACE` of a second application (`claim_ops.py:73`) only stamps `at` again. An append-only set with no position. The store calls no model (`claim_ops.py:14-15`), and its rows are by design a model's proposals: extracting the operations from a dialogue is a model task behind an injected analyzer whose default proposes none (`core/kernel/recursion_ops.py:44-46`), and at `e3e3ee47` no caller outside the tests applies an operation. A supersede names the conclusion artifact the same call writes (`claim_ops.py:45`, `:161-163`) |
+| verdict dispositions (`core/verdict/dispositions.py:59-64`) | the verdict's sequence number | `verdict_seq` | nothing but the bookmark: append-only, one row a verdict, the latest winning by subject (`dispositions.py:4-6`); a second application of one verdict replaces the row with the same subject and effect and stamps `at` again (`dispositions.py:82-87`) |
 | authored supersessions (`core/stores/authored_supersession.py:112-120`) | none: `at` is wall time | the pair (superseded, superseding) | the bookmark and the note of an earlier declaration of the same pair (`authored_supersession.py:159-161`); owner-declared, never model output (`:150-157`). An append-only set with no position |
 | staging (`core/stores/staging.py:118-138`) | its own generation clock | the generation | a sweep stamps `tombstoned_at_gen` and the row stays; `read_at(g)` exists (`staging.py:232-244`) |
 | query log (`core/sentence/surface.py:93`) | line order | the line | nothing |
@@ -238,7 +239,6 @@ the state files are left out, each with its reason (§1.3).
 | causal edges (`core/stores/causal_edges.py:51-61`) | `event_order` and `witness_turn`, on each row | the edge's id, a hash that includes the transcript's digest (`causal_edges.py:71-76`) | the session's rows are deleted and written again (`causal_edges.py:130-154`), under new ids when the session grew; what they were before the commit ledger gained a commit |
 | interpreted artifacts and hyperedges (`core/stores/derived.py:49-60`) | none: `created_at` is wall time | a hash of the kind, the subkind and the sorted subjects, which are note titles (`derived.py:55`, `:97-100`) | the artifact a later pass over the same titles replaced (`derived.py:209-216`), whatever versions of those notes each pass read: model output, not recomputable. What a row was built from is its `derived_from`, note digests or other artifacts' ids (`derived.py:186-189`); it records no run, only the attestation that produced it (`derived.py:59`) |
 | relation edges (`core/stores/edges.py:37-46`) | none: `created_at` is wall time | hash of (u, v, relation), the two ends content digests | the weight, sign and provenance a re-assertion replaced (`edges.py:88-106`). Two producers, kept apart by provenance (`core/relations.py:7-16`): authored edges read off a note's own `supports::`, `contradicts::` and `contextualizes::` properties (`relations.py:140-158`), a function of the note's text and so recomputable; and interpreted edges from a model (`relations.py:192-210`) or a `link` request (`core/ingest/writer.py:521-535`), which never replace an authored one (`writer.py:526-530`) |
-| verdict dispositions (`core/verdict/dispositions.py:59-64`) | the verdict's sequence number | `verdict_seq` | the row a second application replaced (`dispositions.py:86`); a fold of the verdict ledger, so recomputable from its prefix |
 
 ### 2.3 What the two-class picture misses
 
@@ -845,7 +845,7 @@ table is built that way, and §5.2 says why its versions are not the snapshot.
 | interpreted artifacts with their hyperedges, interpreted relation edges | a model's output: of nothing that can be computed again | generations, the replaced row archived with its interval | one archived row a replacement, which is thrown away today; how often a row is replaced is not measured | a measured churn so low that declaring them outside the snapshot loses nothing |
 | the relations a note declares | the note's text at a version, and the titles the catalog resolves at the cut | recomputed from the heads at the cut | one parse of a note's properties a head that has any, kept in a memo by digest; no bytes | nothing |
 | claim ops, authored supersessions | nothing: they are appended, keyed by their content | a position a first insert; the read at a cut is the rows at or under it | one integer a row | nothing |
-| verdict dispositions | the verdict ledger | recomputed from the ledger's prefix | a fold over the verdicts inside the cut | nothing |
+| verdict dispositions | nothing: one row a verdict, appended (§2.2) | the key is the position: the read at a cut is the rows whose `verdict_seq` is at or under the cut on the verdicts' own sequence, each served with the claim it is about (§3.5) | nothing new | nothing |
 | the similarity backbone | the vectors of the support | recomputed, as today | nothing | nothing |
 | citation readings | the tree at the commit and the extractor that projected it | append-only rows, as built, each stamped with the extractor's version and the position on `att` of the projection that wrote it; the reading of a commit at a cut is its rows stamped at or under the cut | one integer and a short string a row, on 3,029,562 rows over 1,487 commits at 567 bytes a row in the repository's records | the store's size: then a row valid over a range of commits (SN-b) |
 | code memberships | git's blob at the path | version-keyed by blob; git's tree selects the version | nothing new | nothing |
@@ -929,10 +929,17 @@ property parsed from the raw object the log names, the title resolved among the 
 cut. Nothing is stored and the edge has its note's class. `[DERIVED from SNP-5]`
 
 **Claim ops and authored supersessions** are not rewritten in place. Each row is keyed by its
-whole content (§2.2), so a second write stamps a bookmark and changes nothing else, and no
-model writes either (`core/stores/claim_ops.py:14-15`; the supersessions are the owner's
-declarations). They are append-only sets that lack a position. Each gets a sequence number at a
-row's first insert, and the read at a cut is the rows at or under it. `[DERIVED]`
+whole content (§2.2), so a second write stamps a bookmark and changes nothing else. The
+supersessions are the owner's declarations. The claim ops are appended by a store that calls no
+model (`core/stores/claim_ops.py:14-15`), and what it appends is by design a model's proposal:
+extracting the operations from a dialogue is a model task behind an analyzer whose default
+proposes none (`core/kernel/recursion_ops.py:44-46`), and at `e3e3ee47` no caller outside the
+tests applies one. So the claim ops are rows of the class `interpreted` (§3.1). The storage
+choice does not depend on who proposes them: both stores are append-only sets that lack a
+position, each gets a sequence number at a row's first insert, and the read at a cut is the
+rows at or under it. A claim op is further filtered by what it names, the claim it acts on and,
+for a supersede, the conclusion artifact the same call wrote (`claim_ops.py:45`, `:161-163`):
+it is served when those are (§3.5). `[DERIVED]`
 
 **Interpreted artifacts and interpreted relation edges** are model output: written by a pass
 that calls a model or by a `link` request (`core/relations.py:192-210`,
