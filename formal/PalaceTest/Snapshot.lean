@@ -24,7 +24,11 @@ state taken for unchanged whatever the delta writes, an event filter before the 
 that deletes rows, a state served without the seal, the looser seal taken for a monotone one,
 kept rows served without their sources, a frontier taken for a cut, an additive digest, a digest
 over contents, the pruned store read under its horizon, a frontier lowered to the served
-positions without the descent. They run when this module builds (`lake test`).
+positions without the descent, the floor and the descent each run once in either order, a hole
+that loses its key, a chain that others read lowered alone, and each law of growth, order and
+composition with its hypothesis dropped or its sides exchanged. The served resolver is
+executable here too: the floor and the descent alternated until nothing moves, tested against
+the enumeration. They run when this module builds (`lake test`).
 -/
 
 @[expose] public section
@@ -106,6 +110,35 @@ def bestIn (es : List Edge) (p : Fin 2 → ℕ → Bool) (x y : ℕ) : ℕ × �
 what is served, before any descent. -/
 def floorSv (p : Fin 2 → ℕ → Bool) (k : Fin 2) (x : ℕ) : ℕ :=
   (List.range (x + 1)).foldl (fun (n : ℕ) (q : ℕ) ↦ if p k q then q else n) 0
+
+/-- One round of the served resolver: each chain lowered to the greatest position it serves at
+or under its own, then one pass of the descent. -/
+def roundIn (es : List Edge) (p : Fin 2 → ℕ → Bool) (c : ℕ × ℕ) : ℕ × ℕ :=
+  lower es (floorSv p 0 c.1, floorSv p 1 c.2)
+
+/-- The executable served resolver: the floor and the descent alternated from the frontier
+`(x, y)` until nothing moves. A round that moves anything lowers a position, so that is at most
+as many rounds as the frontier has positions. -/
+def resolveIn (es : List Edge) (p : Fin 2 → ℕ → Bool) (x y : ℕ) : ℕ × ℕ :=
+  (roundIn es p)^[x + y] (x, y)
+
+/-- The edges whose source lies in chain 0: with them alone, no event reads chain 1. -/
+def into0 (es : List Edge) : List Edge := es.filter fun e ↦ e.2.1 = 0
+
+/-- Chain 0 serves every position and chain 1 the positions of the mask. -/
+def sv1 (m : Fin 1024) (k : Fin 2) (q : ℕ) : Bool := k == 0 || sv m 1 q
+
+/-- An erasure of keyed writes by their value. -/
+def ek (e : Fin 8) (w : Fin 3 × Fin 3) : Bool := pf e w.2
+
+/-- What is shown under the narrower of two grants and the larger of two erasures is the
+restriction of what the wider grant is shown under the smaller erasure. -/
+def shownNarrow (a b : List (Fin 3)) (m : ℕ) (g g' : Fin 4) (c c' e e' : Fin 8) : Bool :=
+  same (shown (fun k ↦ (gr g k && gr g' k) = true) (fun x ↦ pf c x && pf c' x)
+      (fun x ↦ pf e x || pf e' x) (st a b) (cu m m))
+    (restrict (fun k ↦ (gr g k && gr g' k) = true)
+      (fun x ↦ (pf c x && pf c' x) && !(pf e x || pf e' x))
+      (shown (fun k ↦ gr g' k = true) (pf c') (pf e') (st a b) (cu m m)))
 
 /-- A collision-free step: the chain read as a numeral in base four, digits one to three. -/
 def step4 (h : ℕ) (a : Fin 3) : ℕ := 4 * h + a.val + 1
@@ -435,5 +468,152 @@ lowered to the served positions. -/
 #eval survives (∀ (es : List Edge) (x y : Fin 6),
   (List.finRange 2).all (fun k ↦
     at2 (bestIn es (fun _ _ ↦ true) x.val y.val) k == resolve es x.val y.val k) = true) 486
+
+/- SNP-10: the served resolver, the floor and the descent alternated until nothing moves,
+returns the greatest consistent served cut under the frontier. -/
+#eval survives (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (resolveIn es (sv m) x.val y.val == bestIn es (sv m) x.val y.val) = true) 492
+
+/- Control: the floor once and then the descent alone does not: the descent leaves the served
+positions. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (List.finRange 2).all (fun k ↦
+    resolve es (floorSv (sv m) 0 x.val) (floorSv (sv m) 1 y.val) k
+      == at2 (bestIn es (sv m) x.val y.val) k) = true) 493
+
+/- Control: nor the descent and then the floor once: the floor breaks consistency again. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  ((floorSv (sv m) 0 (resolve es x.val y.val 0), floorSv (sv m) 1 (resolve es x.val y.val 1))
+    == bestIn es (sv m) x.val y.val) = true) 494
+
+/- SNP-7: on a keyed chain whose holes keep their keys, the read of a key at a cut is its last
+write at or under the cut, a hole when that write is erased, and the three reads agree. -/
+#eval survives (∀ (l : List (Fin 3 × Fin 3)) (e : Fin 8) (c : ℕ) (x : Fin 3),
+  (stateAt (holes (ek e) l) c x
+      == (stateAt l c x).map (fun v ↦ if pf e v then none else some v)
+    && genRead (gens (holes (ek e) l)) c x == stateAt (holes (ek e) l) c x
+    && lastWrite (holes (ek e) l) c x == stateAt (holes (ek e) l) c x) = true) 495
+
+/- Control: a seek over the rows of the prefix that kept their key returns a superseded
+version where the head is a hole. -/
+#eval refuted (∀ (l : List (Fin 3 × Fin 3)) (e : Fin 8) (c : ℕ) (x : Fin 3),
+  ((stateOf ((l.take c).filter fun w ↦ !ek e w) x).map some
+    == stateAt (holes (ek e) l) c x) = true) 496
+
+/- Control: a seek over the chain with its holes deleted returns a version from after the
+cut. -/
+#eval refuted (∀ (l : List (Fin 3 × Fin 3)) (e : Fin 8) (c : ℕ) (x : Fin 3),
+  ((lastWrite (l.filter fun w ↦ !ek e w) c x).map some
+    == stateAt (holes (ek e) l) c x) = true) 497
+
+/- SNP-10: a chain that no event reads is lowered alone. From a consistent frontier, with
+chain 0 serving every position, the cut read is the frontier with chain 1 at the greatest
+position it serves. -/
+#eval survives (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (bestIn (into0 es) (sv1 m) (resolve (into0 es) x.val y.val 0) (resolve (into0 es) x.val y.val 1)
+    == (resolve (into0 es) x.val y.val 0,
+      floorSv (sv1 m) 1 (resolve (into0 es) x.val y.val 1))) = true) 498
+
+/- Control: when events may read chain 1, lowering it alone is not the cut read. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (bestIn es (sv1 m) (resolve es x.val y.val 0) (resolve es x.val y.val 1)
+    == (resolve es x.val y.val 0, floorSv (sv1 m) 1 (resolve es x.val y.val 1))) = true) 499
+
+/- SNP-6, SNP-7: under a narrower grant and a larger erasure, what is shown is the restriction
+of what the wider grant is shown under the smaller erasure. -/
+#eval survives (∀ (a b : List (Fin 3)) (m : ℕ) (g g' : Fin 4) (c c' e e' : Fin 8),
+  shownNarrow a b m g g' c c' e e' = true) 509
+
+/- SNP-7: and it holds no erased event. -/
+#eval survives (∀ (a b : List (Fin 3)) (m n : ℕ) (g : Fin 4) (c e : Fin 8),
+  (List.finRange 2).all (fun k ↦
+    (shown (fun k ↦ gr g k = true) (pf c) (pf e) (st a b) (cu m n) k).all fun x ↦ !pf e x)
+    = true) 511
+
+/- Control: under a smaller erasure the narrower grant is shown more than that restriction. -/
+#eval refuted (∀ (a b : List (Fin 3)) (m : ℕ) (g g' : Fin 4) (c c' e e' : Fin 8),
+  same (shown (fun k ↦ (gr g k && gr g' k) = true) (fun x ↦ pf c x && pf c' x) (pf e) (st a b)
+      (cu m m))
+    (restrict (fun k ↦ (gr g k && gr g' k) = true) (fun x ↦ (pf c x && pf c' x) && !pf e x)
+      (shown (fun k ↦ gr g' k = true) (pf c') (fun x ↦ pf e x || pf e' x) (st a b) (cu m m)))
+    = true) 510
+
+/- Control for 432: a read between two cuts, the later past the head, changes with growth. -/
+#eval refuted (∀ (a b t : List (Fin 3)) (i m n : ℕ),
+  same (readBetween (grow (st a b) (st t t)) (cu i i) (cu m n))
+    (readBetween (st a b) (cu i i) (cu m n)) = true) 487
+
+/- Control for 446: the generational store read at a cut past the old head changes with
+growth. -/
+#eval refuted (∀ (l t : List (Fin 3 × Fin 3)) (c : ℕ) (x : Fin 3),
+  (genRead (gens (l ++ t)) c x == genRead (gens l) c x) = true) 488
+
+/- Control for 466: the certificate of a cut past the head does not verify on the store
+grown. -/
+#eval refuted (∀ (a b a' b' : List (Fin 3)) (m n : ℕ),
+  verifies (certify step4 0 (st a b) (cu m n)) (grow (st a b) (st a' b')) = true) 489
+
+/- Control for 465: resolution does not fall as the frontier rises. -/
+#eval refuted (∀ (es : List Edge) (x y u v : Fin 6),
+  decide (resolve es x.val y.val ≤ resolve es (min x.val u.val) (min y.val v.val))
+    = true) 490
+
+/- Control for 481: pruning at two horizons is not pruning at the earlier one. -/
+#eval refuted (∀ (l : List (Fin 3 × Fin 3)) (h h' : ℕ),
+  (rowsOf (prune h (prune h' (gens l))) == rowsOf (prune (min h h') (gens l))) = true) 491
+
+/- Control for 435: a cut of a cut is not the join. -/
+#eval refuted (∀ (a b : List (Fin 3)) (m n i j : ℕ),
+  same (readAt (readAt (st a b) (cu m n)) (cu i j)) (readAt (st a b) (cu i j ⊔ cu m n))
+    = true) 500
+
+/- Control for 440: the read at a cut that is not the head is not the store. -/
+#eval refuted (∀ (a b : List (Fin 3)) (m n : ℕ),
+  same (readAt (st a b) (cu m n)) (st a b) = true) 501
+
+/- Control for 438: two adjacent reads-between do not compose in the other order. -/
+#eval refuted (∀ (a b : List (Fin 3)) (i j m n : ℕ),
+  same (grow (readBetween (st a b) (cu (i + m) (j + n)) (cu (i + m + n) (j + n + m)))
+      (readBetween (st a b) (cu i j) (cu (i + m) (j + n))))
+    (readBetween (st a b) (cu i j) (cu (i + m + n) (j + n + m))) = true) 502
+
+/- Control for 439 and 469: the fold at a later cut is not the fold at the earlier one: the
+delta counts. -/
+#eval refuted (∀ (a b : List (Fin 3)) (i j m n : ℕ),
+  (List.finRange 2).all (fun k ↦
+    (certify step4 0 (st a b) (cu (i + m) (j + n))).digest k
+      == (certify step4 0 (st a b) (cu i j)).digest k) = true) 503
+
+/- Control for 470: the meet of two certified cuts does not take, chain by chain, the later
+digest. -/
+#eval refuted (∀ (a b : List (Fin 3)) (i j m n : ℕ),
+  (List.finRange 2).all (fun k ↦
+    (certify step4 0 (st a b) (cu i j ⊓ cu m n)).digest k
+      == if cu i j k ≤ cu m n k then (certify step4 0 (st a b) (cu m n)).digest k
+        else (certify step4 0 (st a b) (cu i j)).digest k) = true) 504
+
+/- Control for 447 and 475: an event read at the later cut was not always read at the
+earlier. -/
+#eval refuted (∀ (a b : List (Fin 3)) (i j m n : ℕ),
+  (List.finRange 2).all (fun k ↦
+    decide ((readAt (st a b) (cu (i + m) (j + n)) k).length
+      ≤ (readAt (st a b) (cu i j) k).length)) = true) 505
+
+/- Control for 484: the cut read does not always reach the frontier lowered to the served
+positions. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (decide (floorSv (sv m) 0 x.val ≤ (bestIn es (sv m) x.val y.val).1)
+    && decide (floorSv (sv m) 1 y.val ≤ (bestIn es (sv m) x.val y.val).2)) = true) 506
+
+/- Control for 485: the cut read does not rise when less is served. -/
+#eval refuted (∀ (es : List Edge) (m m' : Fin 1024) (x y : Fin 6),
+  decide (at2 (bestIn es (sv m) x.val y.val)
+    ≤ at2 (bestIn es (fun k p ↦ sv m k p && sv m' k p) x.val y.val)) = true) 507
+
+/- Control for 486: when not every position is served the cut read is not the resolution of
+the frontier. -/
+#eval refuted (∀ (es : List Edge) (m : Fin 1024) (x y : Fin 6),
+  (List.finRange 2).all (fun k ↦
+    at2 (bestIn es (sv m) x.val y.val) k == resolve es x.val y.val k) = true) 508
 
 end Palace.Snapshot.Attack
