@@ -37,7 +37,9 @@ Events may read from events of other chains (`R k i k' j`: the `i`-th event of c
 from the `j`-th of chain `k'`); a cut is **consistent** when every source of an event inside it is
 inside it, and a frontier **resolves** to the greatest consistent cut under it, or, where a store
 serves only some positions (those from its horizon on, and the empty prefix), to the greatest
-consistent cut under it among the served positions (`ResolvesIn`). A cut is
+consistent cut under it among the served positions (`ResolvesIn`). A reference the resolver
+does not follow is kept by a filter of the read instead: a row is withheld when a source of it
+lies outside the cut or is withheld (`Withheld`, `Kept`). A cut is
 **certified** by the digest of each chain's prefix under a chain digest (`chainDigest`, a fold),
 and a later store **verifies** the certificate when its own prefixes have those digests. A store
 that keeps a commitment beside each event (`committed`) can lose an event's content to an erasure
@@ -307,6 +309,24 @@ which is served. It is the cut a read is taken at when the cut asked cannot be s
 def ResolvesIn (R : K → ℕ → K → ℕ → Prop) (S : K → Set ℕ) (f c : Cut K) : Prop :=
   Consistent R c ∧ (∀ k, c k ∈ S k) ∧ c ≤ f ∧
     ∀ d, Consistent R d → (∀ k, d k ∈ S k) → d ≤ f → d ≤ c
+
+/-- A row is withheld at a cut when it fails its own test `ok` (it is erased, or it is about a
+version the cut does not hold), when one of its sources lies outside the cut, or when one of its
+sources is withheld. The last clause is what makes the filter a closure and not a test of the
+row alone. -/
+inductive Withheld (R : K → ℕ → K → ℕ → Prop) (ok : K → ℕ → Prop) (c : Cut K) : K → ℕ → Prop
+  /-- The row fails its own test. -/
+  | own {k : K} {i : ℕ} : ¬ok k i → Withheld R ok c k i
+  /-- A source of the row lies outside the cut. -/
+  | outside {k k' : K} {i j : ℕ} : R k i k' j → c k' ≤ j → Withheld R ok c k i
+  /-- A source of the row is withheld. -/
+  | through {k k' : K} {i j : ℕ} : R k i k' j → Withheld R ok c k' j → Withheld R ok c k i
+
+/-- The filtered read at a cut: the rows inside the cut that are not withheld. Where a
+reference is not resolved, because resolving it would lower a chain that others read, the read
+at a cut is this filter of the prefix and not the prefix. -/
+def Kept (R : K → ℕ → K → ℕ → Prop) (ok : K → ℕ → Prop) (c : Cut K) (k : K) (i : ℕ) : Prop :=
+  i < c k ∧ ¬Withheld R ok c k i
 
 end Consistency
 
