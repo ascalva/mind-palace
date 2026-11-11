@@ -11,6 +11,7 @@ dod:
   - QL-2 the executor — clause evaluators over the existing stores, the mask/column/product/threshold operators, the product-automaton walker, the overlay for assume
   - QL-3 the surface — palace query, a /context skill, the resolution ledger, the query log as a sensor
   - QL-4 the falsifier battery run — composed sentences against flat search on owner-endorsed answers, a finding either way
+  - SN-0 the temporal snapshot's design proved: dn-temporal-snapshot with SNP-1 to SNP-10 machine-checked in formal/Palace/Snapshot.lean (append invariance, monotonicity, composition, idempotence at the head, derived views as functions of the prefixes, grant restriction, erasure dominance, the lattice of consistent cuts, certified cuts, the horizon), attacks and controls green, the measurements on synthetic fixtures
 backlog_deskcheck: null
 links:
   - docs/design-notes/dn-query-sentence-algebra.md
@@ -19,6 +20,8 @@ links:
   - docs/brainstorms/ingress.md
   - docs/design-notes/dn-two-phase-ingestion.md
   - docs/design-notes/dn-embedder-use.md
+  - docs/design-notes/dn-temporal-snapshot.md
+  - papers/2026-11-10-temporal-snapshot/paper.tex
 ---
 # Track — Query language (the sentence algebra, its compiler, and the surface)
 
