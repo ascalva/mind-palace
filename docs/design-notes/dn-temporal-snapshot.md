@@ -768,3 +768,244 @@ name the head withholds. And the filter is then applied after the read, which is
 `restrict_readAt` and its control require. The principal's snapshot is the restriction of the
 owner's at every cut (`snapshot_narrow`). The alternative, the list taken at the cut's tree, is
 decision D11.
+
+## 7. The sentence surface
+
+### 7.1 The cut asked and the cut read
+
+A sentence has one cut, as today (§2.1). The name resolves to a frontier, the cut asked (§3.4).
+Each chain serves some positions exactly: every position from its horizon to its head (§8), and
+the empty prefix; a store that keeps no past serves the empty prefix and the head. The read is
+taken at the greatest consistent cut under the frontier asked every position of which is served
+(`ResolvesIn`). `[THEOREM: SNP-10]`
+
+- It exists and is unique whatever the stores serve (`exists_resolvesIn`, `ResolvesIn.unique`).
+- It never passes the cut asked (`ResolvesIn.le_resolves`), so what is read is a prefix, chain by
+  chain, of what the cut asked holds (`readAt_mono`): a read under `as of` holds no event from
+  after the cut it names.
+- It rises with what is served and with the frontier (`ResolvesIn.mono`): as the stages of §12
+  give stores a past, the cut read climbs toward the cut asked and never falls.
+- When every position is served it is the resolution of the frontier (`resolvesIn_univ`), and at
+  the head it is the head (`resolvesIn_self`).
+
+The answer is then exact for the cut it names: every law of §10 holds at the cut read. What the
+answer says is that cut. It carries one note with the cut asked, the cut read on the chains the
+asker's grant names (§6.3), and each chain on which the two differ with the reason: the store
+keeps no past, the cut is under the chain's horizon, or the stage that reads the store at a cut
+is not built. For example, on an instance where the relation edges do not yet keep generations:
+
+```
+as of "9de5325d": read at the cut recorded when the commit was read (cut:4c1f09a2).
+land:authored-solo 412, chat 9318, repo 9de5325. Not read at the cut: the relation edges
+keep no past and were read at their empty prefix.
+```
+
+This replaces what the executor does today, which reads those stores at the head and says so
+(`core/sentence/execute.py:719-725`). The head is later than the cut asked, and a reader that
+ignores the cut is not append invariant: the same sentence gives another answer after the store
+grows (`Witness.present_not_appendInvariant`). `[THEOREM: SNP-1]`
+
+A store read at its empty prefix makes its clauses empty. That is the answer at the cut named,
+and it is not a bound on the answer at the cut asked: `reach` and `relate` only lose members when
+edges are missing, but `diffuse` normalizes by degree and `top` ranks, and both can move either
+way (the executor says so of an assumption that removes weight, `execute.py:473-481`). So the
+note is part of the answer's meaning. The alternative is to refuse such a sentence (decision D4).
+`[INFERENCE, falsifier SNF-4]`
+
+### 7.2 Each mode and each edge species at a cut
+
+The mode of a clause follows from its scope (`core/query.py:273-281`).
+
+| mode | verbs | what it reads at the cut | exact from |
+|---|---|---|---|
+| semantic | `near`, `diffuse S`, `reach S`, `relate` | the heads of the clause's classes, from the log; their vectors by content address and the lexical index for the pending ones (§5.2, §5.3); the backbone recomputed among them | SN-3; `relate` SN-6 |
+| structural | `reach F`, `diffuse F`, `walk` over `F` | the citation reading of the cut's commit | today |
+| temporal | `trace`, `reach D`, `walk` over `D`, `changed` (§7.4) | the version chain's prefix: the log's rows of the identity at or under the cut | SN-3 |
+| causal | `reach C`, `walk` over `C`, `witness` | the causal fiber recomputed at the cut (§5.5); an attestation at or under the cut on `att` | SN-5 |
+
+| species | at a cut |
+|---|---|
+| `S`, similarity | recomputed from the vectors of the versions alive at the cut, within a stratum, as today (`core/sentence/universe.py:733-739`); no edge at a pending node |
+| `F`, citation | the edges of the reading at the commit; a reading is whole, so nothing is inferred between commits |
+| `D`, supersession | consecutive versions of the chain's prefix; at the node grain it is empty today and stays so (`universe.py:810`) |
+| `C`, causal witness | an edge whose witness turn is inside the cut on `chat` and whose commit, if it ends at one, is inside the cut on `repo` |
+| the signed relations (supports, contradicts, contextualizes) | a kept generation whose two endpoint digests are heads at the cut (§5.4) |
+| an assumed edge (`assume`) | applied to the universe of the cut read; nothing is stored, and the result is a `Hyp` as today |
+
+### 7.3 The verbs
+
+- **`near`, `diffuse`, `reach`, `relate`, `walk`, `trace`, `witness`** read as their mode says.
+- **`far`, `top`, `atleast`, `not`, `minus`, `and`, `or`, `then`, `within`, `over`** are the
+  algebra on whatever universe the clauses built. Their laws (QSA-1 to QSA-4, QSA-10) are stated
+  for any universe, so they hold at a cut with no change. `over` masks by a row's class, which is
+  its class now (§6.3).
+- **`read`.** A repository path: git's blob at the cut's commit, as today, with the commit shown
+  on the hit. A note or a dialogue turn: the raw object of the digest the log names for the path
+  at the cut, never the vault file, which is the present and can be newer than the catalog
+  (§2.1). A hole reads as erased and a sealed identity as nothing (§6). A transcript turn: the
+  chat log's row when its number is at or under the cut.
+- **`witness`.** The record when it lies inside the cut: an attestation by its number on `att`, a
+  causal edge by its turn and its commit, a citation edge by its commit.
+- **`assume`.** The overlay applied to the universe of the cut read: a hypothetical at a past cut.
+- **`do`.** A request is a whole sentence and takes no adjective (`core/sentence/grammar.py:4-5`),
+  so it cannot be written under `as of`: a write has no past.
+
+**`as of "head"` is no `as of`.** At the head cut the read is the store (`readAt_head`), every
+derived view is the derivation of the present (`view_head`), the generational store reads the
+store rewritten in place (`genRead_gens_length`), a snapshot is the grant's restriction of the
+store (`snapshot_head`), nothing is sealed (`servedAt_length`) and what is visible is the store
+without the erased events (`visible_head`). `[THEOREM: SNP-4]` On the code this is the first test
+of every stage: the same sentence with and without `as of "head"` returns the same hits.
+
+**Refusals.** An ambiguous prefix, as today (`universe.py:471-475`). A name that selects nothing:
+a sha no chain knows, a cut id no record has, a date before the first record; the refusal says
+which names would resolve. A date after the newest bookmark is the head.
+
+### 7.4 Between two cuts
+
+One form is worth admitting, and it is a region:
+
+```
+changed between "<a>" and "<b>"          changed since "<a>"
+```
+
+Its members are the identities with an event in the delta, on the landing chains of the classes
+the clause reads; `since` is `between` with `head`. `[INFERENCE, falsifier SNF-14]`
+
+- **It is sound for what did not change.** An identity outside the region has the same state at
+  both cuts (`stateAt_eq_of_not_written`). It over-approximates what did: a path that returned to
+  the bytes it had is a member.
+- **It composes.** The region between `a` and `c` is the union of the regions between `a` and `b`
+  and between `b` and `c` (`readBetween_append`, `mem_readAt_iff`). `[THEOREM: SNP-3]`
+- **It is cheap.** One range read of the log: 0.7 ms a thousand positions. `[MEASURED §11]`
+- **It composes with the algebra.** A region masks a field or meets a region, so
+  `near "x" within (changed since "<a>")` needs no new rule; its mode is temporal, since its
+  window is not a point (`core/query.py:277`).
+
+The general form, a sentence evaluated at two cuts with the difference reported as `assume`
+reports its two universes (`execute.py:1045-1063`), is the `velocity of` that dn-graph-dynamics
+designs as GD-4. This note supplies the two readings it needs and does not add a second way to
+write it.
+
+## 8. The exactness boundary
+
+History is exact from the first retained generation and from no earlier. Each chain has a
+**horizon**: the first position from which it serves every cut. Three things set one.
+
+- **The genesis.** The landing log opens with the catalog as it stood (§3.2). What a path held
+  before was never recorded, so the positions before the genesis rows end are under the horizon.
+  For the chat log and the attestation ledger the genesis is the rows they hold when their chain
+  tables are added, in the order they were inserted.
+- **Retention** (§9), which drops the generations closed at or under a declared position.
+- **A reset**, after which every chain is a new chain (§2.3, item 7).
+
+The law is the same for the three. A generational store that drops the rows closed at or under a
+horizon reads, at every cut from the horizon on, the state recomputed from the whole prefix
+(`genRead_prune_gens`), though the prefix is no longer held. Under the horizon it is never wrong:
+a value it returns at a cut is the value the key held (`stateAt_of_genRead_prune`). But what it
+lost it reads as absent, and nothing in the rows that remain tells a lost key from a key that was
+never there (`Witness.prune_forgets`). Two horizons are the later one (`prune_prune`).
+`[THEOREM: SNP-10]` The journal form says the same of a fold: continued from the state kept at the
+horizon over the events since, it is the fold of the whole prefix (`foldAt_readBetween`), and the
+chain's digest at the horizon, kept as the seed, lets every certificate from the horizon on
+verify (`certify_digest_readBetween`). `[THEOREM: SNP-3, SNP-9]`
+
+So the horizon is recorded, and a cut under it is not served.
+
+- **Where.** As a `horizon` row of the chain, which the chain's hash covers, and in every
+  recorded cut (§3.3). It only advances.
+- **What a question before it gets.** The chain is read at its empty prefix (§7.1), and the
+  answer says the cut is under the chain's horizon and names the first cut the chain serves. A
+  sentence all of whose chains are under their horizons returns the note and no hit.
+- **What that means today.** A commit read before the log exists resolves, on every chain but
+  `repo`, under the horizon: `as of` such a commit reads the citation graph and the repository's
+  files at the commit, which are exact, and nothing else. That is the lawful part of what it does
+  now. The observation that the version store held one generation and so had nothing to
+  snapshot (limits-of-the-algebra, L7) is this boundary seen from the other side.
+  `[DERIVED]`
+
+## 9. Retention and cost
+
+### 9.1 What grows
+
+Nothing in the stores is dropped today except by a purge: a retired path's rows and a superseded
+version's rows stay in the plane and in the lexical index (`core/stores/plane.py:497-499`,
+`core/stores/lexical.py:260-265`). So the bytes of a past are mostly paid already, and the
+snapshot adds three things.
+
+| what | a | bytes | source |
+|---|---|---|---|
+| the landing log | landing | 409 | `[MEASURED §11]` |
+| a recorded cut, with its attestation | record | about 2,000 | §3.3 |
+| archived model output | replaced row | the row's | §5.4 |
+| kept already: a lexical unit of a superseded version | unit | 4,179 on synthetic text, 122 postings a unit | `[MEASURED §11]` |
+| kept already: a plane occupancy | row | 734 to 1,084 | `docs/experiments/corpus-stage1-2026-11-07.md:416`, `corpus-measurements-2026-11-07.md:104` |
+| kept already: an atom | changed chunk | 2,215, of which the vector 1,536 | `corpus-measurements-2026-11-07.md:103` |
+| kept already: a raw object | version | the version's bytes; a transcript's, whole, at each growth | §2.2 |
+
+By arithmetic, not measurement: an instance with a hundred landings a day adds 41 kilobytes a day
+to the log, 15 megabytes a year, and thirty recorded cuts a day add 60 kilobytes. The rows kept
+already are what grows: with three versions an item, two thirds of the synthetic lexical index
+were superseded versions. `[MEASURED §11]` What the snapshot brings is less a cost than the means
+to stop paying one: a horizon makes it safe to drop.
+
+### 9.2 The rule, counted in events
+
+Each chain declares a window `keep`, in positions. A retention pass, run at a recorded cut, moves
+the chain's horizon to the later of the horizon in force and the head less `keep`, and drops in
+this order:
+
+1. the `horizon` row is appended, so the positions under it are unserved from that moment;
+2. the derived rows of the versions closed at or under it: lexical units and postings, plane
+   occupancies, and the atoms nothing retained holds;
+3. the raw objects no retained row names;
+4. the log's rows closed at or under it, the chain's digest at the horizon kept as its seed.
+
+The order is the one the stores use for a cache: the horizon is declared first, so a crash in
+the middle leaves rows that are no longer served, never a position that is served and
+incomplete (the discipline of PLN-4, where a cache is stale only by excess). `[DERIVED]` The
+attestation ledger and the version chains are not pruned: they are the audit record, they are
+small, and they have no delete.
+
+The window is counted in events because wall time orders nothing (Law C4): the last ten thousand
+landings of a class, not the last ninety days. It is one position a chain, not a number of
+versions an identity. Keeping the last `n` versions of each identity would leave no horizon:
+which cuts are exact would differ from one identity to the next, and the control of §8 says such
+a store cannot tell what it lost. `[INFERENCE, falsifier SNF-9]`
+
+The default instance declares no window and keeps everything; by the arithmetic above its log is
+megabytes a year. An instance that must bound its disk declares one (decision D8).
+
+### 9.3 Lazy landing, in time
+
+Under lazy embedding an item is complete without its vector, and the drain derives the vectors of
+the current versions (`core/ingest/derive.py:85-118`). A version superseded before the drain
+reached it never gets one. So at a past cut the plane can hold nothing for a version that was
+the head, and the rule is the one two-phase ingestion already has: the item is pending, a
+semantic clause ranks it by the lexical index or reports it, and no vector is invented (ING-21).
+`[DERIVED from ING-19, ING-21]`
+
+Retention's second step and lazy derivation are then one mechanism run in two directions. A
+derived row is an entry of a cache of a function of a content digest and an identity (§5.2,
+§5.3): present or absent, reported when absent, derivable again from the raw object while the
+ledger holds it. The drain run over the versions a cut holds derives what a cut's readers ask
+for, and nothing obliges an instance to derive a past nobody reads.
+
+### 9.4 The utility field
+
+The field is the fold of its update over the use log (UTL-4, `evolve_append`), so it is a derived
+view in the sense of §5: its use log is a chain of the cut, its tick the position, and the field
+as of a cut is the fold of the prefix, continued from a kept checkpoint over the uses since
+(`foldAt_readBetween`). `[THEOREM: SNP-3 with UTL-4]` That answers the first open question of
+dn-utility-field: the field's clock can be a chain of the cut, and then the field as of a cut is
+exact. Two more things follow.
+
+- **The use log has a natural horizon.** A site left alone returns within `ε` of its baseline
+  after `log(c/(lam ε))/lam` ticks (UTL-2, `idle_window`), so a horizon that far behind the head,
+  with the field's state at the horizon kept, is exact from the horizon on and loses nothing a
+  reader of the present could see. `[DERIVED from UTL-2 and SNP-3]`
+- **The field can order what retention drops.** When a window forces a choice among the derived
+  rows of superseded versions, the ones whose sites stand at the baseline were not used for
+  anything that produced value, and go first. `[HYPOTHESIS: checked by comparing, on the corpus
+  instance, how often a pass ordered by the field drops a row a later cut asks for against a
+  pass ordered by age; falsifier SNF-9]`
