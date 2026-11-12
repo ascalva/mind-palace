@@ -36,8 +36,10 @@ Two runs, the same command and source:
 
 1. **before** (run 4), main at f969904e (the change's parent; its tree extracted with `git
    archive`, its environment synced from the same lock file, this harness beside it), every part;
-2. **after** (run 5), the branch at b61c0ca0, every part. The branch's later commits change no
-   code.
+2. **after** (run 5), the branch at b61c0ca0, every part. The branch's later commits change code
+   on one path no run took: a migration that fails for a reason other than another connection's
+   lock is rolled back and the store answers as before the change, where at b61c0ca0 the open
+   and every query raised unless the file was read-only.
 
 Three earlier runs (1 to 3), with an earlier version of the harness, are at the end of this
 record and in the JSON: they gave the same answers, and where their figures differ the reason is
@@ -284,6 +286,12 @@ terms.
   the count wait out the busy timeout and fail, readers included. The first version of this change
   did, and its record did not say so. The count now does not wait; a reader opens at once and
   counts its query's statistics from the units until the count is done.
+- A migration is a write that an open and a query make, where main's open writes nothing, so no
+  failure of it may stop a reader. At b61c0ca0 only the lock and a read-only file were caught: a
+  full file made the open and every query raise (the tests that now hold this set SQLite's page
+  limit at the file's size, and fail at b61c0ca0). Every failure is now rolled back, and the
+  store answers from its units, the ledger from its records, until a later query finds the lock
+  free or, for any other failure, until it is opened again.
 - In main's code `search` and `scores` with paths run the same computation (`_score_units` over
   the paths' units) and differ only by a sort of the scored units or a map to their paths, so
   their before times are the same work.
