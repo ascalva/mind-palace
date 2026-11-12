@@ -1,0 +1,398 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\setlength{\emergencystretch}{3em}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\lean}[1]{\path{#1}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\at}[2]{#1|_{#2}}
+\newcommand{\btw}[3]{#1|_{(#2,\,#3]}}
+\newcommand{\hd}[1]{\lvert #1 \rvert}
+\newcommand{\pre}{\preceq}
+\newcommand{\cat}{\mathbin{+\!\!+}}
+
+\title{The Landing Log:\\
+A Catalog's Past in Its Own File, with Holes That Keep Their Keys}
+\author{Alberto Serrano-Calva}
+\date{November 11, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+The catalog of a knowledge store maps each path to the content it holds now and is rewritten in
+place, so it has no past: nothing records which content a path held before, or whether it was
+deleted. A design for reading the store as of a past cut found this the one missing ledger, and
+this paper builds it as the design's first stage. The landing log is two tables in the catalog's
+own file, appended to by the catalog's six writing methods in the transaction of the row each
+writes, so the catalog is the fold of the log and no caller can write one without the other. A
+row carries a salted commitment that a hash chain covers, so a purge empties a row and the chain
+still verifies; a row names its path by a keyed hash whose key is split between the file and a
+secret outside it, so a hole still shadows the path's earlier versions, and the file alone cannot
+test a guess of a purged path. The design takes two forms of removal: a retire leaves the item's
+history readable at the cuts where it existed, and a purge leaves a hole at every cut. Five laws
+of the design (append invariance, monotonicity, composition, idempotence, and a derived view as a
+function of the prefixes) enter the store's ledger of laws as 47 statements machine-checked in
+Lean~4, and a property test checks the code's reads against them over random sequences of writes.
+On a copy of a catalog of 400{,}274 items the migration that writes the log takes 6.3~s and
+429~bytes a row, the log adds 42 to 69~$\mu$s to a key's write, and a read of one path at a cut
+takes 15~$\mu$s. Measuring at that size also found a query plan that walked the whole chain on
+every write.
+\end{abstract}
+
+\section{Introduction}
+
+The system is a personal knowledge store \cite{serranocalva2026palace}: notes, dialogue, papers and
+code land through one writer into a dozen stores, and a sentence of a query algebra reads them.
+Among the stores is a catalog, a table from each source path to the digest of the content it
+holds, its title, its provenance class, an identity, and whether it is active. The writer reads it
+to decide that content is unchanged, writes it last as the idempotence key of a landing, and
+flips a row inactive when its source deletes the item. It is rewritten in place. A design for
+reading the store as of a past cut \cite{serranocalva2026palace} found that this is the one store
+whose past nothing else holds: the version chains record the past of one place only, and the
+attestation ledger names digests and no paths. So no read at a past cut can say which version of
+a note a cut holds.
+
+This paper builds the first stage of that design, the landing log, and reports what it costs.
+The contributions:
+\begin{enumerate}
+\item The log (\Cref{sec:log}): an append-only, hash-chained record of the catalog's changes, one
+  chain a provenance class, written by the catalog's own methods in the transaction of the row
+  each writes, with the reads a later stage needs (the state of a path at a cut, its history, every
+  head at a cut, a range between cuts) and a verifier.
+\item The rules that keep an erasure compatible with the chain and with reads by path: a purge
+  empties a row and keeps its position, its commitment and its hash, and the row keeps a keyed
+  hash of its path, whose key is half in the file and half in a secret outside it.
+\item Five laws (\Cref{sec:laws}), proved in Lean over the design's model, now stated in the
+  store's ledger and judged by a comparator, with a property test of the code against each
+  (\Cref{sec:eval}).
+\item Measurements on a copy of a 400{,}274-item catalog (\Cref{sec:eval}), and three places where
+  building the design changed it.
+\end{enumerate}
+
+\paragraph{A decision of the design: two forms of removal.}
+A retire, the tombstone a deletion in the source writes, is the shallow form: the item leaves the
+present, and its history stays readable at the cuts where it existed; no seal withholds it there,
+and a note written later at the same path takes a fresh identity, so that it does not inherit the
+retired note's versions. A purge is the deep form: a hole at every cut, and every derived answer
+at a past cut becomes what it would have been had the item never landed; what survives is the
+record that a purge happened, not the content. The design's owner took this decision on 11
+November 2026, after the design was reviewed. The log holds both: a retire is a row like any
+other, and a purge empties rows. The fresh identity is a later stage's.
+
+\section{Background and related work}
+
+\paragraph{Hash chains and audit logs.}
+Linking each record to the hash of its predecessor makes an append history tamper-evident
+\cite{haber1991timestamp,merkle1988signature}, and secure audit logs add keys so that an attacker
+who later holds the log cannot rewrite or read what came before \cite{schneier1999audit}. Here the
+chain covers a salted commitment to each row and not the row \cite{halevi1996commitment}, so a row
+can be emptied and the chain kept; once the salt is gone the commitment cannot be tested against a
+guess of the content. A plain digest of guessable data is such a test, the reason salts were
+added to stored passwords \cite{morris1979password}. The key of a path is an HMAC
+\cite{bellare1996keying,rfc2104}.
+
+\paragraph{Erasure in append-only records.}
+A right to erasure meets append-only records in many systems \cite{politou2018forgetting}, and one
+answer for a hash-chained ledger is to make blocks redactable \cite{ateniese2017redactable}. The
+log needs less: one writer, and a chain over commitments that an erasure leaves in place.
+
+\paragraph{Temporal data.}
+Temporal databases keep rows valid over periods \cite{snodgrass1985taxonomy}, and SQL:2011's
+system-versioned tables answer a query as of a system time \cite{kulkarni2012sql2011}; multiversion
+concurrency control keeps versions so a reader sees a past state \cite{bernstein1983mvcc}. The log
+counts periods in positions of an append chain, never in wall time, since the store's stores share
+no clock; a cut is a position a chain, after the consistent cuts of distributed systems
+\cite{lamport1978time,chandy1985snapshots}.
+
+\paragraph{Checking a transcription.}
+The laws are proved in Lean~4 \cite{moura2021lean4} over Mathlib \cite{mathlib2020}, on a model, and
+the code is checked against them by property-based testing \cite{claessen2000quickcheck} with
+Hypothesis \cite{maciver2019hypothesis}.
+
+\section{The model and the laws}\label{sec:laws}
+
+\begin{definition}[Stores, cuts, reads]
+A \emph{store} is a family of append chains $s : K \to \mathrm{List}\,\alpha$, its \emph{head}
+$\hd{s}(k)$ the length of chain $k$; $s \cat t$ appends chain by chain, and $s \pre s'$ when
+every chain of $s$ is a prefix of its chain in $s'$. A \emph{cut} is $c : K \to \N$, ordered
+pointwise. The \emph{read at} $c$ is $\at{s}{c}(k) = \mathrm{take}\,(c\,k)\,(s\,k)$, the
+\emph{read between} $a$ and $b$ is $\btw{s}{a}{b}(k) = \mathrm{drop}\,(a\,k)\,(\at{s}{b}\,k)$, and
+a \emph{derived view} at $c$ is $D(\at{s}{c})$. A reader $F(s,c)$ is \emph{append invariant} when
+$F(s \cat t, c) = F(s, c)$ for every $t$ and every $c \le \hd{s}$.
+\end{definition}
+
+\begin{definition}[A keyed chain, three ways]
+For a chain $l$ of keyed writes $(x, v)$: $\mathrm{stateAt}\,l\,c$ maps each key to its last value
+in $\mathrm{take}\,c\,l$; $\mathrm{lastWrite}\,l\,c\,x$ is the value of the last write of $x$ in
+that prefix, one seek; and $\mathrm{gens}\,l$ is one row a write, valid from the first cut that
+holds it up to the first cut that holds the key's next write, its \emph{closing stamp}, read at a
+cut by $\mathrm{genRead}$.
+\end{definition}
+
+\begin{theorem}[SNP-1, append invariance]\label{thm:snp1}
+For $c \le \hd{s}$: $\at{(s \cat t)}{c} = \at{s}{c}$, a read between two cuts inside the store is
+unchanged likewise, and every derived view is append invariant. So are the read under an erasure
+and under a grant, the keyed state and the generations (whose closing stamps growth writes), the
+history of a key with no seal, and the filtered read of the references a resolver does not
+follow. The controls: a reader that ignores the cut is not append invariant, and a retire written
+after a cut empties the history a seal serves there.
+(\lean{readAt_grow}, \lean{readBetween_grow}, \lean{appendInvariant_view},
+\lean{stateAt_append}, \lean{genRead_gens_append}, \lean{landingsAt_append},
+\lean{kept_grown_iff}; \lean{Witness.present_not_appendInvariant},
+\lean{Witness.seal_empties_history}.)
+\end{theorem}
+
+\begin{theorem}[SNP-2, monotonicity]\label{thm:snp2}
+If $c \le d$ then $\at{s}{c} \pre \at{s}{d}$; $\at{(\at{s}{c})}{d} = \at{s}{(d \sqcap c)}$ and
+$\hd{\at{s}{c}} = c \sqcap \hd{s}$. The history of a key with no seal and the filtered read grow
+with the cut. (\lean{readAt_mono}, \lean{readAt_readAt}, \lean{head_readAt},
+\lean{landingsAt_mono}, \lean{Kept.mono}.)
+\end{theorem}
+
+\begin{theorem}[SNP-3, composition]\label{thm:snp3}
+If $a \le b$ then $\at{s}{a} \cat \btw{s}{a}{b} = \at{s}{b}$, and two adjacent reads-between
+compose. So a fold continued from a checkpoint over the delta is the fold of the prefix, for a
+store and for a keyed chain, and a key the delta does not write has one state at both cuts.
+(\lean{readAt_append_readBetween}, \lean{readBetween_append}, \lean{foldAt_readBetween},
+\lean{stateAt_eq_foldl}, \lean{stateAt_eq_of_not_written}.)
+\end{theorem}
+
+\begin{theorem}[SNP-4, idempotence]\label{thm:snp4}
+If $\hd{s} \le c$ then $\at{s}{c} = s$; every derived view at the head is the derivation of the
+store, and the generations at the head read the store rewritten in place.
+(\lean{readAt_of_head_le}, \lean{readAt_head}, \lean{view_head}, \lean{genRead_gens_length}.)
+\end{theorem}
+
+\begin{theorem}[SNP-5, a derived view is a function of the prefixes]\label{thm:snp5}
+A reader is append invariant if and only if it reads only the prefixes, if and only if it agrees
+with a derived view on every cut inside the store. For a keyed chain,
+$\mathrm{genRead}\,(\mathrm{gens}\,l)\,c\,x = \mathrm{stateAt}\,l\,c\,x =
+\mathrm{lastWrite}\,l\,c\,x$, and at most one generation of a key is alive at a cut. The control:
+the store rewritten in place determines no read at a past cut.
+(\lean{appendInvariant_iff_prefixOnly}, \lean{appendInvariant_iff_exists_view},
+\lean{genRead_gens}, \lean{stateAt_eq_lastWrite}, \lean{length_filter_selects_le_one};
+\lean{Witness.stateOf_forgets}.)
+\end{theorem}
+
+The proofs are short inductions on lists; the substance is in the choice of statements. SNP-5 is
+what lets the log be read three ways that must agree: by a seek on a path's key, by the closing
+stamp for every path at once, and by folding the prefix. The log's \lean{closed_at} column is the
+closing stamp, and it is the one field written after a row is appended; SNP-1 for the generations
+says that writing it changes no read at a cut inside the chain. The design's other five laws
+(the grant, the erasure, resolution, certificates, the horizon) stay design theorems until the
+stage that relies on each is built; SNP-7's holes and SNP-9's commitments shape the log below, and
+the tests of \Cref{sec:eval} check what of them the log already does.
+
+\section{The log as built}\label{sec:log}
+
+\paragraph{Tables.}
+\lean{landing_chains} has one row a chain: an integer id never reused, the class it holds now, the
+chain's 32 random bytes, and a key check. \lean{landings} has one row an event, keyed by
+\lean{(chain, seq)}: its kind, the path's key, the path, the identity, the version number where
+the place keeps version chains, the digest and title of a landing, a horizon's position, a 16-byte
+salt, the commitment, the hash, the closing stamp, and a wall-clock bookmark that orders nothing.
+Three partial indexes serve the reads: by path key, by identity where it differs from the path, and
+by closing stamp.
+
+\paragraph{Kinds.}
+A \lean{store} is a landing; a \lean{retire} the tombstone of an identity no other active path
+holds; a \lean{move} a tombstone that leaves the identity at another path (the second half of a
+rename), or an identity taken off a path by an owner's re-key; a \lean{leave} the row that closes
+a path in its chain when the path changes class, its \lean{store} then landing in a chain of the
+new class; \lean{genesis} and \lean{horizon} open a chain. A write that changes nothing appends
+nothing. A relabel of a whole class rewrites the class of its chains and no row, so no position
+moves and no hash breaks.
+
+\paragraph{The fold.}
+The catalog is the fold of the log. A path's present is its last event in the one chain where that
+event is not a \lean{leave}; a \lean{store} there is an active row, a \lean{retire} or a
+\lean{move} a tombstoned row with the digest and title of the path's last \lean{store}, and a
+\lean{store} emptied by a purge no row. The design had a \lean{move} for a change of class as
+well, and read every \lean{move} as no row. The catalog contradicts that reading: it keeps a renamed
+path's row, tombstoned. With one kind, a path that changed class and was then renamed has an open
+\lean{move} in two chains and no way to tell which is its present; with \lean{leave} the present is
+unique, also after a purge, since a purge keeps a row's kind.
+
+\paragraph{Commitments, holes and keys.}
+The commitment is SHA-256 over the salt and the canonical JSON of the row's fields; the hash is
+SHA-256 over the previous row's hash and the commitment. A purge (\lean{remove} of a path,
+\lean{remove_digest} of a digest) empties a row: the path, the identity, the digest, the title,
+the salt and the bookmark go, and the position, the kind, the key, the closing stamp, the
+commitment and the hash stay. The chain then verifies from its first row as before, and the
+commitment, its salt gone, tests no guess. The row keeps its path's key because a purge is by
+digest and may take an old version of a path that is still live: a hole that lost its key would
+let a read by path return the version before it at a cut where the purged one was the head. The
+key is $\mathrm{HMAC}(k_c, \text{path})$ with $k_c = \mathrm{HMAC}(K, \text{chain's bytes})$,
+where $K$ is the instance's landing-log secret, read from the environment as the store reads its
+other secrets and never written to the file. The design had the chain's bytes alone as the key,
+in the same file as the rows; with $K$ outside it, a copy of the file cannot test whether a hole
+was a given path. A missing secret refuses the migration and every write before anything is
+written, and a chain's key check refuses a secret it was not written with.
+
+\begin{algorithm}[t]
+\caption{A landing of \texttt{path} in class \texttt{cls}, inside the catalog's transaction.}
+\label{alg:record}
+\begin{algorithmic}[1]
+\State $p \gets$ the catalog's row of \texttt{path}, read before it is rewritten
+\State upsert the catalog's row (the key, as before)
+\If{$p$ is active with the same digest, title, class and identity}
+  \State \Return \Comment{a write that changes nothing appends nothing}
+\EndIf
+\State $e \gets$ the path's last event in the one chain where it is not a \texttt{leave}
+\If{$e$ exists and its chain holds \texttt{cls}}
+  \State $T \gets e$'s chain; \textbf{if} $e$ is a \texttt{store} of another identity \textbf{then}
+    append a \texttt{move} to $T$
+\Else
+  \State $T \gets$ a chain of \texttt{cls} the path left, else the newest chain of \texttt{cls},
+    else a new chain (\texttt{genesis}, \texttt{horizon})
+  \State \textbf{if} $e$ exists \textbf{then} append a \texttt{leave} to $e$'s chain
+\EndIf
+\State append a \texttt{store} to $T$: set the path's open row's closing stamp to the new
+  position, then insert the row with its salt, commitment and hash
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The genesis.}
+On the first open of a catalog that has rows and no log, each class gets a chain: a
+\lean{genesis}, the catalog's rows of the class in path order, an active path as a \lean{store}
+and a tombstoned one as a \lean{store} followed by its tombstone, then a \lean{horizon} whose
+position is its own. The order inside the block is not history, so the positions under the horizon
+are not served at a cut. The design wrote every such tombstone as a \lean{retire}; the build writes
+the \lean{move} that \lean{tombstone} would, where another active path holds the identity, so that
+a renamed path is not counted among the identities whose history runs across a retire.
+
+\paragraph{Reads.}
+\Cref{alg:record} is the write. The reads are \lean{chains(class)}, \lean{head(chain)},
+\lean{read_at} and \lean{read_between} (the rows of a range of positions), \lean{state_at} (a
+path's last event at or under a cut over its class's chains, one seek on the key index a chain),
+\lean{history_at} (its \lean{store} rows there, a hole where a version was purged),
+\lean{heads_at} (the \lean{store} rows whose closing stamp is absent or past the cut), and
+\lean{verify}, which recomputes the hashes from the first row and the commitment of every row that
+still has its salt. A cut over a class is one position a chain. Nothing reads the log yet; the
+stage that reads the notes at a cut does.
+
+\section{Evaluation}\label{sec:eval}
+
+\paragraph{What is proved.}
+The 47 declarations the design lists for SNP-1 to SNP-5 are restated, their proofs left out, in a
+statement file over the model, and a comparator checks that the library proves each exactly as
+stated, from the standard axioms; the store's gate also audits the axioms of all 5{,}250 library
+declarations and replays the export, 56{,}231 declarations from \lean{Init} up, through Lean's
+kernel and five independent checkers. The ledger now has 105 rows in 16 families, and a
+cross-reference holds its rows, the statements and the docstring markers to one another. The
+attacks on these laws, property tests of the model's computable definitions run before the proofs,
+survive 500 draws each.
+
+\paragraph{What is tested.}
+The transcription is checked against the laws by a property test: Hypothesis draws sequences of 3 to
+40 catalog writes over five paths, six digests, two titles, three classes and two identities, with
+retires, renames, relabels, re-keys and both purges among them, 200 sequences a run. After every
+write the catalog must equal the fold of the log and every chain must verify; every cut taken during
+the sequence must read, after every later write, the rows and the state of every path it read
+then, up to the holes a later purge leaves (SNP-1); every read of a chain must be a prefix of the
+read at its head (SNP-2); the fold of every cut taken, continued over the rows since, must be the
+catalog (SNP-3); the state of a path at the head must be its catalog row (SNP-4); and at every
+position of every chain the seek, the closing-stamp read and the fold of the prefix must give every
+path the same row, with no path alive twice (SNP-5). Eleven more tests take the stage's cases: a
+write that changes nothing, and a landing the writer's unchanged check skips, append nothing; a
+process killed between the catalog's row and the log's leaves neither; a failed batch leaves no
+log row; the genesis is the catalog, tombstoned paths included, and ends at a horizon; a relabel
+into a class that has rows changes no row; a purge of an old version of a live path is a hole by
+all three reads at a cut where it was the head; an edited row fails \lean{verify}; the secret is
+required, and another is refused; and every statement by path is planned on the key index. Seeding
+two bugs, a log that writes no closing stamp and one that writes no \lean{leave}, fails the suite.
+
+\paragraph{What is measured.}
+\Cref{tab:measure} gives two runs of the committed harness on two copy-on-write clones of the
+catalog of the store's corpus instance, 400{,}274 rows of one class, all active, on an Apple M2
+Pro with SQLite 3.54.1 and other work running; the original was never opened. The genesis is one
+chain of 400{,}276 rows, and its fold equals the catalog.
+
+\begin{table}[t]
+\centering
+\small
+\begin{tabular}{@{}p{0.50\linewidth}p{0.44\linewidth}@{}}
+\toprule
+measurement & result \\
+\midrule
+the migration: tables, indexes, genesis & 6.22 to 6.33 s \\
+bytes a row of the log (table, key index) & 429 (381, 47); the file from 162.7 to 334.1 MB \\
+\lean{verify}, every commitment and hash & 3.05 to 3.07 s \\
+\lean{state_at} of one path; its keyed hash & 14.3 to 14.8 $\mu$s; 1.6 $\mu$s \\
+\lean{history_at} of one path & 14.7 to 15.7 $\mu$s \\
+\lean{read_at}, \lean{read_between}, 1{,}000 positions & 3.3 to 3.4 ms \\
+\lean{heads_at} at a tenth, the middle, the head & 0.15, 0.79 to 0.80, 1.6 s \\
+the same walks counted in SQL & 6, 26, 54 to 57 ms \\
+a new path's write, with the log and without & 49.0 and 6.8 $\mu$s \\
+a new version's write, with the log and without & 106.0 to 106.5 and 37.9 to 41.2 $\mu$s \\
+\bottomrule
+\end{tabular}
+\caption{The landing log on a copy of a 400{,}274-item catalog: two runs, medians, ranges across
+the runs. Writes are in batches of 10{,}000, one transaction each, as a landing batch writes its
+keys.}\label{tab:measure}
+\end{table}
+
+The log doubles the catalog's file, with paths, digests and titles the catalog holds already. It
+adds 42~$\mu$s to a new path's write and 65 to 69~$\mu$s to a new version's, which also writes a
+closing stamp; a landing without its vector took 31~ms an item on the store's earlier measurement
+of two-phase ingestion, so the log is 0.1 to 0.2 percent of a landing. Reading every head at the
+head of this chain takes 1.6~s, almost all of it building 400{,}274 rows in Python; the walk alone
+is 0.14~$\mu$s an event. That is past the tenth of a second the design allows a read from the log
+alone, and the design already keeps heads at recorded cuts for a chain over 250{,}000 events; this
+chain is one.
+
+\paragraph{What measuring found.}
+The first run took about 40~ms a landing. The update that writes the closing stamp of a path's
+previous row took the primary key, \lean{(chain, seq)}, and walked the chain for the path's rows,
+though the statement names the path's key: the planner's choice the design had already met for a
+seek on its fixture. The statement now names the key index, and a test asks the plan of every
+statement by path to name it. Nothing at the test suite's sizes showed the walk.
+
+\section{Limitations}
+
+One writer is assumed, as by the model. A build that wrote the catalog without the log, while the
+log's tables stayed, would leave the log behind the catalog, and nothing detects that yet; the
+rollback drops the tables, and the next open writes a new genesis. The genesis knows no version
+numbers, since the version chains are another file. A purge of a digest reads the whole log, which
+has no index by digest. A path with events in two chains of one class, possible only after a
+change of class and a merge of the two classes, is read by a rule of the prefix alone that can
+order its earlier segments otherwise than they happened. The secret is an operational dependency:
+a process that writes the catalog stops without it, and a lost secret leaves the log unwritable.
+The measurements are of one instance, one class and no deletions; a catalog of several classes,
+with identities apart from paths, is tested and not measured.
+
+\section{Future work}
+
+The next stages of the design number the chat log and the attestation ledger, record cuts and
+resolve names to them; then take the two forms of removal into every store (the deep form's reach
+and the fresh identity), then read the notes, vectors and lexical index at a cut from this log.
+Each property-tests its transcription against the Lean statements, and its laws then enter the
+ledger.
+
+\section{Conclusion}
+
+A catalog rewritten in place loses its past at every write. Two tables in its own file, written in
+the same transactions, keep it at about 430 bytes and 50~$\mu$s a landing, with the catalog their
+fold. Holes keep their positions and their keys, so the chain survives an erasure and a read by
+path never steps over one; the key's other half stays outside the file, so the holes reveal
+nothing to whoever copies it. The five laws a reader at a cut relies on are now statements the
+library is judged against, and the code is tested against them.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
