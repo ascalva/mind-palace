@@ -41,6 +41,7 @@ from core.query import GUEST, QueryEngine
 from core.sentence.surface import QueryLog
 from core.stores.causal_edges import open_causal_edge_store
 from core.stores.chatlog import ChatUtterance, open_chatlog_store
+from core.stores.landings import LANDING_LOG_KEY
 from tests.adversarial.test_guest_leaks import (
     AUTHORED,
     CODE,
@@ -56,6 +57,7 @@ from tests.adversarial.test_guest_leaks import (
     _outcome,
     _server,
 )
+from tests.conftest import LANDING_LOG_TEST_KEY
 from tests.fixtures.ingress import write_file
 from tests.integration.test_palace_lite import lite_config
 from tests.unit.test_sentence_universe import _Edge, _Refs
@@ -364,6 +366,9 @@ def test_the_launcher_serves_the_guest_over_the_code_instances_overlay(
     monkeypatch.setenv("MIND_PALACE_OVERLAY", str(overlay))
     cfg = load_config()
     assert cfg.instance.id == "code-guest" and not cfg.embedding.enabled
+    # A named instance reads its own landing-log item, `<id>.landing-log-key`, which the
+    # suite's fixture does not set: the sync below writes the catalog, and the launcher opens it.
+    monkeypatch.setenv(cfg.instance.secret(LANDING_LOG_KEY), LANDING_LOG_TEST_KEY)
     assert ingress.run_library(cfg, "sync_repository", {"name": REPO},
                                stores=ingress.build_stores(cfg))["effects"] == {"landed": 3}
     asked = [("initialize", {}), ("tools/list", {}),
