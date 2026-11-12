@@ -25,6 +25,11 @@
 
 	<key>ProgramArguments</key>
 	<array>
+		<!-- The secrets wrapper first: it reads the Keychain items into the environment and execs
+		     the rest. The daemon writes the catalog, and every write that appends a row to the
+		     catalog's landing log, the log's genesis included, needs the landing-log secret; the
+		     log has no switch (docs/runbook.md §0). A deploy installs this file when it changed. -->
+		<string>/Users/ascalva/mind-palace/scripts/run_with_secrets.sh</string>
 		<!-- uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal -->
 		<string>/opt/homebrew/bin/uv</string>
 		<string>run</string>

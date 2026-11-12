@@ -427,6 +427,7 @@ exec env \
   "attestation-signing-key=$(kc attestation-signing-key)" \
   "attestation-owner-key=$(kc attestation-owner-key)" \
   "vault-supervisor-token=$(kc vault-supervisor-token)" \
+  "landing-log-key=$(kc landing-log-key)" \
   "$@"
 # plist ProgramArguments: [ .../scripts/run_with_secrets.sh, .../uv, run, .../scripts/watch.py ]
 ```
@@ -446,9 +447,15 @@ which finds a path's rows by their key. Without it they refuse, loudly
 (`LandingLogKeyMissing`), and write nothing. A relabel, a purge by digest and a write that changes
 nothing need no secret, and nor does a read, except the log's two reads of one path
 (`state_at`, `history_at`), which nothing calls yet. Place it before deploying the build that
-brings the log, and run every process that opens the catalog under the wrapper above (it carries
-the item), the daemon first, or the first of them to open the catalog stops there. Whether the
-genesis should move off the first open is open with the owner (dn-temporal-snapshot §12, SN-1):
+brings the log. The daemon writes the catalog, so it needs the item however the genesis is
+placed: the committed plists (`ops/lifecycle/com.mind-palace.palace.plist`, its daemon twin) run it
+under `scripts/run_with_secrets.sh`, which carries the item, and a deploy installs a plist that
+changed. The daemon twin runs as `ouroboros`, so its wrapper reads `ouroboros`'s keychain: place
+the item there as well, with the same value, the way `docs/runbooks/plane-migration.md` §7 places
+the unseal key. Any other process that opens the catalog before the daemon has written the genesis
+needs the item too, so run it under the wrapper or start the daemon first. Whether the genesis
+should move off the first open, so that a reader without the secret can open a catalog that has
+no log yet, is open with the owner (dn-temporal-snapshot §12, SN-1):
 
 ```sh
 openssl rand -hex 32                                                    # 32 random bytes, as hex

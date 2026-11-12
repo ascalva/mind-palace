@@ -287,13 +287,18 @@ mind-palace stop                                        # drain the current (asc
 # --- Unseal key: copy the item into ouroboros's keychain (the daemon, as ouroboros, will read it).
 sudo -u ouroboros -H security add-generic-password -U -a mind-palace -s vault-unseal-key -w \
      "$(security find-generic-password -a mind-palace -s vault-unseal-key -w)"
+# --- Landing-log secret: the daemon plist runs under scripts/run_with_secrets.sh, which reads it
+#     as ouroboros. The same value: the catalog's landing log refuses another (runbook §0).
+sudo -u ouroboros -H security add-generic-password -U -a mind-palace -s landing-log-key -w \
+     "$(security find-generic-password -a mind-palace -s landing-log-key -w)"
 ```
 
 - **Verify (no secret printed):** `sudo -u ouroboros -H security find-generic-password -a
   mind-palace -s vault-unseal-key >/dev/null && echo 'unseal item present for ouroboros'`.
   (`verify_planes.py` → "unseal key under ouroboros" is a manual SKIP — this IS that check.)
+  The same with `-s landing-log-key` for the landing log's item.
 - **Rollback:** `sudo -u ouroboros -H security delete-generic-password -a mind-palace -s
-  vault-unseal-key`; restart the ascalva Syncthing instance.
+  vault-unseal-key`, and the same for `landing-log-key`; restart the ascalva Syncthing instance.
 
 ---
 
