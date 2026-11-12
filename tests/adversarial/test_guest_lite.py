@@ -62,8 +62,8 @@ from tests.unit.test_sentence_universe import _Edge, _Refs
 
 REPO = "toy"
 FILE = f"code/{REPO}/pkg/orchard.py"
-# The note of the first palace says the battery's words often; the second's says none of them and
-# is a tenth as long, so a ranking that counted the notes' units would differ between the two.
+# The note of the first palace says the battery's words often, in over 300 terms; the second's
+# says none of them, in four, so a ranking that counted the notes' units would differ between them.
 WORDY = "The {c} body: a walnut orchard, a private plan. " + "Walnut orchard rows, walnut " * 80
 TERSE = "The {c} body: errands."
 
@@ -223,6 +223,45 @@ def test_the_guest_cannot_tell_two_palaces_that_embed_nothing_apart(
     assert not error and b.canary not in text
     units = [json.loads(_call(s, "overview")[1])["lexical_units"] for s in (aa, ab)]
     assert units[0] > units[1]
+
+
+def test_every_lexical_read_the_guest_causes_names_classes_its_grant_reads(
+        lite: tuple[Fixture, Fixture], monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mechanism under the noninterference test. A ranking's statistics are read over the
+    classes it names, and over the whole index when it names none; a count likewise. While the
+    guest asks the battery, the code source's refs and the overview, every score and every count
+    the lexical index makes names its classes, and each is a class the grant reads. The
+    Ambassador's `near` over the notes names the notes' class: the recorder sees it."""
+    from core.kernel.clearance import classes_of
+    from core.stores.lexical import LexicalStore
+
+    asked: list[frozenset[str] | None] = []
+    score, count = LexicalStore._score_units, LexicalStore.count
+
+    def named(classes: Any) -> frozenset[str] | None:
+        return None if classes is None else frozenset(str(c) for c in classes)
+
+    def scored(self: LexicalStore, query: str, *, classes: Any, paths: Any) -> dict[int, float]:
+        asked.append(named(classes))
+        return score(self, query, classes=classes, paths=paths)
+
+    def counted(self: LexicalStore, *, classes: Any = None) -> int:
+        asked.append(named(classes))
+        return count(self, classes=classes)
+
+    monkeypatch.setattr(LexicalStore, "_score_units", scored)
+    monkeypatch.setattr(LexicalStore, "count", counted)
+    a, _ = lite
+    guest = _server(a, "guest")
+    for sentence, _ in _lite_battery(a):
+        _call(guest, "query", sentence=sentence)
+    _call(guest, "overview")
+    readable = {p.value for p in classes_of(GUEST.strata)}
+    assert len(asked) > 10
+    assert all(c is not None and c <= readable for c in asked), asked
+    asked.clear()
+    _call(_server(a, "ambassador"), "query", sentence='near "walnut orchard"')
+    assert any(c is not None and Provenance.AUTHORED_SOLO.value in c for c in asked), asked
 
 
 def test_the_guest_reads_the_code_source_lexically(lite: tuple[Fixture, Fixture]) -> None:
