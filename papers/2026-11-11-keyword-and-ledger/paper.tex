@@ -257,7 +257,8 @@ statistics counted, and the transaction that counts them creates their tables, s
 store writes nothing unless it counts. The count does not wait for the file's write lock. A process
 that opens the store while another holds it, counting or writing, opens at once, and until the
 statistics are counted its queries count their own from the units, as every query did before:
-the same integers, so the same scores. A writer waits for the lock as any write does.
+the same integers, so the same scores. The first open or query that finds the lock free counts
+them, in that call. A writer waits for the lock as any write does.
 
 \paragraph{The upkeep.} \Cref{alg:upkeep} is the landing's part; a retire is its last two lines.
 The currency moves by two statements a version, each returning the ids it changed, and the net
