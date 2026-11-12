@@ -35,7 +35,7 @@ from core.kernel.clearance import MIRROR_READ, Clearance
 from core.kernel.complex_types import EdgeSign
 from core.kernel.config import Config, get_config
 from core.kernel.constitution import Message
-from core.kernel.ingest.logseq import _LINK, parse_note
+from core.kernel.ingest.logseq import _LINK, _decode, parse_text
 from core.kernel.provenance import Provenance
 from core.stores.vectorstore import open_vector_store
 
@@ -119,6 +119,10 @@ class RelationDetector:
     vectors: Rows
     chat: Callable[[list[Message]], str] | None = None  # None = authored edges only
     max_pairs: int = 24
+    # The raw store the authored edges are parsed from, by each note's catalog digest
+    # (dn-instance-lifecycle §3.3 step 6): the edges are a function of the landed bytes, so a reset
+    # rebuilds them without the vault. None reads each note's vault file, as before.
+    raw: Any = None
 
     def notes(self) -> list[Note]:
         """Active authored-solo notes that exist on disk, oldest first."""
@@ -134,13 +138,13 @@ class RelationDetector:
     # authored ---------------------------------------------------------------------------------
     def authored(self, notes: list[Note]) -> int:
         by_title = {n.title.lower(): n for n in notes}
-        vault = self.config.ingestion.vault.path
         count = 0
         for n in notes:
-            path = Path(n.source_path)
-            if not path.exists():
+            data = self._bytes_of(n)
+            if data is None:
                 continue
-            props = parse_note(path, vault).properties
+            props = parse_text(_decode(data), source_path=n.source_path, title=n.title,
+                               raw_bytes=data).properties
             for rel, (sign, factor) in RELATIONS.items():
                 for target in _LINK.findall(props.get(rel, "")) or (
                     [props[rel]] if props.get(rel) else []
@@ -158,6 +162,14 @@ class RelationDetector:
                     )
                     count += 1
         return count
+
+    def _bytes_of(self, n: Note) -> bytes | None:
+        """A note's landed bytes: its raw object by digest when the raw store is given, else its
+        vault file; None when neither holds it."""
+        if self.raw is not None:
+            return self.raw.get(n.digest) if self.raw.exists(n.digest) else None
+        path = Path(n.source_path)
+        return path.read_bytes() if path.exists() else None
 
     # interpreted ------------------------------------------------------------------------------
     def candidates(self, notes: list[Note]) -> list[tuple[Note, Note, float]]:
@@ -220,6 +232,27 @@ class RelationDetector:
         ]
 
 
+def authored_notes(catalog: Catalog) -> list[Note]:
+    """Every active authored-solo note the catalog holds, by path, whether or not its vault file
+    is on disk: the notes whose authored edges a rebuild from raw derives."""
+    return sorted((Note(e.source_path, e.title, e.digest, "") for e in catalog.active_entries()
+                   if e.provenance == Provenance.AUTHORED_SOLO.value),
+                  key=lambda n: n.source_path)
+
+
+def rebuild_authored(catalog: Catalog, raw: Any, edges: EdgeSink, config: Config) -> int:
+    """The authored relation edges, derived again from the landed bytes alone: the reset's
+    rebuild step for the rows of provenance `authored-solo` (dn-instance-lifecycle §3.3)."""
+    detector = RelationDetector(config=config, edges=edges, catalog=catalog,
+                                vectors=_NoRows(), chat=None, raw=raw)
+    return detector.authored(authored_notes(catalog))
+
+
+class _NoRows:
+    def all_rows(self, *, clearance: Clearance[Provenance]) -> Sequence[Mapping[str, Any]]:
+        return []
+
+
 _STAMP = re.compile(r"(\d{4}-\d{2}-\d{2})-(\d{6})")
 
 
@@ -250,6 +283,8 @@ def build_relation_detector(
 
         server = build_model_server(cfg)
         chat = lambda messages: server.chat("synthesis", messages, think=False, temperature=0.0)  # noqa: E731
+    from core.kernel.stores.rawstore import RawStore
+
     return RelationDetector(
         config=cfg,
         edges=open_edge_store(cfg),
@@ -257,4 +292,5 @@ def build_relation_detector(
         vectors=open_vector_store(cfg),
         chat=chat,
         max_pairs=max_pairs,
+        raw=RawStore(cfg.paths.raw_store),
     )

@@ -122,25 +122,10 @@ def test_dreaming_is_scheduled_by_default_and_the_lever_parses():
     assert load_config().dreaming.scheduled is True
 
 
-def test_reset_targets_include_the_membership_store(tmp_path: Path):
-    """bp-152's relation points into the vector plane; a reset that kept it would leave
-    occupancies of atoms that no longer exist."""
-    from ops.lifecycle.launcher import Launcher
-    from ops.lifecycle.runs import RunLedger
+def test_reset_keeps_the_membership_store(tmp_path: Path):
+    """bp-152's relation holds the code atoms' embedder ledger beside their occupancy, so a reset
+    keeps it whole (dn-instance-lifecycle §3): clearing it would forget which code atoms the
+    plane holds under which embedder, and `palace code-rebuild` is what derives it again."""
+    from ops.lifecycle.inventory import STORES, Kind
 
-    class _Paths:
-        def __init__(self, d: Path) -> None:
-            self.data_dir = d
-            self.raw_store = d / "raw"
-            self.vector_store = d / "vectors.lance"
-            self.vault_catalog = d / "vault_catalog.sqlite"
-            self.derived_store = d / "derived.sqlite"
-            self.attestation_store = d / "attestations.sqlite"
-
-    class _Cfg:
-        def __init__(self, d: Path) -> None:
-            self.paths = _Paths(d)
-
-    launcher = Launcher(cfg=cast(Config, _Cfg(tmp_path / "data")),
-                        runs=cast(RunLedger, None), repo_root=tmp_path)
-    assert "memberships.sqlite" in {t.name for t in launcher.reset_targets()}
+    assert {s.name: s.kind for s in STORES}["memberships.sqlite"] is Kind.KEPT

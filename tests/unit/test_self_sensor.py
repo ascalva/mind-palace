@@ -398,37 +398,15 @@ def test_post_commit_hook_contains_both_sensor_lines_and_the_branch_guard() -> N
 def test_reset_targets_lists_agent_observations_but_refuses_the_history_sidecar(
     tmp_path: Path,
 ) -> None:
-    """Pins §6(h): `reset_targets()` lists the readings store (corpus-side, wiped, rebuilt
-    by re-projection) and the shared history sidecar is NOT a target — it sits in
-    `_RESET_GUARD` (the code-store precedent, `test_code_sensor.py`'s equivalent test,
-    extended to the agent member). A reset that omitted this store would let readings
-    survive a corpus wipe — the falsifier named in the plan (§2.5 violated in the
-    corpus-class direction)."""
-    from typing import cast
+    """Pins §6(h), now in the class table (dn-instance-lifecycle §3): the readings store is a
+    derived store a reset clears and rebuilds by re-projection, and the shared history sidecar is
+    a ledger it keeps. A reset that kept the readings would let them survive a rebuild — the
+    falsifier named in the plan (§2.5 violated in the corpus-class direction)."""
+    from ops.lifecycle.inventory import STORES, Kind
 
-    from config.loader import Config
-    from ops.lifecycle.launcher import _RESET_GUARD, Launcher
-    from ops.lifecycle.runs import RunLedger
-
-    class _Paths:
-        def __init__(self, d: Path) -> None:
-            self.data_dir = d
-            self.raw_store = d / "raw.sqlite"
-            self.vector_store = d / "vectors.lance"
-            self.vault_catalog = d / "vault_catalog.sqlite"
-            self.derived_store = d / "derived.sqlite"
-            self.attestation_store = d / "attestations.sqlite"
-
-    class _Cfg:
-        def __init__(self, d: Path) -> None:
-            self.paths = _Paths(d)
-
-    launcher = Launcher(cfg=cast(Config, _Cfg(tmp_path / "data")),
-                        runs=cast(RunLedger, None), repo_root=tmp_path)
-    names = {t.name for t in launcher.reset_targets()}
-    assert "agent_observations.sqlite" in names           # readings: corpus-side, wiped
-    assert "observation_history.sqlite" not in names      # the shared worldview ledger is NOT…
-    assert "observation_history.sqlite" in _RESET_GUARD   # …and the guard refuses it structurally
+    kind = {s.name: s.kind for s in STORES}
+    assert kind["agent_observations.sqlite"] is Kind.DERIVED      # readings: rebuilt
+    assert kind["observation_history.sqlite"] is Kind.LEDGER      # the worldview ledger: kept
 
 
 def test_non_main_branch_commit_projects_nothing_via_the_hook_guard() -> None:

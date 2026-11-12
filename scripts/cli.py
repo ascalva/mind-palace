@@ -21,6 +21,8 @@ mind-palace <verb> [args...]   — run from any directory
 
 DAY-TO-DAY
   start | stop | status | reset [--force|--confirm]    the supervised lifecycle (scripts/palace.py)
+  destroy [--confirm]                                    remove a named instance, its open content cached
+  cache [fill|prune] [--confirm]                         the shared cache (~/.mind-palace/cache)
   talk [--offline]                                      interactive chat (--offline = no-Ollama demo)
   monitor                                                run the dashboard/chat HTTP server standalone
   sandbox <code.py|-> [--input NAME=PATH] [--timeout N]  run code in the powerless sandbox
@@ -59,7 +61,8 @@ EVAL / OPS
   help | -h | --help                                     this message
 """
 
-_PALACE = ("start", "stop", "status", "reset", "deploy", "dream", "relate", "lanes", "reembed",
+_PALACE = ("start", "stop", "status", "reset", "destroy", "cache", "deploy", "dream", "relate",
+           "lanes", "reembed",
            "vault-sync", "embed", "dialogue-sync", "tick", "queue", "query", "ingest-chat",
            "code-seed", "code-backfill", "code-rebuild")
 

@@ -2,8 +2,8 @@
 
 Exercises the whole lifecycle without any live daemon or model: the run ledger's clean/unclean
 detection (the basis for recovery), preflight's fail-closed aggregation, the launcher's graceful
-start→serve→mark-clean, recovery on an unclean prior run, and that `reset` wipes the corpus but
-NEVER the production Vault Raft store.
+start→serve→mark-clean, recovery on an unclean prior run, and that `reset` clears the derived
+stores and never a ledger or the production Vault Raft store.
 """
 
 import dataclasses
@@ -266,34 +266,38 @@ def test_force_resumes_normally_after_unclean(tmp_path):
     assert not _last(launcher.runs).recovery
 
 
-# --- reset (the fresh-start wipe) ---------------------------------------------------------------
-def test_reset_wipes_corpus_but_never_the_vault_raft(tmp_path):
+# --- reset (clear the derived stores, rebuild them; dn-instance-lifecycle) ---------------------
+def test_reset_keeps_raw_the_ledgers_and_the_vault_raft(tmp_path):
+    """A reset clears derived stores only: the raw store, the catalog, the version chains, the
+    declarations, the reference edges and the production Vault Raft store are never touched
+    (the reset at main deleted all but the last)."""
+    from core.stores.chat_events import ChatEventStore
+
     cfg = _cfg(tmp_path)
-    # seed the corpus layer + a production Vault Raft store that MUST survive
     (cfg.paths.raw_store).mkdir(parents=True)
     (cfg.paths.raw_store / "blob").write_text("x")
     cfg.paths.vault_catalog.write_text("catalog")
-    # the four sibling provenance stores (opened via derived_store.parent, no cfg path)
-    sidecars = ["versions.sqlite", "authored_supersessions.sqlite",
-                "verdicts.sqlite", "verdict_dispositions.sqlite",
-                "code_observations.sqlite",   # observed stratum: a reset target (bp-012 Item 4)
-                "reference_edges.sqlite"]     # Lane-1 doc↔code refs: reset target (bp-013 Q4)
-    for name in sidecars:
+    kept = ["versions.sqlite", "authored_supersessions.sqlite", "verdicts.sqlite",
+            "reference_edges.sqlite", "code_snapshots.sqlite", "observation_history.sqlite"]
+    for name in kept:
         (cfg.paths.data_dir / name).write_text("rows")
     (cfg.paths.data_dir / "vault").mkdir()
     (cfg.paths.data_dir / "vault" / "raft.db").write_text("VAULT RAFT — DO NOT DELETE")
+    ChatEventStore(cfg.paths.data_dir / "chat_events.sqlite").close()   # a derived store
     runs = RunLedger(tmp_path / "runs.sqlite")
-    launcher = Launcher(cfg=cfg, runs=runs, repo_root=Path(".").resolve())
+    launcher = Launcher(cfg=cfg, runs=runs, repo_root=tmp_path)
 
-    assert launcher.reset(confirm=False) == 0            # dry-run removes nothing
-    assert cfg.paths.raw_store.exists()
-    assert all((cfg.paths.data_dir / n).exists() for n in sidecars)
+    assert launcher.reset(confirm=False) == 0            # dry run writes nothing
+    assert (cfg.paths.data_dir / "chat_events.sqlite").exists()
+    assert not (cfg.paths.data_dir / "reset.pending").exists()
 
     assert launcher.reset(confirm=True) == 0
-    assert not cfg.paths.raw_store.exists()              # corpus wiped
-    assert not cfg.paths.vault_catalog.exists()
-    assert not any((cfg.paths.data_dir / n).exists() for n in sidecars)  # provenance sidecars wiped
+    assert (cfg.paths.raw_store / "blob").read_text() == "x"
+    assert cfg.paths.vault_catalog.read_text() == "catalog"
+    assert all((cfg.paths.data_dir / n).read_text() == "rows" for n in kept)
     assert (cfg.paths.data_dir / "vault" / "raft.db").exists()   # Vault Raft UNTOUCHED
+    assert not (cfg.paths.data_dir / "chat_events.sqlite").exists()   # cleared; no chat log
+    assert not (cfg.paths.data_dir / "reset.pending").exists()
 
 
 def test_reset_refused_while_a_run_is_live(tmp_path):

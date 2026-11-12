@@ -640,6 +640,36 @@ class SharedPlane:
                 conn.execute("ROLLBACK")
                 raise
 
+    def reset_relations(self) -> None:
+        """Forget every occupancy and supersession edge, and keep the atoms and the recorded
+        geometry: a lifecycle reset's clearing of the plane (dn-instance-lifecycle §4.2). The atom
+        table is a memo of one function, the embedder's vector of a text under the recorded
+        geometry, so keeping it loses no derived state, and the drain that rebuilds the relations
+        finds every atom held and embeds nothing. The `held` cache is left stale by excess, which
+        no search sees (PLN-4); `repair` brings it in step once the relations are rebuilt."""
+        with self._writing() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                for p in PLANE_CLASSES:
+                    conn.execute(f"DELETE FROM {OCC[p]}")
+                    conn.execute(f"DELETE FROM {SUP[p]}")
+                conn.execute("COMMIT")
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+
+    def drop_unheld(self) -> int:
+        """Delete the atoms no occupancy of any class holds, current or not: after a lifecycle
+        reset's rebuild, the atom table holds exactly what the rebuilt relations name. Returns the
+        atoms deleted."""
+        with self._writing() as conn:
+            referenced: set[str] = set()
+            for p in PLANE_CLASSES:
+                referenced |= {str(r[0]) for r in conn.execute(
+                    f"SELECT DISTINCT atom_id FROM {OCC[p]}")}
+            orphans = sorted(self.atoms.ids() - referenced)
+            return self.atoms.delete(orphans) if orphans else 0
+
     # ── the `held` cache (the prefilter) and its repair ratchet ──────────────────────────────
 
     def _held_truth(self, conn: sqlite3.Connection,

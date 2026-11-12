@@ -134,6 +134,14 @@ class EdgeStore:
         self._conn.commit()
         return cur.rowcount
 
+    def delete_provenance(self, provenance: str) -> int:
+        """Delete every edge of one provenance; returns rows removed. A lifecycle reset clears the
+        authored rows, which it derives again from the landed bytes, and keeps the interpreted
+        ones, which are model output (dn-instance-lifecycle §3.3)."""
+        cur = self._conn.execute("DELETE FROM edges WHERE provenance = ?", [provenance])
+        self._conn.commit()
+        return cur.rowcount
+
     @staticmethod
     def _row(r: sqlite3.Row) -> Edge:
         return Edge(edge_id=r["edge_id"], u=r["u"], v=r["v"], w=r["w"],
