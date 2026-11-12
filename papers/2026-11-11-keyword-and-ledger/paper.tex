@@ -1,0 +1,439 @@
+% The article for the keyword-and-ledger pull request: kept statistics, one statement, and an
+% index of the attestation ledger by output hash, measured on the corpus instance.
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+
+\setlength{\emergencystretch}{3em}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\fl}{\operatorname{fl}}
+\newcommand{\df}{\operatorname{df}}
+
+% The measured figures, from docs/experiments/keyword-and-ledger-2026-11-11.json.
+\newcommand{\nItems}{400{,}274}
+\newcommand{\nUnits}{1{,}369{,}944}
+\newcommand{\nPostings}{117{,}975{,}818}
+\newcommand{\nRecords}{387{,}838}
+\newcommand{\nPaths}{400}
+\newcommand{\nBatch}{2{,}050}
+\newcommand{\nQueries}{16}
+\newcommand{\nAnswers}{65}
+\newcommand{\kwBefore}{14.2}
+\newcommand{\kwBeforeMax}{33.4}
+\newcommand{\kwAfter}{1.20}
+\newcommand{\kwAfterMax}{5.87}
+\newcommand{\pathsBefore}{5.47}
+\newcommand{\pathsAfter}{5.5}
+\newcommand{\ledgerBefore}{2.47}
+\newcommand{\ledgerAfter}{7}
+\newcommand{\singleBefore}{7.7}
+\newcommand{\singleAfter}{0.027}
+\newcommand{\migrationLex}{115 to 122}
+
+\title{Keyword Search and Ledger Lookups at Corpus Scale:\\
+Kept Statistics, One Statement, and an Index by Output Hash}
+\author{Alberto Serrano-Calva}
+\date{November 11, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A knowledge store answers keyword queries from a BM25 index kept in SQLite and links every
+attestation of its append-only ledger to the attestations that produced its inputs. On the
+store's corpus instance, \nItems{} items in \nUnits{} lexical units with \nPostings{} postings and
+\nRecords{} attestations, a title query under the class filter the store always applies took a
+warm median of \kwBefore{}~s and up to \kwBeforeMax{}~s, the store's own query shape (a class and
+\nPaths{} paths) \pathsBefore{}~s, and the producers of one digest \ledgerBefore{}~s, a lookup an
+item landed on its own asks three times. Neither cost is in the data. With no planner statistics,
+SQLite counted each query term's document frequency by visiting every unit, and the ledger was
+decoded record by record in Python. We keep the statistics instead of counting them: per class,
+the current units and their total length, and per class and term the current units holding the
+term, moved in the transaction of every write that changes which units are current, so a reader's
+statistics remain the sums of its cleared classes' rows and a filtered read remains a function of
+the cleared rows alone. Scoring is one statement that starts from the query terms' postings or
+from the given paths' units and writes the sum over the terms out in their order, since SQLite's
+own sum compensates its rounding: the scores are the old statements' to the last bit. The ledger
+gains a table from each output hash to its record and action, written by a trigger in the
+append's own statement. On the same clone the warm medians become \kwAfter{}~s, \pathsAfter{}~ms
+and \ledgerAfter{}~\textmu s, items landed one at a time go from \singleBefore{}~s to
+\singleAfter{}~s an item, and every one of the \nAnswers{} answers compared is identical to the
+one before. Property tests check the identity, the statistics against a recount after any
+sequence of writes, the clearance rule, and the ledger table against a scan.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+The store this article concerns keeps two indexes that grow with everything it lands. The lexical
+index holds the chunks of every landed item as BM25 postings \citep{robertson2009bm25}, one row a
+term a unit, beside each unit's path, version, class, length and a flag that marks the current
+version of its path; a lexical \code{near} reads it, and so does the check that tells a landing
+whether an item is already held. The attestation ledger records every action with the hashes of
+its inputs and outputs; an attestation's parents are the attestations that produced its inputs,
+found by asking which records name a hash among their outputs, and a landing asks whether its
+digest is attested already before it attests it.
+
+A corpus instance was built to find where the store stops scaling. At its first stage it holds
+\nItems{} items, every one of them in the lexical index (\nUnits{} units, \nPostings{} postings)
+and in the ledger (\nRecords{} records). Both questions above were past any budget there. A keyword
+query took seconds to tens of seconds, and its cost was the number of units, not the number of
+postings it read; the producers of one digest took \ledgerBefore{}~s, and a landing that goes item
+by item asks three times an item. This article removes both costs without changing an answer.
+The contributions:
+
+\begin{enumerate}
+\item Statistics kept, not counted (\cref{sec:theory,sec:impl}): per class and per class and term,
+  moved by the net currency changes of each transaction, read before any posting of a changed unit
+  is deleted, with a proof that the tables equal a recount after every committed transaction and
+  that a reader's statistics depend on its cleared classes' units alone.
+\item One statement (\cref{sec:impl}): the arithmetic, the sum over the terms and the top $k$ in
+  SQL, from the postings or from the paths' units, with the sum written out in the reference's
+  order, which makes the result the reference's to the bit where SQLite's \code{sum()} does not.
+\item An index of the ledger by output hash, kept by a trigger, so that every writer, of any
+  version, keeps it in its own statement.
+\item A stress battery that runs on a copy-on-write clone of an instance's stores, and the
+  measurements before and after the change (\cref{sec:eval}).
+\end{enumerate}
+
+\section{Background and related work}\label{sec:background}
+
+BM25 scores a unit $d$ for a query $q$ as a sum over the query's distinct terms,
+\[
+  s(q, d) = \sum_{t \in q} \mathrm{idf}(t)\,
+            \frac{\mathit{tf}(t, d)\,(k_1 + 1)}{\mathit{tf}(t, d) + k_1 (1 - b + b\,\ell(d)/\bar\ell)},
+  \qquad
+  \mathrm{idf}(t) = \ln\!\Big(1 + \frac{n - \df(t) + 0.5}{\df(t) + 0.5}\Big),
+\]
+with $k_1 = 1.2$ and $b = 0.75$, where $n$ is the number of units, $\bar\ell$ their mean length and
+$\df(t)$ the units holding $t$ \citep{robertson2009bm25}. Every quantity but $\mathit{tf}$ and
+$\ell(d)$ is a statistic of the collection, and in this store the collection is a reader's: the
+current units of the classes it is cleared for. An inverted index serves the sum by reading the
+postings of the query's terms \citep{zobel2006inverted}, term at a time or document at a time, and
+pruning methods skip postings that cannot reach the top $k$ \citep{turtle1995query}.
+
+A relational engine chooses the order of a join from statistics of the tables
+\citep{selinger1979access}. The store's SQLite file had none, and without them the engine took an
+equality on the index \code{(current, provenance)} as being as selective as an equality on a term:
+it counted a term's document frequency by visiting every current unit and probing the postings for
+each, a million probes a term whatever the term. Statements can name their order instead
+(\code{CROSS JOIN}, which SQLite never reorders) and their index (\code{INDEXED BY}), so the plan
+does not depend on what the planner believes.
+
+A sum of floating-point numbers depends on the order of its terms
+\citep{ieee754-2019,higham1993accuracy}. Compensated summation carries the rounding error of each
+addition into the next \citep{kahan1965further,neumaier1974rundungsfehler}: it is more accurate,
+and for that reason it is a different function of the same terms. SQLite's \code{sum()} and
+\code{total()} return the compensated sum (\cref{sec:eval} shows a case), so a score summed by
+them is not the score the store's Python loop computed.
+
+The store's clearance rule is a noninterference requirement \citep{goguen1982security}: what a
+reader sees must be a function of what it is cleared to see. For BM25 it reaches the statistics: a
+filter applied after scoring with every class's statistics would let the scores reveal uncleared
+units, which is why engines that keep one set of statistics for everything they hold do not meet
+it unless given a table a cleared set. Kept statistics meet it when they are kept per class and a
+reader sums its own classes' rows. The upkeep must be atomic with the writes it follows
+\citep{haerder1983principles}: a transaction that changes the units and dies before the
+statistics must leave neither.
+
+\section{The kept statistics and the written-out sum}\label{sec:theory}
+
+\begin{definition}[Statistics]
+A store holds units $u$, each with a class $c(u)$, a length $\ell(u)$, a currency bit
+$\kappa(u) \in \{0, 1\}$ and postings $P(u)$, a set of terms. For a class $c$ and a term $t$,
+\[
+  N_c = \textstyle\sum_{u : c(u) = c} \kappa(u), \quad
+  L_c = \textstyle\sum_{u : c(u) = c} \kappa(u)\,\ell(u), \quad
+  D_{c,t} = \textstyle\sum_{u : c(u) = c,\, t \in P(u)} \kappa(u).
+\]
+The kept tables hold $(c, N_c, L_c)$ for $N_c > 0$ and $(t, c, D_{c,t})$ for $D_{c,t} > 0$. A
+reader cleared for a set of classes $C$ scores with $n = \sum_{c \in C} N_c$,
+$\bar\ell = \sum_{c \in C} L_c / n$ and $\df(t) = \sum_{c \in C} D_{c,t}$.
+\end{definition}
+
+A transaction changes some units' currency, writes new units with their postings (not current), and
+may delete a version's units with their postings. Let $\delta(u) = \kappa'(u) - \kappa(u)$ be the
+net change of $u$ over the transaction, which is $0$ for a unit made current and then superseded
+within it.
+
+\begin{proposition}[The tables are a recount]\label{prop:recount}
+Suppose a transaction adds $\delta(u)$ to $N_{c(u)}$, $\delta(u)\,\ell(u)$ to $L_{c(u)}$ and
+$\delta(u)$ to $D_{c(u),t}$ for each $t \in P(u)$, reading $P(u)$ while $u$'s postings are still
+those it had while current, drops the rows that reach zero, and commits with its writes or not at
+all. Then after every committed transaction the tables equal the statistics counted from the
+units.
+\end{proposition}
+
+\begin{proof}[Sketch]
+Each statistic is a sum over units of $\kappa(u)$ times a weight that depends on $u$ alone ($1$,
+$\ell(u)$, or the indicator of $t \in P(u)$). A unit whose currency the transaction leaves alone
+contributes the same before and after: new units enter with $\kappa = 0$ and their postings, and
+postings are deleted only with their unit, after its change has been applied. A changed unit's
+contribution changes by $\delta(u)$ times its weight, which is what is added; reading $P(u)$
+before any of its postings is deleted makes the weight the one the unit had while current. By
+induction on committed transactions, from a store counted once by the migration (or empty after a
+reset), the tables equal the recount. A transaction that dies commits neither its units nor its
+deltas.
+\end{proof}
+
+\begin{proposition}[A reader's statistics are its classes' own]\label{prop:clearance}
+For any two stores whose units of the classes in $C$ are the same, a reader cleared for $C$ is
+given the same $n$, $\bar\ell$ and $\df$, and so the same scores for every query.
+\end{proposition}
+
+\begin{proof}[Sketch]
+$N_c$, $L_c$ and $D_{c,t}$ for $c \in C$ are sums over units of class $c$; the reader's statistics
+are sums of these alone, and its rows are read from units of classes in $C$.
+\end{proof}
+
+The statement adds a unit's per-term weights in the order of the sorted query terms. Writing that
+sum out in SQL needs a value for the terms the unit lacks; it is $0.0$.
+
+\begin{proposition}[The written-out sum is the reference's]\label{prop:sum}
+Let $w_1, \dots, w_m$ be positive finite doubles and $x_j = w_j$ for $j$ in a set $J$ and
+$x_j = 0$ otherwise. Then
+$\fl(\cdots\fl(\fl(x_1 + x_2) + x_3)\cdots + x_m)$ equals the left fold over $J$ in increasing
+order starting from $0$, $\fl(\cdots\fl(\fl(0 + w_{j_1}) + w_{j_2})\cdots)$.
+\end{proposition}
+
+\begin{proof}[Sketch]
+IEEE~754 addition is correctly rounded \citep{ieee754-2019}, and the exact sum of a finite $s \ge 0$
+and $0$ is $s$, a double; so $\fl(s + 0) = s$, and a term the unit lacks leaves the partial sum as
+it is. The partial sums before $j_1$ are $0$, and $\fl(0 + w_{j_1}) = w_{j_1}$. From there the two
+sequences add the same terms to the same partial sums in the same order. Each weight is computed
+with the reference's operations in the reference's order on the same operands, so it is the same
+double.
+\end{proof}
+
+\begin{remark}
+Compensated summation is not that fold. For $1 + 2^{-53} + 2^{-53}$ the left fold gives $1$
+(each addition rounds to even) and the compensated sum gives $1 + 2^{-52}$, which is what SQLite's
+\code{sum()} returns over the same rows in the same order (the control test).
+\end{remark}
+
+The ledger's table is simpler. A trigger on the ledger inserts, for an appended record $a$ and
+each position $j$ of its output hashes, the row $(h_j(a), \mathrm{id}(a), \mathrm{action}(a), j)$,
+in the statement that appends $a$; an append that is ignored (the record exists) or rolled back
+writes none. So after every committed statement the table is exactly the set of such rows over the
+ledger, and each lookup is a function of that set: the producers of a set of hashes are the ids
+of its rows with those hashes, the producers by output group the (action, id) pairs of the rows by
+hash, one pair a row, as the records list them, and the producers of one action are those pairs
+filtered by action, each id once.
+
+\section{Implementation}\label{sec:impl}
+
+\paragraph{The tables and the migration.} Two tables beside the units in the same file hold
+the statistics, \code{class\_stats} with a class's units and tokens and \code{term\_stats} with a
+term's units in a class, keyed by the class and by the term and class. A store from before them counts them on its first open, in one transaction: the
+classes from the units, then for each class one pass over the postings in their key order with
+the units joined by id, so the counts arrive grouped by term and no sort is needed. A store whose
+units another tokenizer made is not counted: it neither lands nor scores until it is reset and
+re-derived, and its reset counts the empty store. A key in the store's \code{meta} table marks the
+statistics counted.
+
+\paragraph{The upkeep.} \Cref{alg:upkeep} is the landing's part; a retire is its last two lines.
+The currency moves by two statements a version, each returning the ids it changed, and the net
+change of each unit is kept in a map for the whole batch, so a unit made current and superseded
+within it costs nothing. A version landed again with other chunks deletes its units: the units of
+it that were current leave the statistics first, while their postings exist. The deltas are
+applied once a batch, as one grouped read of the changed units' postings and one upsert a
+(term, class) pair. Row triggers on the units would keep the same tables with no code in the
+store, but a row trigger fires for each unit and makes one upsert for each of its postings,
+86 a unit on average in the corpus, where the batch makes one for each distinct (term, class)
+pair of all its units together; the batch is the design.
+
+\begin{algorithm}[t]
+\caption{The statistics' upkeep inside one landing transaction.}\label{alg:upkeep}
+\begin{algorithmic}[1]
+\Require versions $(p, v, \mathit{class}, \mathit{chunks})$; a map $\Delta$ from unit to net change
+\State begin; hold the writer's key in \code{meta}
+\For{each version $(p, v)$}
+  \If{the units held for $(p, v)$ are not the chunks}
+    \State $\Delta \mathrel{-}= $ the units of $(p, v)$ set not current
+    \State apply and remove $\Delta$'s entries for those units \Comment{their postings still exist}
+    \State delete their postings and units; write the chunks' units (not current) and postings
+  \EndIf
+  \State $\Delta \mathrel{-}= $ units of $p$'s other versions set not current \Comment{\code{RETURNING}}
+  \State $\Delta \mathrel{+}= $ units of $(p, v)$ set current
+\EndFor
+\State apply $\Delta$: per sign, group the units' postings by (term, class); upsert; drop zeros
+\State release the writer's key; commit
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{The guard.} The upkeep is this class's; a process that writes the units without it, an
+older version of the store still running when the store was migrated, would leave the statistics
+wrong and nothing would show it. So once the statistics are counted, three triggers on the units
+refuse an insert, a currency or class change, and a delete unless the writing transaction holds a
+key in \code{meta}, which the class's transactions write at their start and remove before they
+commit, so no other connection ever sees it. The postings need no guard: they are written and
+deleted only with their unit. The cost is one lookup of a one-row table a changed unit.
+
+\paragraph{The statement.} A query's terms with a document frequency above zero go into a
+temporary table with their positions $i$ in sorted order and their weights $\mathrm{idf}$; the
+paths, when given, into another. The rows are read postings first,
+\code{q CROSS JOIN postings p ON p.term = q.term CROSS JOIN units u ON u.unit\_id = p.unit\_id},
+or paths first, \code{paths w CROSS JOIN units u INDEXED BY units\_path ON u.source\_path = w.path
+AND u.current = 1}, then the postings by (term, unit). Each row's weight is
+\code{q.w * ((p.tf * ?) / (p.tf + ? * (? + (? * u.length) / ?)))}, with $k_1 + 1$, $k_1$, $1 - b$,
+$b$ and $\bar\ell$ bound as doubles computed as the reference computes them; the rows are grouped
+by unit, the score is \code{COALESCE(max(c) FILTER (WHERE i = 0), 0.0) + COALESCE(max(c) FILTER
+(WHERE i = 1), 0.0) + \dots} in that order (\cref{prop:sum}; a filtered aggregate is not called for
+the rows of the other terms, which made the long titles 6 to 27\% faster than the same sum written
+with \code{CASE}), and \code{ORDER BY score DESC, unit\_id LIMIT k} returns the top, ties by unit id
+as before. \code{scores()}, each path's best unit, is the same statement grouped by path with
+\code{max}. SQLite parses the written-out sum as a tree as deep as its terms and refuses a depth
+over 1{,}000, so a query of more than 500 distinct terms has the same weights read out of the
+statement in the terms' order and summed in Python, the reference's sum again. Without
+\code{INDEXED BY}, SQLite drove the paths shape from the class's index and visited every current
+unit of the class for each path.
+
+\paragraph{The ledger.} \code{output\_hashes(hash, att\_id, action, pos)}, keyed by all four, is
+created, filled from the records by one \code{json\_each} pass and given its trigger in one
+transaction on the first open of a ledger without it. The lookups read it by seeks, a statement
+for a few hundred hashes, and only read: the statement it replaced filled a temporary table, which
+in the ledger's transaction mode opened a transaction that kept a shared lock on the file until the
+connection next committed. \code{attested\_by} and \code{already\_attested} read the producers by
+output and keep the action asked for; a store without the table, as tests build, is still asked
+the old way.
+
+\section{Evaluation}\label{sec:eval}
+
+\paragraph{Method.} \code{eval/stress\_battery.py} clones an instance's stores with \code{cp -c}
+(a copy-on-write clone: nothing of the source is opened for writing) and runs a fixed battery:
+keyword queries free (the class filter and none) and in the store's call shape (a class and
+\nPaths{} random item paths, \code{scores} and \code{search}), warm in one process (the first pass
+apart, then three) and in a fresh process a query (three repetitions); the producers of single
+digests and of a batch of \nBatch{}; 2{,}000 synthetic items landed through the writer, batched and
+lazy, three batches a process in three processes, and three items one at a time; and the drain's
+pending set, which no line of the change reads, as a control of the machine. A synthetic item is a
+real item of the corpus with one first line added, so its digest is new and its text, chunks and
+terms are a real item's. The queries are \nQueries{} titles, ten from an earlier study of the
+stores and six drawn independently, with one to nineteen distinct terms and 32 to 6.5 million
+postings, named by their sizes and never by their text. The corpus's lexical file predates the
+store's record of its tokenizer, so it is opened with the tokenizer that made it. The machine is an
+Apple M2 Pro with 12 cores and 32~GB, shared with other work: every timing carries the one-minute
+load average beside it, BLAS is capped at four threads, and every process ends itself above
+3.8~GB resident. One run before the change, on its parent commit, one after, and the keyword and
+ledger parts again on the final commit. The whole-stratum load of a sentence admitting the
+dialogue stratum was not run: on the whole corpus it needs tens of gigabytes.
+
+\begin{table}[t]
+\centering
+\caption{Before and after on clones of the corpus instance: warm medians over the queries of each
+query's median, with the range over the queries, and the one-minute load average.}\label{tab:results}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+measure & before & after & load \\
+\midrule
+title query, class filter (16) & 14.2 s (1.47--33.4 s) & 1.20 s (0.1 ms--5.87 s) & 2.8--7.4 / 2.2--11.3 \\
+title query, no filter (16) & 9.42 s (0.98--23.2 s) & 1.16 s (0.1 ms--5.70 s) & 2.0--3.2 / 2.5--5.6 \\
+the store's shape, \code{scores} (5) & 5.47 s (1.22--18.9 s) & 5.5 ms (1.9--12.1 ms) & 1.9--4.5 / 2.5 \\
+the store's shape, \code{search} (5) & 8.43 s (2.33--15.7 s) & 4.6 ms (1.8--11.1 ms) & 3.1--4.2 / 2.5 \\
+fresh process, 14 terms, class filter & 24.1--24.4 s, 468 MB & 3.95--3.97 s, 74 MB & \\
+producers of one digest & 2.47 s & 7 \textmu s & 2.1--3.2 / 2.5--3.7 \\
+\code{attested\_by} through the landing & 2.48 s & 8 \textmu s & \\
+producers of 2{,}050 digests & 304 ms & 5.9 ms & \\
+landing 2{,}000 items, batches 1--2 & 10.40 s & 10.64 s & 2.2--2.8 / 3.4--6.3 \\
+three items one at a time & 23.1 s & 0.082 s & \\
+the drain's pending set (control) & 2.24 s & 2.33 s & 2.3--2.8 / 3.3--3.4 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Results.} \Cref{tab:results}. The title queries under the class filter fall from a
+median of \kwBefore{}~s to \kwAfter{}~s and the slowest from \kwBeforeMax{}~s to \kwAfterMax{}~s;
+the class-filtered pass of the final run met a load of 6.7 to 11.3 from another job for its
+second half, and the unfiltered pass, which scores the same units here, ran at 2.5 to 5.6 and
+gives 1.16~s. A free query still reads every posting of its terms, about 0.9~\textmu s a posting,
+but no term costs a visit of every unit any more. The store's own call shape falls from seconds
+to milliseconds, as does a fresh process's query, whose peak memory falls from 468~MB to 74~MB
+with the dictionary of every scored unit the old loop built. The producer lookup falls from
+2.47~s to 7~\textmu s and the batch's from 304~ms to 5.9~ms. A batched landing is unchanged within
+its spread: its lexical stage's median rose 0.55~s at a load one to four higher, while the ledger's
+lookup saved 0.3 to 0.7~s a batch and the trigger cost 27~\textmu s an append. Landing items one at
+a time, \singleBefore{}~s an item before, 99\% of it the three passes over the ledger, takes
+\singleAfter{}~s. The pending set, which no part of the change reads, took 2.24~s and 2.33~s, so the
+runs met the same machine within 4\%. The migrations run once a store: counting the statistics of
+the \nUnits{} units took \migrationLex{}~s on cold clones and added 29.6~MB to the 4.6~GB file; the
+ledger's table took 1.8 to 2.7~s and added 64~MB, 166~B a record. Every one of the \nAnswers{}
+answers the battery keeps (top tens with their scores, path scores, producer sets and lists) is
+identical before and after, scores compared as the bits of their doubles, and so are the fresh
+processes' answers.
+
+\paragraph{Tests.} Over generated stores of four classes, three tokenizers, shared vocabularies
+(so scores tie), empty and absent classes and paths given and not, the statement's top $k$ and
+scores equal the old statements' (kept verbatim as the reference) for $k \in
+\{-1, 0, 1, 2, 3, 10\}$, and so do they with the sum taken outside the statement (its threshold
+lowered to one term) and for a query of 1{,}200 terms; after any sequence of landings, landings
+again with other chunks, retires and re-derivations, the tables equal a recount, also after
+reopening; and a store that also holds other classes' units, landed and retired around the cleared
+ones, gives a cleared reader the statistics, scores and ranking of a store that holds the cleared
+units alone. Each runs 60 examples in the suite and passed 1{,}000 to 1{,}500 in a longer run. A store written by the old code counts
+its statistics on its first open; a stale one waits for its reset; a write to the units from
+another connection is refused, also the old landing; a landing or a retire that dies between the
+unit rows and the statistics, by an exception or by the process ending, leaves neither. For the
+ledger, after any sequence of appends, appends again, and deferred blocks that commit or die, the
+table equals a scan of the records, and the four lookups answer what the scan and the replaced
+statement answer, also on a ledger the old code wrote and after other writers append to it.
+
+\section{Limitations}\label{sec:limits}
+
+A free query still reads every posting of its terms, and its time grows with them (\kwAfterMax{}~s
+for the query with 6.5 million postings); pruning would read a fraction \citep{turtle1995query}.
+The kept statistics are the present's: a read at a past cut must count its own under the cut's mask
+or keep them per epoch. The guard turns an older process's writes into errors, by design; the
+statistics of a stale store wait for its reset, and the corpus's file, made by the earlier
+tokenizer, must be re-derived before the store's current tokenizer scores it. The migration holds
+the file's write lock for its \migrationLex{}~s on the corpus, and another writer waiting longer than
+the store's 30~s timeout fails. The paths shape reads every unit of every path given: a call with
+hundreds of thousands of paths, which a mostly unembedded corpus would make, needs the pending set
+redesigned first. The corpus holds one class, so its readers' sums are over one row; the property
+tests hold four. The measurements are one run before and one after on one shared machine; the
+cold behaviour of a file larger than memory was not measured.
+
+\section{Future work}\label{sec:future}
+
+The posting lists as arrays in immutable segments, with the statistics kept per class and per
+segment and an exact pruned search, are the change that makes a free query's time follow the
+postings it needs rather than the postings its terms hold. The pending set as a mask over one
+ranking removes the paths shape's growth. The upkeep's invariant (\cref{prop:recount}) and the
+clearance rule (\cref{prop:clearance}) have the shape of the store's other laws and can be stated
+over a finite model and proved, beside the property tests that check them now.
+
+\section{Conclusion}\label{sec:conclusion}
+
+The two slowest reads of the corpus instance were not slow because of the data but because of
+what was recomputed for each question: a document frequency counted by visiting every unit, a
+ledger decoded record by record. Keeping the statistics with the writes that change them, naming
+the statements' order, writing the sum out in the reference's order and indexing the ledger by
+output hash make the same answers cost milliseconds, with the clearance rule and the answers as
+they were.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
