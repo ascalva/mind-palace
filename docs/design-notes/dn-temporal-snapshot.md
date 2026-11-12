@@ -352,7 +352,7 @@ prefix length of it. `[DERIVED from global-event-clock §2.2, generator g1]`
 
 | chain | store | position | today |
 |---|---|---|---|
-| `land`, one or more a provenance class | the landing log (§3.2), in the catalog's file | `seq`, from 1, never given twice | not built |
+| `land`, one or more a provenance class | the landing log (§3.2), in the catalog's file | `seq`, from 1, given once while the log's tables stand (§12, SN-1's rollback) | not built |
 | `chat` | the chat log | a sequence number beside each row; within a session it is the turn order | the order is recorded, the number is not |
 | `att` | the attestation ledger | a sequence number beside each row | the order is recorded, the number is not; the ledger is read in wall-time order |
 | `repo` | git, mirrored by the commit ledger and the per-commit readings | a commit, standing for its ancestors | recorded |
@@ -423,14 +423,14 @@ comes from, a sixth kind, and the tombstone the genesis writes.
 
 ```sql
 CREATE TABLE landing_chains (
-    chain     INTEGER PRIMARY KEY,  -- the chain's id: never reused, never changed
+    chain     INTEGER PRIMARY KEY,  -- never changed, and given once while the tables stand (§12)
     class     TEXT    NOT NULL,     -- the provenance class it holds now; a relabel rewrites it
     secret    BLOB    NOT NULL,     -- 32 random bytes: the chain's half of the key of path_key
     key_check BLOB    NOT NULL      -- hmac-sha256(the chain's key, 'key check')
 );
 CREATE TABLE landings (
     chain       INTEGER NOT NULL,  -- landing_chains.chain
-    seq         INTEGER NOT NULL,  -- the position in the chain, from 1, never given twice
+    seq         INTEGER NOT NULL,  -- the position, from 1, given once while the tables stand (§12)
     kind        TEXT    NOT NULL,  -- genesis | store | retire | move | leave | horizon
     path_key    BLOB,              -- hmac-sha256(the chain's key, source_path): kept by a hole
     source_path TEXT,              -- NULL once purged
