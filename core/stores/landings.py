@@ -496,14 +496,17 @@ class LandingLog:
         path whose every `store`, in every chain, is then a hole has its other rows emptied as
         well, its `retire`, `move` and `leave`: no row then names it, or the identity and the
         date its tombstone carried. A path's rows are found by the names they carry and by the
-        keys the emptied rows keep, so the purge needs no secret; the rows of the digest and the
-        names are read by a walk of the log, which has no index by digest or by name. Returns
+        keys the emptied rows keep, so the purge needs no secret. The log has no index by digest
+        or by name, so the purge walks it twice, once for the rows of the digest, which it then
+        empties by their positions, and once for the names; every other statement seeks. Returns
         the rows emptied."""
-        hit = [(int(c), bytes(k), str(p)) for c, k, p in self._conn.execute(
-            "SELECT chain, path_key, source_path FROM landings WHERE digest = ? "
-            "AND path_key IS NOT NULL AND source_path IS NOT NULL", [digest])]
-        n = self._conn.execute(
-            f"UPDATE landings SET {_EMPTY} WHERE digest = ?", [digest]).rowcount
+        rows = self._conn.execute(
+            "SELECT chain, seq, path_key, source_path FROM landings WHERE digest = ?",
+            [digest]).fetchall()
+        n = self._conn.executemany(f"UPDATE landings SET {_EMPTY} WHERE chain = ? AND seq = ?",
+                                   [(c, s) for c, s, _, _ in rows]).rowcount
+        hit = [(int(c), bytes(k), str(p)) for c, _, k, p in rows
+               if k is not None and p is not None]
         paths = sorted({p for _, _, p in hit})
         if not paths:
             return n
