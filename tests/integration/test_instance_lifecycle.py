@@ -214,7 +214,8 @@ def test_p3_the_atom_table_holds_exactly_what_the_rebuilt_rows_name(palace: Buil
 def test_p3_a_lazy_backlog_is_left_to_the_embed_job(
         tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """On a lazy instance, items landed without their vector stay so: the reset re-occupies only
-    what the plane held, calls no embedder, and the dry run counts the backlog."""
+    what the plane held, calls no embedder, and the dry run counts the backlog. A held note edited
+    since it was embedded comes back at the version the plane held, not dropped."""
     from core.ingest.derive import drain
 
     cfg = instance_config(tmp_path / "lazy", None, lazy=True)
@@ -240,6 +241,30 @@ def test_p3_a_lazy_backlog_is_left_to_the_embed_job(
     assert lau.reset(confirm=True) == 0
     assert made == []
     assert heads(cfg)["plane.occupancies"] == before["plane.occupancies"]
+    assert sum(len(v) for v in before["plane.occupancies"].values()) == 1
+
+    # The held note is edited and landed again, not yet embedded: the plane holds its old version,
+    # which is no longer the catalog's head. The reset rebuilds that version from raw, so the note
+    # stays searchable as it was and its new version stays with the embed job.
+    held_path = next(r[0] for rows in before["plane.occupancies"].values() for r in rows)
+    (Path(cfg.ingestion.vault.path) / held_path).write_text("note edited, embedded later\n")
+    assert perform(cfg, stores, "do sync_vault")["effects"] == {"landed": 1, "unchanged": 2}
+    head = stores.catalog.get(held_path)
+    assert head is not None and all(r[1] != head.digest
+                                    for rows in before["plane.occupancies"].values()
+                                    for r in rows)
+    before = heads(cfg)
+    assert lau.reset(confirm=False) == 0
+    out = capsys.readouterr().out
+    assert "re-occupies the 1 item(s) the plane holds current (1 of them at a version older " \
+        "than the catalog's)" in out and "3 item(s) of the plane's classes hold no vector " \
+        "for their current version" in out and "the embedder is called for 0 atom(s)" in out
+    assert lau.reset(confirm=True) == 0
+    out = capsys.readouterr().out
+    assert "plane: 1 item(s)" in out and "0 atom(s) no rebuilt row holds dropped" in out
+    assert made == []
+    assert heads(cfg)["plane.occupancies"] == before["plane.occupancies"]
+    assert heads(cfg)["plane.vectors"] == before["plane.vectors"]
     assert sum(len(v) for v in before["plane.occupancies"].values()) == 1
 
 

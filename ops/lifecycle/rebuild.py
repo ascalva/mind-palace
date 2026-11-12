@@ -45,10 +45,12 @@ class Context:
     embedder_factory: Callable[[Any], Any]
     cache: Any = None
     opened: dict[str, Any] = field(default_factory=dict)
-    # The plane's current occupancies before the clearing, as (path, digest): what the plane step
-    # rebuilds, and nothing more (§4.4). Read once and kept in the marker, so a reset run again
-    # after an interruption rebuilds what the plane held before the first run cleared it.
-    plane_heads: set[tuple[str, str]] = field(default_factory=set)
+    # The plane's current occupancies before the clearing, as (path, digest, title, class): what
+    # the plane step rebuilds, and nothing more (§4.2). Read once and kept in the marker, so a
+    # reset run again after an interruption rebuilds what the plane held before the first run
+    # cleared it. The title and class are the occupancy's own, so a held version that is no longer
+    # the catalog's head (an edit a lazy instance has not yet embedded) is rebuilt as it was held.
+    plane_held: list[tuple[str, str, str, str]] = field(default_factory=list)
 
     def raw(self) -> Any:
         if "raw" not in self.opened:
@@ -205,10 +207,15 @@ def _lexical(ctx: Context) -> str:
 def _plane(ctx: Context) -> str:
     """Re-occupy what the plane held before the clearing, and nothing more: an item still waiting
     for its vector (a lazy instance's backlog) is left to the embed job, so the plane comes back to
-    its state before and the embedder is called only for a held atom the atom table lacks."""
+    its state before and the embedder is called only for a held atom the atom table lacks. Each
+    held pair is rebuilt from raw at the digest the plane held, with the occupancy's title and
+    class, whether or not that digest is still the catalog's head: raw keeps every version, and a
+    note edited since it was embedded stays searchable at the version the plane held until the
+    embed job takes the new one."""
     from types import SimpleNamespace
 
     from core.ingest.derive import derive_entries
+    from core.stores.catalog import CatalogEntry
 
     cfg = ctx.cfg
     vectors = ctx.vectors()
@@ -221,8 +228,8 @@ def _plane(ctx: Context) -> str:
                              lexical=ctx.lexical(),
                              embedder=_LazyEmbedder(lambda: ctx.embedder_factory(cfg)),
                              cache=view)
-    entries = [e for e in ctx.catalog().active_entries()
-               if (e.source_path, e.digest) in ctx.plane_heads]
+    entries = [CatalogEntry(source_path=p, digest=d, title=t, active=True, provenance=c)
+               for p, d, t, c in sorted(ctx.plane_held)]
     report = derive_entries(stores, entries, batch=cfg.embedding.batch,
                             streams=cfg.embedding.streams)
     dropped = vectors.plane.drop_unheld()
@@ -379,11 +386,11 @@ def run(ctx: Context, stores: list[Store], say: Callable[[str], None] = print) -
         "stores": sorted({s.name for s in stores} | set(before.get("stores", ()))),
         "started": datetime.now(UTC).isoformat(timespec="seconds")}
     if any(s.clear == "relations" for s in stores):
-        held = before.get("plane_heads")
+        held = before.get("plane_held")
         if held is None:
-            held = sorted(plane_heads(ctx.cfg))
-        record["plane_heads"] = held
-        ctx.plane_heads = {(str(p), str(d)) for p, d in held}
+            held = sorted(plane_held(ctx.cfg))
+        record["plane_held"] = held
+        ctx.plane_held = [(str(p), str(d), str(t), str(c)) for p, d, t, c in held]
     m.parent.mkdir(parents=True, exist_ok=True)
     tmp = m.with_name(m.name + ".tmp")
     tmp.write_text(json.dumps(record), encoding="utf-8")
@@ -404,8 +411,9 @@ def run(ctx: Context, stores: list[Store], say: Callable[[str], None] = print) -
 # ── reading, for the refusals and the dry run ──────────────────────────────────────────────
 
 
-def plane_heads(cfg: Any) -> set[tuple[str, str]]:
-    """The (path, digest) of every current occupancy of every plane class, read only."""
+def plane_held(cfg: Any) -> set[tuple[str, str, str, str]]:
+    """The (path, digest, title, class) of every current occupancy of every plane class, read
+    only: what the plane step rebuilds."""
     from core.stores.plane import OCC, PLANE_FILE
 
     db = Path(cfg.paths.vector_store) / PLANE_FILE
@@ -413,16 +421,22 @@ def plane_heads(cfg: Any) -> set[tuple[str, str]]:
         return set()
     conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
-        out: set[tuple[str, str]] = set()
-        for occ in OCC.values():
+        out: set[tuple[str, str, str, str]] = set()
+        for prov, occ in OCC.items():
             try:
-                out |= {(str(p), str(d)) for p, d in conn.execute(
-                    f"SELECT DISTINCT source_path, digest FROM {occ} WHERE current = 1")}
+                out |= {(str(p), str(d), str(t), prov.value) for p, d, t in conn.execute(
+                    f"SELECT source_path, digest, MIN(title) FROM {occ} WHERE current = 1 "
+                    "GROUP BY source_path, digest")}
             except sqlite3.Error:
                 continue
         return out
     finally:
         conn.close()
+
+
+def plane_heads(cfg: Any) -> set[tuple[str, str]]:
+    """The (path, digest) of every current occupancy of every plane class, read only."""
+    return {(p, d) for p, d, _, _ in plane_held(cfg)}
 
 
 def missing_inputs(cfg: Any, repo: Path, stores: list[Store]) -> list[str]:
@@ -507,9 +521,11 @@ def describe(cfg: Any, stores: list[Store]) -> list[str]:
 
 
 def _plane_lines(cfg: Any, plane_db: Path) -> list[str]:
-    """The plane's part of the dry run: what the rebuild re-occupies, the atoms that needs and how
-    many of them the atom table lacks (those, and only those, call the embedder), and the items
-    with no vector, which the reset leaves to the embed job."""
+    """The plane's part of the dry run: what the rebuild re-occupies (every pair the plane holds
+    current, as `_plane` rebuilds them), how many of those are no longer the catalog's head, the
+    atoms that needs and how many of them the atom table lacks (those, and only those, call the
+    embedder), and the items whose current version holds no vector, which the reset leaves to the
+    embed job."""
     heads = plane_heads(cfg)
     atoms = _head_atoms(plane_db)
     lacking = 0
@@ -517,29 +533,32 @@ def _plane_lines(cfg: Any, plane_db: Path) -> list[str]:
         from core.stores.vectorstore import open_vector_store
 
         lacking = len(atoms - open_vector_store(cfg).plane.atoms.present(sorted(atoms)))
-    waiting = _without_vector(cfg, heads)
-    return [f"      re-occupies the {len(heads)} item(s) the plane holds current, with "
-            f"{len(atoms)} distinct atom(s); the atom table lacks {lacking} of them, so the "
-            f"embedder is called for {lacking} atom(s)",
-            f"      {waiting} item(s) of the plane's classes hold no vector (waiting for the embed "
-            "job, or with no text); the reset leaves them so"]
+    waiting, older = _without_vector(cfg, heads)
+    return [f"      re-occupies the {len(heads)} item(s) the plane holds current ({older} of them "
+            f"at a version older than the catalog's), with {len(atoms)} distinct atom(s); the "
+            f"atom table lacks {lacking} of them, so the embedder is called for {lacking} atom(s)",
+            f"      {waiting} item(s) of the plane's classes hold no vector for their current "
+            "version (waiting for the embed job, or with no text); the reset leaves them so"]
 
 
-def _without_vector(cfg: Any, heads: set[tuple[str, str]]) -> int:
-    """The active catalog items of the plane's classes the plane does not hold current, read
-    only."""
+def _without_vector(cfg: Any, heads: set[tuple[str, str]]) -> tuple[int, int]:
+    """Read only: the active catalog items of the plane's classes whose current version the plane
+    does not hold current, and how many of those the plane holds at an older version."""
     from core.ingest.derive import HOLDS
 
     path = Path(cfg.paths.vault_catalog)
     if not path.is_file():
-        return 0
+        return 0, 0
     conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     try:
         rows = conn.execute("SELECT source_path, digest, provenance FROM vault_files "
                             "WHERE active = 1").fetchall()
     finally:
         conn.close()
-    return sum(1 for p, d, c in rows if str(c) in HOLDS and (str(p), str(d)) not in heads)
+    paths = {p for p, _ in heads}
+    waiting = [str(p) for p, d, c in rows
+               if str(c) in HOLDS and (str(p), str(d)) not in heads]
+    return len(waiting), sum(1 for p in waiting if p in paths)
 
 
 def _head_atoms(plane_db: Path) -> set[str]:
