@@ -225,8 +225,13 @@ def test_p3_a_lazy_backlog_is_left_to_the_embed_job(
     assert drain(stores, max_items=1).items == 1            # one held, two waiting
     before = heads(cfg)
     made: list[Any] = []
+
+    def factory(c: Any) -> CountingEmbedder:
+        made.append(c)
+        return CountingEmbedder()
+
     lau = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"), repo_root=tmp_path,
-                   embedder_factory=lambda c: made.append(c) or CountingEmbedder(),
+                   embedder_factory=factory,
                    cache_root=tmp_path / "cache", installed_plist=tmp_path / "no.plist")
     assert lau.reset(confirm=False) == 0
     out = capsys.readouterr().out
