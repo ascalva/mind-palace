@@ -561,8 +561,10 @@ class LexicalStore:
             conn.execute("DELETE FROM temp.lex_paths")
             conn.executemany("INSERT INTO temp.lex_paths (path) VALUES (?)",
                              [(p,) for p in wanted])
-            rows = ("FROM temp.lex_paths w CROSS JOIN units u ON u.source_path = w.path "
-                    "AND u.current = 1 CROSS JOIN temp.lex_query q "
+            # the paths' units by their index: with no planner statistics, SQLite would take the
+            # class's index and visit every current unit of the class for each path
+            rows = ("FROM temp.lex_paths w CROSS JOIN units u INDEXED BY units_path "
+                    "ON u.source_path = w.path AND u.current = 1 CROSS JOIN temp.lex_query q "
                     "CROSS JOIN postings p ON p.term = q.term AND p.unit_id = u.unit_id "
                     f"WHERE true{where}")
         else:
