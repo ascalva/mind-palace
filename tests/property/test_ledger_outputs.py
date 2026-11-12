@@ -7,11 +7,15 @@ commits or dies):
 
 1. after any sequence of appends the table is a scan of the ledger, element for element;
 2. each of the four lookups answers what the scan answers: `producers_of`, `producers_by_output`
-   (against the json_each statement it replaced, kept here verbatim), and `attested_by` and
+   (against the json_each statement it replaced, kept here with its temporary table renamed and
+   a commit added, since the original left its transaction open), and `attested_by` and
    `already_attested` through `core/ingest/landing.py` (against the same functions over a store
    that has only the scan);
 3. a ledger the old code wrote gets the table on its first open, and from then on every append,
-   by this class or by any other writer of the table, writes its rows in its own statement.
+   by this class or by any other writer of the table, writes its rows in its own statement;
+4. a ledger the old code wrote, opened while another connection holds its write lock or by a
+   process that cannot write it, opens at once and answers every lookup from the records, as
+   the old code did, until the table exists.
 """
 
 from __future__ import annotations
@@ -79,7 +83,8 @@ def table(store: AttestationStore) -> set[tuple[str, str, str, int]]:
 
 def old_producers_by_output(store: AttestationStore,
                             hashes: set[str]) -> dict[str, list[tuple[str, str]]]:
-    """The statement the table replaced: one json_each pass over every record."""
+    """The statement the table replaced: one json_each pass over every record (its temporary
+    table renamed, and committed, which the original was not)."""
     out: dict[str, list[tuple[str, str]]] = {h: [] for h in hashes}
     if not hashes:
         return out
@@ -207,3 +212,62 @@ def test_the_lookup_is_a_seek_of_the_table(tmp_path: Path) -> None:
     plan = " ".join(str(r[3]) for r in store._conn.execute(
         "EXPLAIN QUERY PLAN SELECT att_id FROM output_hashes WHERE hash IN (?)", ["h"]))
     assert "SEARCH output_hashes USING PRIMARY KEY (hash=?)" in plan
+
+
+def _old_ledger(path: Path, records: list[Any]) -> list[Attestation]:
+    conn = sqlite3.connect(str(path))
+    conn.executescript(_OLD_DDL)
+    atts = [_att(*r) for r in records]
+    for a in atts:
+        _old_append(conn, a)
+    conn.close()
+    return atts
+
+
+OLD = [("capture", ["h1", "h2"], ["h1"], 0), ("capture", ["h2", "h2"], ["h2"], 1),
+       ("ingest_note", ["h3"], ["h1", "h3"], 2), ("dream_pass", [], ["h4"], 3)]
+
+
+def test_a_ledger_opened_while_another_holds_its_lock_answers_from_the_records(
+        tmp_path: Path) -> None:
+    """The migration does not wait for the lock: the ledger opens at once, the lookups pass over
+    the records (also inside a deferred block, whose own appends they see), and the first lookup
+    after the lock is free, outside a transaction, makes the table."""
+    import time
+
+    path = tmp_path / "att.sqlite"
+    _old_ledger(path, OLD)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("BEGIN IMMEDIATE")                       # another connection's write lock
+    t0 = time.perf_counter()
+    store = AttestationStore(path)
+    assert time.perf_counter() - t0 < 2 and not store._has_outputs()
+    assert_lookups_agree(store)
+    raw.execute("ROLLBACK")
+    raw.close()
+    with store.deferred():
+        new = store.append(_att("capture", ["h5"], ["h5"], 3))
+        assert store.producers_of({"h5"}) == {new.id}     # the block's own append, by the scan
+        assert not store._has_outputs()                  # not made inside the block
+    assert store.producers_by_output({"h5"}) == {"h5": [("capture", new.id)]}
+    assert store._has_outputs() and table(store) == scan(store)
+    assert_lookups_agree(store)
+    store.close()
+
+
+def test_a_ledger_this_process_cannot_write_opens_and_answers_from_the_records(
+        tmp_path: Path) -> None:
+    import os
+    import stat
+
+    path = tmp_path / "att.sqlite"
+    atts = _old_ledger(path, OLD)
+    os.chmod(path, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    try:
+        store = AttestationStore(path)
+        assert not store._has_outputs()
+        assert store.producers_of({"h2"}) == {atts[0].id, atts[1].id}
+        assert_lookups_agree(store)
+        store.close()
+    finally:
+        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
