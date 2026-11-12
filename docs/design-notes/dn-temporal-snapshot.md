@@ -901,7 +901,7 @@ measured:
 | a document's version chain | the log's `store` rows of the identity at or under `c` (§6.2) | the same rows in the range | `landings_path` where the identity is the path, `landings_doc` where it is not | 9 µs for seven versions through the index, and 49 to 57 ms when the planner takes the primary key, so the statement names the index `[MEASURED §11]` |
 | raw objects | the object of the digest the log names at `c` | the objects the delta names | none: content-addressed | one file read, the object's bytes |
 | chat log | a session's turns whose chain number is at or under `c` | the turns numbered in the range | the chain table's key and its `(session, turn)` | a range of an integer key: of the order of the log's 0.7 ms a thousand rows |
-| attestations | by id, as today; in order, the chain table at or under `c` | a range of the chain table | the chain table | the same order, where `all()` sorts the ledger by wall time and `producers_of` decodes every record today (`core/attestation/store.py:127-132`, `:159-165`) |
+| attestations | by id, as today; in order, the chain table at or under `c` | a range of the chain table | the chain table | the same order, where `all()` sorts the ledger by wall time; `producers_of` reads the output-hash table, one row an output of a record, written by the ledger's trigger (2026-11-11) |
 | citation readings | the edges of the commit projected at or under `c` on `att` (§5.1) | the paths whose blob differs between the two commits, by the commit ledger's `files` rows (`ops/code_snapshot.py:59-69`), with their readings at each | exists: `(target_ref, commit_sha)` and `(source_ref, commit_sha)` (`reference_edges.py:149-156`); the projection's position is one integer column more | one indexed lookup a reference, as today |
 | commit ledger | the commit and, through git, its ancestors | git's range | none: the ledger keeps no parent, so the range is git's | one `rev-list`, not measured |
 | staging | `read_at(g)`, as built | the rows admitted or tombstoned in the range | `staged_rows_generation` exists; none on the tombstone stamp | a range of the generation index; a scan for the tombstones |
@@ -1021,11 +1021,14 @@ Three things follow.
 
 ### 5.3 The lexical index
 
-The index keeps every version's units and postings and marks the head
-(`core/stores/lexical.py:56-82`, `:251-256`), and it computes its statistics at query time over
-the current units of the reader's classes: the unit count and the mean length
-(`lexical.py:316-321`) and each term's document frequency (`lexical.py:337-340`).
-`[ESTABLISHED]` At a cut the arithmetic is the same with one predicate changed: a unit counts
+The index keeps every version's units and postings and marks the head (`core/stores/lexical.py`,
+`units` and `_land_one`), and it scores with the statistics of the current units of the reader's
+classes: the unit count and the mean length and each term's document frequency, counted at query
+time until 2026-11-11 and kept since, per class, in the transaction of every write that moves the
+currency (`class_stats`, `term_stats`), a reader's the sums over its classes' rows. The kept
+statistics are the present's; a read at a cut counts its own under the cut's mask, as the store
+counted them before, or keeps them per epoch. `[ESTABLISHED]` At a cut the arithmetic is the same
+with one predicate changed: a unit counts
 when its version is its path's head at the cut, in place of `current = 1`. The collection size,
 the mean length and the document frequencies are then the masked set's own, which is what makes
 a score at a cut the score the index gave then under the same tokenizer. A clearance and a cut
