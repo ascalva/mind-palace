@@ -3,7 +3,7 @@ type: design-note
 id: dn-guest-principal
 track: query-language
 status: draft                  # provenance description, never a gate; the merge is ratification
-implementation: built          # the grant, the role, the surface, the universe's withholding, the leak tests and SCO-9 landed 2026-11-09
+implementation: built          # the grant, the role, the surface, the universe's withholding, the leak tests and SCO-9 landed 2026-11-09; the lite profile's overview and tests 2026-11-11
 created: 2026-11-09
 updated: 2026-11-11
 links:
@@ -11,6 +11,7 @@ links:
   - docs/design-notes/dn-query-sentence-algebra.md         # clause-wise admission (QSA-5), the universe as the support
   - docs/design-notes/dn-ingress.md                        # the roles and their grants (`grant_for`), ING-1
   - docs/design-notes/plane-principals.md                  # the operating-system side, which this note does not change
+  - docs/design-notes/dn-palace-lite.md                    # an instance that embeds nothing; the code instance the guest serves
   - formal/Palace/Scope.lean                               # SCO-9, with Sentence.lean and Ingress.lean
   - papers/2026-11-09-guest-principal/paper.tex            # the article
 supersedes: null
@@ -64,7 +65,9 @@ the role before it touches a directory. `[TESTED: test_the_guest_role_is_refused
 ## 4. The surface
 
 `uv run --project <checkout> python scripts/palace_mcp.py --role guest` speaks MCP on stdio after
-sealing the core, like the Ambassador's server. It lists two tools:
+sealing the core, like the Ambassador's server. With `MIND_PALACE_OVERLAY=config/instances/code.toml`
+it serves the code instance (`dn-palace-lite` §4.4), whose files a sentence names as
+`code/<name>/<path>`. It lists two tools:
 
 - `query`: a sentence under `GUEST` through `ask_logged`, logged as surface `mcp`, role `guest`.
   A refusal reaches the guest as `GuestRefusal: <class>: <text>`, and the text depends on where
@@ -81,9 +84,13 @@ sealing the core, like the Ambassador's server. It lists two tools:
   adds the strata the grant reads and how to name them with `over`.
   `[TESTED: test_a_refusal_says_the_compilers_reason_or_its_classs_one_sentence]`
 - `overview`: the catalog's active entries of the classes the grant's strata hold, the curated
-  store's chunk count, and the grant's planes. The Ambassador's overview also counts every vector
-  row, the relation edges and the versions; each of those totals counts the notes, so none is
-  shown. An overview that fails says one fixed sentence.
+  store's chunk count, and the grant's planes. On an instance of the lite profile
+  (`dn-palace-lite`) it says what the Ambassador's says of the profile, over the same classes:
+  that the instance embeds nothing, the lexical index's current units of those classes, and each
+  repository of the lexical code source by its name and ref, with the commit it last landed,
+  when, and how many commits the ref has moved past it. The Ambassador's overview also counts
+  every vector row, the relation edges, the versions and every lexical unit; each of those totals
+  counts the notes, so none is shown. An overview that fails says one fixed sentence.
 
 The body of each of the guest's tools raises `GuestRefusal` and nothing else. The engine is built
 on first use, inside the body, so a configuration or a store that cannot be opened is a refusal
@@ -157,6 +164,25 @@ tracked file; a grant that reads the mirror is shown each of them as before.
 edges and four such citations added to the fixture change no guest output, byte for byte;
 `witness` of each id answers nothing; the Ambassador is shown every one.
 
+`[DERIVED]` An instance that embeds nothing (`dn-palace-lite`) is what the guest is meant to
+serve: an external coding agent reads the code instance (`config/instances/code.toml`). Such an
+instance lands every item with its lexical units and no vector, a vault's notes among them, in
+one index, and ranks `near` by BM25 over it, so a ranking whose unit count, mean length or
+document frequencies were read over the whole index would be a function of the notes. They are
+read over the classes a ranking asks for (`LexicalStore._score_units`), and every lexical path of
+the universe asks for classes the grant reads: the reference seed for the code's, the curated
+seed for the papers', the dialogue's vectorless items for the dialogue's (`load_pending` lists
+no other class under `hide_mirror`), and the scores of a clause's vectorless nodes for the
+classes of those nodes, which are the admitted strata's. A landed repository file is read from
+the raw store only when the catalog holds it as code (`_read_landed_file`); any other ref falls
+to git's tree at the cut, as before. The rules above hold unchanged. So the guest's ranks,
+scores, notes and counts on such an instance are functions of what its grant reads.
+`[TESTED: test_the_guest_cannot_tell_two_palaces_that_embed_nothing_apart]` Two such palaces
+whose notes differ in their words and their length give the guest the same answers to the
+battery and the code source's refs, and the same overview; a ranking's statistics over every
+class, the reference seed over every class or the overview's units as a total each fail the test,
+and the Ambassador's answers and counts tell the two palaces apart.
+
 ## 6. The laws the guarantee rests on
 
 SCO-1 (the closure of the four strata holds no mirror stratum), SCO-6 (admissibility and the zone
@@ -218,6 +244,28 @@ counted), and `tests/unit/test_ambassador_surface.py` the stream (what a tool pr
 stderr; a process without stderr drops it; a reply UTF-8 does not encode is written as ASCII, on
 a strict stream and on one with `surrogateescape`).
 
+`tests/adversarial/test_guest_lite.py` asks the same of an instance that embeds nothing. Its
+palace lands the note through `sync_vault` and a scratch repository's files through
+`sync_repository`, each with its lexical units and no vector, and holds the dialogue and a paper
+with lexical units alone and the same transcript turn, causal edges and citation graph.
+
+- The battery and the code source's refs (a lexical `near` over reference, `read` of a landed
+  file, `diffuse S` and `reach F` from one, `trace`, a file the repository does not have): no
+  output carries the canary; `S` has no edge there, so its walks are empty, and the paper, which
+  such an instance keeps in no plane, is ranked and not read; every sentence the battery refuses
+  is refused.
+- Over a second such palace whose note differs in its words and its length, every guest output
+  and the overview are the same; the Ambassador ranks the first note first and counts more units.
+- Every score and every count the lexical index makes while the guest asks names its classes,
+  each one the grant reads; the Ambassador's `near` over the notes names the notes' class.
+- `near` over reference ranks the repository's files, each labelled `ranked_by`, its notes saying
+  the instance embeds nothing; `read` opens a landed file; `overview` says the profile, the units
+  of the admitted classes (fewer than the index's) and the repository with its landed commit.
+- The launcher, spawned with an overlay made from the code instance's own after its repository
+  landed, lists the guest's tools and answers `overview`, a lexical `near`, a `read` and three
+  refusals in their fixed words, one reply per request on stdout; the instance's own query log
+  holds the guest's sentences, and no vector store is made.
+
 ## 8. Limits
 
 - The dialogue is admitted as it is. A chat turn, a capture or an assistant reply that quoted a
@@ -228,7 +276,13 @@ a strict stream and on one with `surrogateescape`).
   runs as. Serving an untrusted party should add the operating system's isolation as well
   (`plane-principals`): its own account, read access to what the grant reads.
 - Response times may depend on the size of the excluded strata (the overview scans the whole
-  catalog; the causal index reads every edge). Timing is not addressed.
+  catalog; the causal index reads every edge; a lexical ranking reads a term's postings in every
+  class before it keeps its own). Timing is not addressed.
+- The reference stratum holds what the instance lands in it. A repository source is read through
+  git at its ref, and the loader compares a repository's path with no vault: a repository whose
+  tree tracks a vault's files would land the notes as code, and the guest reads code. The code
+  instance declares this repository alone. Refusing a repository at, inside or around a vault
+  this host reads belongs in the loader and is not part of this change.
 - A vault file under a `docs/design-notes/`, `docs/findings/` or `docs/build-plans/` folder is
   recorded by the event projector (`core/chat_events.py`) as a bare doc id, with no path. Its
   edge is shown only when the id resolves to exactly one tracked doc of the repository, and then
