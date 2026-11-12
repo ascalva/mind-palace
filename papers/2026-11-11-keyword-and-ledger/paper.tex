@@ -42,17 +42,17 @@
 \newcommand{\nBatch}{2{,}050}
 \newcommand{\nQueries}{16}
 \newcommand{\nAnswers}{65}
-\newcommand{\kwBefore}{14.2}
-\newcommand{\kwBeforeMax}{33.4}
+\newcommand{\kwBefore}{14.4}
+\newcommand{\kwBeforeMax}{34.1}
 \newcommand{\kwAfter}{1.20}
-\newcommand{\kwAfterMax}{5.87}
-\newcommand{\pathsBefore}{5.47}
-\newcommand{\pathsAfter}{5.5}
-\newcommand{\ledgerBefore}{2.47}
-\newcommand{\ledgerAfter}{7}
-\newcommand{\singleBefore}{7.7}
-\newcommand{\singleAfter}{0.027}
-\newcommand{\migrationLex}{115 to 122}
+\newcommand{\kwAfterMax}{6.17}
+\newcommand{\pathsBefore}{5.41}
+\newcommand{\pathsAfter}{5.9}
+\newcommand{\ledgerBefore}{2.43}
+\newcommand{\ledgerAfter}{8}
+\newcommand{\singleBefore}{7.6}
+\newcommand{\singleAfter}{0.16}
+\newcommand{\migrationLex}{115 to 126}
 
 \title{Keyword Search and Ledger Lookups at Corpus Scale:\\
 Kept Statistics, One Statement, and an Index by Output Hash}
@@ -81,9 +81,10 @@ own sum compensates its rounding: the scores are the old statements' to the last
 gains a table from each output hash to its record and action, written by a trigger in the
 append's own statement. On the same clone the warm medians become \kwAfter{}~s, \pathsAfter{}~ms
 and \ledgerAfter{}~\textmu s, items landed one at a time go from \singleBefore{}~s to
-\singleAfter{}~s an item, and every one of the \nAnswers{} answers compared is identical to the
-one before. Property tests check the identity, the statistics against a recount after any
-sequence of writes, the clearance rule, and the ledger table against a scan.
+\singleAfter{}~s an item, a batch of 2{,}000 items lands 7 to 11\% slower, and every one of the
+\nAnswers{} answers compared is identical to the one before. Property tests check the identity,
+the statistics against a recount after any sequence of writes, the clearance rule, and the ledger
+table against a scan.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -147,8 +148,8 @@ A sum of floating-point numbers depends on the order of its terms
 \citep{ieee754-2019,higham1993accuracy}. Compensated summation carries the rounding error of each
 addition into the next \citep{kahan1965further,neumaier1974rundungsfehler}: it is more accurate,
 and for that reason it is a different function of the same terms. SQLite's \code{sum()} and
-\code{total()} return the compensated sum (\cref{sec:eval} shows a case), so a score summed by
-them is not the score the store's Python loop computed.
+\code{total()} return the compensated sum (\cref{rem:compensated} shows a case), so a score summed
+by them is not the score the store's Python loop computed.
 
 The store's clearance rule is a noninterference requirement \citep{goguen1982security}: what a
 reader sees must be a function of what it is cleared to see. For BM25 it reaches the statistics: a
@@ -228,7 +229,7 @@ with the reference's operations in the reference's order on the same operands, s
 double.
 \end{proof}
 
-\begin{remark}
+\begin{remark}\label{rem:compensated}
 Compensated summation is not that fold. For $1 + 2^{-53} + 2^{-53}$ the left fold gives $1$
 (each addition rounds to even) and the compensated sum gives $1 + 2^{-52}$, which is what SQLite's
 \code{sum()} returns over the same rows in the same order (the control test).
@@ -252,7 +253,11 @@ classes from the units, then for each class one pass over the postings in their 
 the units joined by id, so the counts arrive grouped by term and no sort is needed. A store whose
 units another tokenizer made is not counted: it neither lands nor scores until it is reset and
 re-derived, and its reset counts the empty store. A key in the store's \code{meta} table marks the
-statistics counted.
+statistics counted, and the transaction that counts them creates their tables, so opening an old
+store writes nothing unless it counts. The count does not wait for the file's write lock. A process
+that opens the store while another holds it, counting or writing, opens at once, and until the
+statistics are counted its queries count their own from the units, as every query did before:
+the same integers, so the same scores. A writer waits for the lock as any write does.
 
 \paragraph{The upkeep.} \Cref{alg:upkeep} is the landing's part; a retire is its last two lines.
 The currency moves by two statements a version, each returning the ids it changed, and the net
@@ -290,7 +295,8 @@ wrong and nothing would show it. So once the statistics are counted, three trigg
 refuse an insert, a currency or class change, and a delete unless the writing transaction holds a
 key in \code{meta}, which the class's transactions write at their start and remove before they
 commit, so no other connection ever sees it. The postings need no guard: they are written and
-deleted only with their unit. The cost is one lookup of a one-row table a changed unit.
+deleted only with their unit. The cost is one primary-key lookup in \code{meta} for each unit
+written, changed or deleted.
 
 \paragraph{The statement.} A query's terms with a document frequency above zero go into a
 temporary table with their positions $i$ in sorted order and their weights $\mathrm{idf}$; the
@@ -302,119 +308,148 @@ AND u.current = 1}, then the postings by (term, unit). Each row's weight is
 $b$ and $\bar\ell$ bound as doubles computed as the reference computes them; the rows are grouped
 by unit, the score is \code{COALESCE(max(c) FILTER (WHERE i = 0), 0.0) + COALESCE(max(c) FILTER
 (WHERE i = 1), 0.0) + \dots} in that order (\cref{prop:sum}; a filtered aggregate is not called for
-the rows of the other terms, which made the long titles 6 to 27\% faster than the same sum written
-with \code{CASE}), and \code{ORDER BY score DESC, unit\_id LIMIT k} returns the top, ties by unit id
-as before. \code{scores()}, each path's best unit, is the same statement grouped by path with
+the rows of the other terms, which makes the titles of seven terms or more 17 to 28\% faster than
+the same sum written with \code{CASE}, in an interleaved comparison on one clone), and
+\code{ORDER BY score DESC, unit\_id LIMIT k} returns the top, ties by unit id as before. \code{scores()}, each path's best unit, is the same statement grouped by path with
 \code{max}. SQLite parses the written-out sum as a tree as deep as its terms and refuses a depth
 over 1{,}000, so a query of more than 500 distinct terms has the same weights read out of the
 statement in the terms' order and summed in Python, the reference's sum again. Without
 \code{INDEXED BY}, SQLite drove the paths shape from the class's index and visited every current
 unit of the class for each path.
 
-\paragraph{The ledger.} \code{output\_hashes(hash, att\_id, action, pos)}, keyed by all four, is
-created, filled from the records by one \code{json\_each} pass and given its trigger in one
-transaction on the first open of a ledger without it. The lookups read it by seeks, a statement
+\paragraph{The ledger.} \code{output\_hashes(hash, att\_id, action, pos)}, keyed by hash, record
+and position, is created, filled from the records by one \code{json\_each} pass and given its
+trigger in one transaction on the first open of a ledger without it. That migration does not wait
+for the lock either, nor runs inside a transaction already open on the connection; until the table
+exists, the lookups answer from one pass over the records, the hashes asked for given as one JSON
+array, which reads no temporary table and opens no transaction. The lookups read it by seeks, a statement
 for a few hundred hashes, and only read: the statement it replaced filled a temporary table, which
 in the ledger's transaction mode opened a transaction that kept a shared lock on the file until the
 connection next committed. \code{attested\_by} and \code{already\_attested} read the producers by
-output and keep the action asked for; a store without the table, as tests build, is still asked
-the old way.
+output and keep the action asked for; a store without the lookup by output (a test's scan-only
+stand-in) is asked the old way.
 
 \section{Evaluation}\label{sec:eval}
 
 \paragraph{Method.} \code{eval/stress\_battery.py} clones an instance's stores with \code{cp -c}
-(a copy-on-write clone: nothing of the source is opened for writing) and runs a fixed battery:
-keyword queries free (the class filter and none) and in the store's call shape (a class and
-\nPaths{} random item paths, \code{scores} and \code{search}), warm in one process (the first pass
-apart, then three) and in a fresh process a query (three repetitions); the producers of single
-digests and of a batch of \nBatch{}; 2{,}000 synthetic items landed through the writer, batched and
-lazy, three batches a process in three processes, and three items one at a time; and the drain's
-pending set, which no line of the change reads, as a control of the machine. A synthetic item is a
+(a copy-on-write clone: nothing of the source is opened for writing) and first prepares a source of
+its own: its clones of the lexical index and the ledger, opened once by the code under test, which
+migrates a store from before the change there, timed. Every part then clones the prepared files
+again, so each part of each code starts on files the cache has not read. The battery: keyword
+queries free (the class filter and none) and in the store's call shape (a class and \nPaths{} random
+item paths, \code{scores} and \code{search}), warm in one process (the first pass apart, then five,
+each pass's wall and processor time kept) and in a fresh process a query (three repetitions); the
+producers of single digests and of a batch of \nBatch{}; synthetic items landed through the writer,
+batched and lazy, in three processes, each three batches of 2{,}000 new items and a fourth that lands
+the third's paths again with other bytes, replacing every unit that batch made current, with the
+statistics' upkeep timed on its own; three items landed one at a time; the drain's pending set,
+which no line of the change reads, as a control of the machine; and a lexical file from before the
+change opened by one process and, 5~s later, by a second that asks one query. A synthetic item is a
 real item of the corpus with one first line added, so its digest is new and its text, chunks and
-terms are a real item's. The queries are \nQueries{} titles, ten from an earlier study of the
-stores and six drawn independently, with one to nineteen distinct terms and 32 to 6.5 million
-postings, named by their sizes and never by their text. The corpus's lexical file predates the
-store's record of its tokenizer, so it is opened with the tokenizer that made it. The machine is an
-Apple M2 Pro with 12 cores and 32~GB, shared with other work: every timing carries the one-minute
-load average beside it, BLAS is capped at four threads, and every process ends itself above
-3.8~GB resident. One run before the change, on its parent commit, one after, and the keyword and
-ledger parts again on the final commit. The whole-stratum load of a sentence admitting the
-dialogue stratum was not run: on the whole corpus it needs tens of gigabytes.
+terms are a real item's. The queries are \nQueries{} titles, ten from an earlier, unpublished study
+of the stores and six drawn independently, with one to nineteen distinct terms and 32 to 6.5
+million postings, named by their sizes and never by their text. The corpus's lexical file predates
+the store's record of its tokenizer, so it is opened with the tokenizer that made it. The machine
+is an Apple M2 Pro with 12 cores and 32~GB, shared with other work: every timing carries the
+one-minute load average beside it, BLAS is capped at four threads, and every process ends itself
+above 3.8~GB resident. One run before the change, on its parent commit, and one after; three
+earlier runs, with a version of the battery that had no prepared source and three passes, are in
+the record. Not run: the whole-stratum load of a sentence admitting the dialogue stratum (tens of
+gigabytes on the whole corpus), the test that a commit's cut holds a citation edge (the corpus has
+no citation store) and the pending mask of a sentence's nodes (nothing is pending).
 
 \begin{table}[t]
 \centering
-\caption{Before and after on clones of the corpus instance: warm medians over the queries of each
-query's median, with the range over the queries, and the one-minute load average.}\label{tab:results}
+\caption{Before and after on clones of the corpus instance: warm medians (over the queries, of
+each query's median of five passes), with the range over the queries, and the one-minute load
+average, before / after.}\label{tab:results}
 \small
 \begin{tabular}{@{}lrrr@{}}
 \toprule
 measure & before & after & load \\
 \midrule
-title query, class filter (16) & 14.2 s (1.47--33.4 s) & 1.20 s (0.1 ms--5.87 s) & 2.8--7.4 / 2.2--11.3 \\
-title query, no filter (16) & 9.42 s (0.98--23.2 s) & 1.16 s (0.1 ms--5.70 s) & 2.0--3.2 / 2.5--5.6 \\
-the store's shape, \code{scores} (5) & 5.47 s (1.22--18.9 s) & 5.5 ms (1.9--12.1 ms) & 1.9--4.5 / 2.5 \\
-the store's shape, \code{search} (5) & 8.43 s (2.33--15.7 s) & 4.6 ms (1.8--11.1 ms) & 3.1--4.2 / 2.5 \\
-fresh process, 14 terms, class filter & 24.1--24.4 s, 468 MB & 3.95--3.97 s, 74 MB & \\
-producers of one digest & 2.47 s & 7 \textmu s & 2.1--3.2 / 2.5--3.7 \\
-\code{attested\_by} through the landing & 2.48 s & 8 \textmu s & \\
-producers of 2{,}050 digests & 304 ms & 5.9 ms & \\
-landing 2{,}000 items, batches 1--2 & 10.40 s & 10.64 s & 2.2--2.8 / 3.4--6.3 \\
-three items one at a time & 23.1 s & 0.082 s & \\
-the drain's pending set (control) & 2.24 s & 2.33 s & 2.3--2.8 / 3.3--3.4 \\
+title query, class filter (16) & 14.4 s (1.49--34.1 s) & 1.20 s (0.08 ms--6.17 s) & 3.0--5.6 / 2.7--3.8 \\
+title query, no filter (16) & 9.58 s (0.97--23.3 s) & 1.16 s (0.07 ms--5.78 s) & 2.2--5.0 / 2.7--3.7 \\
+the store's shape, \code{scores} (5) & 5.41 s (1.19--15.1 s) & 5.9 ms (1.9--12.4 ms) & 2.2--3.0 / 2.8 \\
+the store's shape, \code{search} (5) & 5.39 s (1.20--15.0 s) & 4.7 ms (1.8--11.5 ms) & 1.9--2.6 / 2.8 \\
+fresh process, 14 terms, class filter & 24.0--24.2 s, 469 MB & 4.03--4.04 s, 73 MB & 2.5--3.1 / 2.7--2.8 \\
+producers of one digest & 2.43 s & 8.2 \textmu s & 1.9--2.7 / 2.9 \\
+\code{attested\_by} through the landing & 2.42 s & 8.1 \textmu s & 2.6--3.4 / 2.9 \\
+producers of 2{,}050 digests & 292 ms & 6.4 ms & 3.1 / 2.9 \\
+landing 2{,}000 new items, batches 1--2 & 10.45 s & 11.13 s & 2.3--2.9 / 2.7--3.8 \\
+landing 2{,}000 replacing versions & 9.88 s & 10.93 s & 2.1--2.8 / 3.3--3.8 \\
+three items one at a time & 22.8 s & 0.48 s & 2.3 / 3.9 \\
+the drain's pending set (control) & 2.19 s & 2.22 s & 2.1--2.3 / 3.6--3.8 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Results.} \Cref{tab:results}. The title queries under the class filter fall from a
-median of \kwBefore{}~s to \kwAfter{}~s and the slowest from \kwBeforeMax{}~s to \kwAfterMax{}~s;
-the class-filtered pass of the final run met a load of 6.7 to 11.3 from another job for its
-second half, and the unfiltered pass, which scores the same units here, ran at 2.5 to 5.6 and
-gives 1.16~s. A free query still reads every posting of its terms, about 0.9~\textmu s a posting,
-but no term costs a visit of every unit any more. The store's own call shape falls from seconds
-to milliseconds, as does a fresh process's query, whose peak memory falls from 468~MB to 74~MB
-with the dictionary of every scored unit the old loop built. The producer lookup falls from
-2.47~s to 7~\textmu s and the batch's from 304~ms to 5.9~ms. A batched landing is unchanged within
-its spread: its lexical stage's median rose 0.55~s at a load one to four higher, while the ledger's
-lookup saved 0.3 to 0.7~s a batch and the trigger cost 27~\textmu s an append. Landing items one at
-a time, \singleBefore{}~s an item before, 99\% of it the three passes over the ledger, takes
-\singleAfter{}~s. The pending set, which no part of the change reads, took 2.24~s and 2.33~s, so the
-runs met the same machine within 4\%. The migrations run once a store: counting the statistics of
-the \nUnits{} units took \migrationLex{}~s on cold clones and added 29.6~MB to the 4.6~GB file; the
-ledger's table took 1.8 to 2.7~s and added 64~MB, 166~B a record. Every one of the \nAnswers{}
-answers the battery keeps (top tens with their scores, path scores, producer sets and lists) is
-identical before and after, scores compared as the bits of their doubles, and so are the fresh
-processes' answers.
+median of \kwBefore{}~s to \kwAfter{}~s and the slowest from \kwBeforeMax{}~s to \kwAfterMax{}~s.
+A free query still reads every posting of its terms, under 1~\textmu s a posting, but no term
+costs a visit of every unit any more. The store's own call shape falls from \pathsBefore{}~s to
+\pathsAfter{}~ms. In a fresh process the class-filtered title of 14 terms falls from 24~s to 4.0~s
+and its peak memory from 469~MB to 73~MB, with the dictionary of every scored unit the old loop
+built, and the paths shape of the same title from 15~s to 14~ms. The producer lookup falls from
+\ledgerBefore{}~s to \ledgerAfter{}~\textmu s and the batch's from 292~ms to 6.4~ms once the table
+has been read; a first batch on a file the cache has not read takes 295~ms. Landing items one at a
+time, \singleBefore{}~s an item before, 99\% of it the three passes over the ledger, takes
+\singleAfter{}~s. A batched landing pays for the upkeep: a batch of 2{,}000 new items takes 11.1~s
+against 10.4~s (7\% more), the upkeep 0.39~s of it, and a batch that replaces 2{,}000 versions
+10.9~s against 9.9~s (11\% more), the upkeep 0.76~s, at a load 0.5 to 1 higher; the trigger adds
+28 to 43~\textmu s an append, the ledger's lookup saves 0.2 to 0.5~s a batch, and the rest of the
+rise is not attributed. The pending set, which no part of the change reads, took 2.19~s and 2.22~s,
+so the runs met the same machine within 2\%. Before the change ten passes of the slowest
+class-filtered titles took up to 1.75 times their processor time at loads of 3.1 to 5.6, and the
+medians of two carry those waits; after it no pass waited. The migrations run once a store:
+counting the statistics of the \nUnits{} units took \migrationLex{}~s on clones the cache had not
+read and added 29.6~MB to the 4.6~GB file; the ledger's table took 1.8 to 2.7~s and added 64~MB,
+166~B a record. A process that opened the lexical file 5~s into another's count opened at once
+and answered its query from the units in 1.4~s, as the code before the change answers it. Every
+one of the \nAnswers{} answers the battery keeps (top tens with their scores, path scores, producer
+sets and lists) is identical before and after, scores compared as the bits of their doubles, in
+all five runs, and so are the fresh processes' answers.
 
 \paragraph{Tests.} Over generated stores of four classes, three tokenizers, shared vocabularies
 (so scores tie), empty and absent classes and paths given and not, the statement's top $k$ and
-scores equal the old statements' (kept verbatim as the reference) for $k \in
-\{-1, 0, 1, 2, 3, 10\}$, and so do they with the sum taken outside the statement (its threshold
-lowered to one term) and for a query of 1{,}200 terms; after any sequence of landings, landings
-again with other chunks, retires and re-derivations, the tables equal a recount, also after
-reopening; and a store that also holds other classes' units, landed and retired around the cleared
-ones, gives a cleared reader the statistics, scores and ranking of a store that holds the cleared
-units alone. Each runs 60 examples in the suite and passed 1{,}000 to 1{,}500 in a longer run. A store written by the old code counts
-its statistics on its first open; a stale one waits for its reset; a write to the units from
-another connection is refused, also the old landing; a landing or a retire that dies between the
-unit rows and the statistics, by an exception or by the process ending, leaves neither. For the
-ledger, after any sequence of appends, appends again, and deferred blocks that commit or die, the
-table equals a scan of the records, and the four lookups answer what the scan and the replaced
-statement answer, also on a ledger the old code wrote and after other writers append to it.
+scores equal the old statements' (kept as the reference) for $k \in \{-1, 0, 1, 2, 3, 10\}$, and
+so do they with the sum taken outside the statement (its threshold lowered to one term) and for a
+query of 1{,}200 terms; after any sequence of landings, landings again with other chunks, batched
+landings that land a path more than once in one transaction, retires and re-derivations, the
+tables equal a recount, also after reopening; and a store that also holds other classes' units,
+landed and retired around the cleared ones, gives a cleared reader the statistics, scores and
+ranking of a store that holds the cleared units alone. Each runs 60 examples in the suite and
+passed 1{,}000 in a longer run. A store written by the old code counts its statistics on its
+first open, and one
+opened while another connection holds its write lock opens at once and answers as the old
+statements do; a stale one waits for its reset; a write to the units from another connection is
+refused, also the old landing, until the runbook's revert step drops the guard; a landing or a
+retire that dies at the statistics, after its unit rows or its currency are written (the test
+records them before it dies), by an exception or by the process ending, leaves neither; and a write
+whose first statement fails leaves no transaction open. For the ledger, after any sequence of
+appends, appends again, and deferred blocks that commit or die, the table equals a scan of the
+records, and the four lookups answer what the scan and the replaced statement answer, also on a
+ledger the old code wrote, after other writers append to it, while another connection holds its
+lock, and when this process cannot write it; those two properties run 80 examples in the suite
+and passed 1{,}000 in the longer run.
 
 \section{Limitations}\label{sec:limits}
 
 A free query still reads every posting of its terms, and its time grows with them (\kwAfterMax{}~s
 for the query with 6.5 million postings); pruning would read a fraction \citep{turtle1995query}.
 The kept statistics are the present's: a read at a past cut must count its own under the cut's mask
-or keep them per epoch. The guard turns an older process's writes into errors, by design; the
-statistics of a stale store wait for its reset, and the corpus's file, made by the earlier
-tokenizer, must be re-derived before the store's current tokenizer scores it. The migration holds
-the file's write lock for its \migrationLex{}~s on the corpus, and another writer waiting longer than
-the store's 30~s timeout fails. The paths shape reads every unit of every path given: a call with
-hundreds of thousands of paths, which a mostly unembedded corpus would make, needs the pending set
-redesigned first. The corpus holds one class, so its readers' sums are over one row; the property
-tests hold four. The measurements are one run before and one after on one shared machine; the
-cold behaviour of a file larger than memory was not measured.
+or keep them per epoch. The guard turns an older process's writes into errors, by design, and a
+revert of the change needs the runbook's step to drop it; the statistics of a stale store wait for
+its reset, and the corpus's file, made by the earlier tokenizer, must be re-derived before the
+store's current tokenizer scores it. The migration holds the file's write lock for its
+\migrationLex{}~s on the corpus: a writer that waits longer than the store's 30~s timeout fails,
+while a reader opens at once and counts its queries' statistics from the units until the count is
+done (\cref{sec:eval}). A batched landing is 7 to 11\% slower, and part of that is not attributed.
+The paths shape reads every unit of every path given: a call with hundreds of thousands of paths,
+which a mostly unembedded corpus would make, needs the pending set redesigned first. The corpus
+holds one class, so its readers' sums are over one row; the property tests hold four. The
+measurements are one run before and one after on one shared machine, the landing's after run at a
+higher load; the cold behaviour of a file larger than memory was not measured.
 
 \section{Future work}\label{sec:future}
 
@@ -431,8 +466,9 @@ The two slowest reads of the corpus instance were not slow because of the data b
 what was recomputed for each question: a document frequency counted by visiting every unit, a
 ledger decoded record by record. Keeping the statistics with the writes that change them, naming
 the statements' order, writing the sum out in the reference's order and indexing the ledger by
-output hash make the same answers cost milliseconds, with the clearance rule and the answers as
-they were.
+output hash make the store's own queries and the ledger's lookups cost milliseconds and a free
+query about a second, with the clearance rule and the answers as they were, for 7 to 11\% more
+time on a batched landing.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
