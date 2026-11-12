@@ -356,6 +356,32 @@ def test_the_witness_of_a_reference_edge_is_judged_like_any_other(
     assert record is not None and record["dst"] == f"{vault}/n.md"
 
 
+def test_a_withheld_edge_keyed_to_a_commit_stands_in_front_of_no_named_one(
+        repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two causal edges keyed to the commit that minted a reference edge: one ends at a vault
+    path and comes first, the other ends at the commit. `origin` answers the first of the edges
+    it may choose from. The reader without the mirror may not choose the withheld one, so it is
+    answered the commit's edge, in whatever order the store holds the two: the answer of a store
+    without the withheld edge. The reader with the mirror is answered the first, as before."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    shown = {**_cedge("c-commit", "s1", 3, SHA, dst_type="commit", order=2), "pair_cut_sha": SHA}
+    hidden = {**_cedge("c-note", "s1", 3, f"{vault}/n.md", order=1), "pair_cut_sha": SHA}
+    plan = compile_sentence('witness "r"', GUEST)
+    seen = []
+    for causal in ([shown], [shown, hidden], [hidden, shown]):
+        engine = _engine(repo, vault, monkeypatch, causal, [])
+        engine._cache["references"] = _Minted({"r": SHA})
+        u = build(cast(QueryEngine, engine), plan, hide_mirror=True)
+        record = u.witness("r")
+        assert record is not None and (record["edge_id"], record["dst"]) == ("c-commit", SHA)
+        seen.append((record, [h.__dict__ for h in execute(plan, u).hits], u.missing))
+    assert seen[1] == seen[2] == seen[0]
+    wide = build(cast(QueryEngine, engine), compile_sentence('witness "r"', AMBASSADOR_OVERLAY))
+    record = wide.witness("r")
+    assert record is not None and (record["edge_id"], record["dst"]) == ("c-note", f"{vault}/n.md")
+
+
 def test_the_withheld_note_is_one_sentence_whatever_the_store_holds(
         repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The note that says what is withheld rides with every sentence that walks C or asks a
