@@ -44,10 +44,13 @@ it admits no command and no hypothetical. Admission bounds which rows a sentence
 bound what an admitted row says. The transcript stratum records the path of every file a
 conversation wrote, a note's included. An adversarial battery of 71 sentences over a fixture store
 found five that returned a note's path, through a causal edge's endpoint and through
-\texttt{witness}. For a grant without the notes, the universe a sentence reads now withholds every
-edge that ends in them, whole. After the change no output of the battery, with or without its
-trace, carries a canary token placed in a note's path, title and body, and the guest's outputs over
-two stores that differ only in the notes are identical.
+\texttt{witness}. A first repair withheld every edge that ends under the vault's path, and a red
+team found five other spellings of a note's path that passed it. For a grant without the notes,
+the universe a sentence reads now shows a causal edge only when it ends at a commit or at a file
+the repository tracks, and withholds every other edge whole; a refusal raised while a sentence
+runs reaches the guest as one fixed sentence for its class. After the change no output of the
+battery, with or without its trace, carries a canary token placed in a note's path, title and
+body, and the guest's outputs over two stores that differ only in the notes are identical.
 \end{abstract}
 
 \section{Introduction}
@@ -70,9 +73,9 @@ grant. The contributions are:
   \item a grant \str{GUEST} and a role \str{guest} that resolves to it, with its properties proved
         in Lean (row SCO-9 of the store's laws ledger);
   \item an MCP surface \citep{mcp2025} for the role, with two tools, \texttt{query} and
-        \texttt{overview}, and refusals that echo no quoted text;
+        \texttt{overview}, and refusals that pass on no reason raised against the stores;
   \item a leak found by an adversarial battery, an overt reference from an admitted stratum to an
-        excluded one, and its repair in the universe builder;
+        excluded one, and its repair in the universe builder, an allow list that fails closed;
   \item a noninterference test: the guest cannot tell two stores apart that differ only in what
         its grant excludes.
 \end{itemize}
@@ -173,11 +176,25 @@ node of the transcript stratum: honest for the local model, whose grant reads th
 and a leak for any grant that does not. \texttt{witness} of the edge returned the same path.
 
 The repair keys on the grant rather than the sentence. A grant's strata are the union of its
-planes'. When they hold no stratum of the mirror, the reader may not see a mirror node named, so
-an edge that ends in the vault is withheld whole: not named by a placeholder, not counted, its
+planes'. When they hold no stratum of the mirror, the reader may not see a mirror node named, and
+an edge it may not see is withheld whole: not named by a placeholder, not counted, its
 content-addressed id withheld with it. A placeholder per edge or a count would be a function of the
-excluded data. The answer still says that such edges are withheld, in one sentence whose words do
-not depend on whether any were.
+excluded data. The answer still says that edges are withheld, in one sentence whose words do not
+depend on whether any were.
+
+Which edges the reader may see is decided by an allow list. The first repair was a deny rule: it
+withheld an edge whose endpoint lay under the vault's path, compared as text. A red team found
+five spellings of a note's path that passed it: the vault's directory in another letter case and
+the path in another Unicode normal form, each the same file on a file system that folds them; a
+relative path; a \texttt{file://} URI; and the bare file name that the event projector keeps for a
+file written under a \texttt{docs/design-notes} folder. A deny rule has to know every spelling of
+a vault path, and an allow list only what may be shown. The reader is shown a causal edge only
+when it ends at a commit, named by its hex sha, or at a file git tracks in the checkout at HEAD;
+the vault is asked first, with every component folded for case and normal form, for the path as
+written, normalized and resolved. What cannot be judged, because git cannot be asked or the
+endpoint cannot be read, is withheld. The cost falls on endpoints that are not the repository's
+files: a path outside it, a relative path, an untracked or deleted file are no longer named to
+this reader, which loses no file of the repository's tree.
 
 \section{Implementation}
 
@@ -190,14 +207,20 @@ same call.
 \begin{algorithmic}[1]
 \Require a plan $P$, the reader's grant $g$, the stores
 \State $\mathit{hide} \gets \operatorname{strata}(g) \cap \{\str{mirror}, \str{mirror\_authored}\} = \emptyset$
-\Function{Hidden}{$x$}
-  \State \Return $\mathit{hide} \wedge x$ is an absolute or home path $\wedge$ the vault is an ancestor of $x$
+\Function{Named}{$v$} \Comment{a causal endpoint; once per endpoint, false on any failure}
+  \If{$v$ is a commit} \Return $v$ is a hex sha \EndIf
+  \If{$v$ is the vault or under it, folded for case and normal form} \Return false \EndIf
+  \State $r \gets$ the repo path of $v$: a doc id's one file, or an absolute path under a checkout
+  \State \Return $r$ exists $\wedge$ git tracks $r$ at HEAD
+\EndFunction
+\Function{Citable}{$v$}
+  \State \Return $v$ is a plain repo-relative path $\wedge$ no checkout's $v$ is in the vault
 \EndFunction
 \If{not $\mathit{hide}$} build the note graph \Comment{the dialogue otherwise loads under its own clearance}
 \EndIf
-\State index the causal edges $(t, v)$ with $\neg\Call{Hidden}{v}$ \Comment{whole edges, ids with them}
-\State expand citation neighbours $v$ with $\neg\Call{Hidden}{v}$
-\State $\operatorname{witness}(e) \gets \bot$ when $e$ is a causal edge to a hidden $v$, or an attestation and $\mathit{hide}$
+\State index the causal edges $(t, v)$ with $\neg\mathit{hide} \vee \Call{Named}{v}$ \Comment{whole edges, ids with them}
+\State expand citation neighbours $v$ with $\neg\mathit{hide} \vee \Call{Citable}{v}$
+\State $\operatorname{witness}(e) \gets \bot$ when $\mathit{hide}$ and $e$ is, or leads to, an edge $(t, v)$ with $\neg\Call{Named}{v}$, or $e$ is an attestation
 \If{$\mathit{hide}$ and $P$ walks $C$ or witnesses} add the fixed withholding note \EndIf
 \end{algorithmic}
 \end{algorithm}
@@ -208,9 +231,20 @@ refused when it is compiled and could not be spooled. The surface is the store's
 does, and serves \texttt{query} and \texttt{overview}. The overview counts catalog entries of the
 classes the grant's strata hold and the curated chunks; the local model's totals of vector rows,
 relation edges and versions each count the notes and are not shown. The \texttt{status} tool is not
-served, since it lists the owner's open tasks and running jobs. A refusal reaches the guest with
-its class and its reason, every quoted run replaced by its length, and for a scope refusal the
-strata the grant reads.
+served, since it lists the owner's open tasks and running jobs.
+
+A refusal reaches the guest with its class and a text chosen by where it was raised. The surface
+compiles the sentence again, which reads the sentence and the grant and no store. If the compiler
+refuses it, the guest reads the compiler's reason with every quoted run replaced by its length:
+the reason holds the asker's words. If it compiles, the refusal was raised against the stores, and
+the guest reads one fixed sentence for its class, never the reason, which may quote what a store
+holds. A redaction that pairs quotes by position does not hide such a quotation reliably: an
+apostrophe in the reason's own words pairs with the opening quote of a quoted path and leaves the
+path in clear. A scope refusal of either kind adds the strata the grant reads. A tool runs with
+standard output pointed at standard error, so the protocol stream carries replies only, and the
+query log, which the owner reads on a terminal, writes a guest's sentence into one ASCII line, its
+first 4{,}096 characters and a marker of its length, and prints it with every character that is
+not printable escaped.
 
 \section{Evaluation}
 
@@ -252,6 +286,19 @@ move from answered to no hits are the two witnesses of the note's edge and landi
 whose only hit was the note's path.}\label{tab:battery}
 \end{table}
 
+\paragraph{The spellings.}
+The fixture stands under a directory whose name has two Unicode normal forms. To it the test adds
+nine causal edges from the turn, each holding the canary: the note's path with the vault's
+directory upper-cased, the path in its other normal form, two relative paths, a \texttt{file://}
+URI, the file name the projector keeps for a vault file under \texttt{docs/design-notes}, such a
+name that is a glob's pattern for a tracked finding, an untracked path in the checkout and a path
+outside the repository; and four citations from a repository file to the note's path and three
+other spellings of it. The guest is asked the battery, a \texttt{witness} of each new edge and a
+\texttt{reach C} back from each new endpoint, with and without the trace, and the overview, before
+the edges are added and after: 181 outputs. Unit tests hold the rule at the universe builder over
+a scratch git repository, and others hold the refusal texts, the query log and the protocol
+stream.
+
 \paragraph{Results.}
 After the repair no output carries the canary, as a path, a title, a text, a count or a refusal,
 and every sentence that names the note is refused (\cref{tab:battery}). The admitted strata
@@ -262,12 +309,17 @@ note, relation, landing and vault edge differ, all 142 guest outputs and the ove
 byte for byte, once the names the asker typed are normalized. As a control, the local model asked
 the same 71 sentences receives the canary in 31 answers, through \texttt{near},
 \texttt{reach C}, \texttt{witness}, \texttt{relate} and \texttt{read} among others, so the battery
-reaches the channels it is meant to close. The default server keeps the local model's tool table
-and instructions, and the store's deterministic test tier passes (3{,}589 tests). The commands are
-in the repository: \texttt{uv run pytest tests/adversarial/test\_guest\_leaks.py} and
-\texttt{sh formal/check.sh}.
+reaches the channels it is meant to close. With the nine edges and four citations added, the 181
+outputs are those before, byte for byte, no output of the battery carries the canary, and
+\texttt{witness} of each new edge answers nothing; the local model is shown all thirteen. A
+store's error whose reason quotes a path holding an apostrophe, which the redaction leaves in
+clear, reaches the guest as its class and that class's sentence, and the path is on neither the
+stream nor standard error. The default server keeps the local model's tool table and
+instructions, and the store's deterministic test tier passes (3{,}612 tests). The commands are in
+the repository: \texttt{uv run pytest tests/adversarial/test\_guest\_leaks.py
+tests/unit/test\_sentence\_universe\_withheld.py} and \texttt{sh formal/check.sh}.
 
-\section{Limitations}
+\section{Limitations}\label{sec:limits}
 
 The grant bounds strata, not what admitted text says. A chat turn, a capture or an assistant reply
 that quoted a note is a dialogue row, and the guest reads it; keeping such quotations out needs a
@@ -275,23 +327,37 @@ narrower grant (reference and curated alone) or a filtered dialogue. The withhol
 held by tests, not by a theorem: the Lean model states what a grant admits, not what the universe
 builder returns. The isolation is in the process: the guest's server opens the stores under the
 account it runs as, and an untrusted party should also be separated by the operating system.
-Response times may depend on the size of the excluded strata. The vault test is lexical: a path
-written through a link the resolver cannot see would not be recognized.
+Response times may depend on the size of the excluded strata.
+
+Three limits follow from the allow list and the process. First, the event projector records a
+file written under a \texttt{docs/design-notes}, \texttt{docs/findings} or
+\texttt{docs/build-plans} folder by a bare doc id, with no path, wherever the folder is. A vault
+file there is shown only when its id resolves to exactly one tracked document of the repository,
+and then as that document: the guest learns that a turn wrote a file of that name, not where. The
+exact fix keeps the path at projection; it belongs in the projector and is not in this change.
+Second, a citation neighbour is not checked against the tree at HEAD, since the citation graph is
+read at other cuts; its refs are repository-relative paths projected from the repository's
+history, so they denote its files. Third, the client that spawns the server also reads its
+standard error, where a refusal's traceback and whatever a library prints go unfiltered.
 
 \section{Future work}
 
 The cleaner repair labels each edge at the store with the join of its endpoints' strata, so that
 every reader, not only the universe builder, applies the rule; the noninterference statement could
-then be proved over a model of the stores, as PLN-2 is for the vector plane. A dialogue filtered of
-turns that quote notes would let a guest read conversations without trusting their contents.
+then be proved over a model of the stores, as PLN-2 is for the vector plane. An event projector
+that keeps a written file's path would let a doc's id never stand for a vault file. A dialogue
+filtered of turns that quote notes would let a guest read conversations without trusting their
+contents.
 
 \section{Conclusion}
 
 A second principal for an external agent is a small grant: two planes, read-only, over four
 strata. Its refusals are a finite check and are proved. The adversarial battery found that the
-check was not enough, because an admitted row named an excluded node; withholding those
-references whole makes the guest's answers independent of the notes, and a two-store test holds
-that in place.
+check was not enough, because an admitted row named an excluded node, and a red team found that a
+test against the vault's path was not enough either, because a path has many spellings. Showing
+only what an allow list names and withholding every other reference whole makes the guest's
+answers independent of the notes, within the limits of \cref{sec:limits}, and a two-store test
+and a test of the spellings hold that in place.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
