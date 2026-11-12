@@ -194,10 +194,13 @@ file written under a \texttt{docs/design-notes} folder. A deny rule has to know 
 a vault path, and an allow list only what may be shown. The reader is shown a causal edge only
 when it ends at a commit, named by its hex sha, or at a file git tracks in the checkout at HEAD;
 the vault is asked first, with every component folded for case and normal form, for the path as
-written, normalized and resolved. What cannot be judged, because git cannot be asked or the
-endpoint cannot be read, is withheld. The cost falls on endpoints that are not the repository's
-files: a path outside it, a relative path, an untracked or deleted file are no longer named to
-this reader, which loses no file of the repository's tree.
+written, normalized and resolved. A file system knows a note by names that check does not fold,
+a hard link or its path through another mount of the volume; such a name is judged as any path
+is, and shown only when it is a file git tracks in a checkout of the repository. What cannot be
+judged, because git cannot be asked or the endpoint cannot be read, is withheld. The cost falls
+on endpoints the rule cannot tie to a tracked file: a path outside the repository, a relative
+path (even one that names a tracked file), a tracked file's path in another letter case or under
+another clone, and an untracked or deleted file are no longer named to this reader.
 
 \section{Implementation}
 
@@ -223,7 +226,8 @@ same call.
 \EndIf
 \State index the causal edges $(t, v)$ with $\neg\mathit{hide} \vee \Call{Named}{v}$ \Comment{whole edges, ids with them}
 \State expand citation neighbours $v$ with $\neg\mathit{hide} \vee \Call{Citable}{v}$
-\State $\operatorname{witness}(e) \gets \bot$ when $\mathit{hide}$ and $e$ is, or leads to, an edge $(t, v)$ with $\neg\Call{Named}{v}$, or $e$ is an attestation
+\State $\operatorname{witness}(e) \gets \bot$ when $\mathit{hide}$ and $e$ is an edge $(t, v)$ with $\neg\Call{Named}{v}$ or an attestation
+\State through a reference edge, $\operatorname{witness}$ chooses among the edges keyed to its commit those with $\neg\mathit{hide} \vee \Call{Named}{v}$
 \If{$\mathit{hide}$ and $P$ walks $C$ or witnesses} add the fixed withholding note \EndIf
 \end{algorithmic}
 \end{algorithm}
@@ -240,17 +244,20 @@ local model's count of every lexical unit counts the notes' too. The \texttt{sta
 served, since it lists the owner's open tasks and running jobs.
 
 A refusal reaches the guest with its class and a text chosen by where it was raised. The surface
-compiles the sentence again, which reads the sentence and the grant and no store. If the compiler
-refuses it, the guest reads the compiler's reason with every quoted run replaced by its length:
-the reason holds the asker's words. If it compiles, the refusal was raised against the stores, and
-the guest reads one fixed sentence for its class, never the reason, which may quote what a store
-holds. A redaction that pairs quotes by position does not hide such a quotation reliably: an
-apostrophe in the reason's own words pairs with the opening quote of a quoted path and leaves the
-path in clear. A scope refusal of either kind adds the strata the grant reads. A tool runs with
-standard output pointed at standard error, so the protocol stream carries replies only, and the
-query log, which the owner reads on a terminal, writes a guest's sentence into one ASCII line, its
-first 4{,}096 characters and a marker of its length, and prints it with every character that is
-not printable escaped.
+compiles the sentence again, with the trace when the call asked for one, since the trace renders
+the parse and a sentence can fail to compile with it alone; that reads the sentence and the grant
+and no store. If the compiler refuses it, the guest reads the compiler's reason with every quoted
+run replaced by its length: the reason holds the asker's words. If it compiles, the refusal was
+raised in the run, against the stores, and the guest reads one fixed sentence for its class,
+never the reason, which may quote what a store holds. A redaction that pairs quotes by position
+does not hide such a quotation reliably: an apostrophe in the reason's own words pairs with the
+opening quote of a quoted path and leaves the path in clear. A scope refusal of either kind adds
+the strata the grant reads. The server writes its replies to a copy of standard output's file
+descriptor and points the descriptor itself at standard error, and a tool runs with Python's
+standard output pointed there too, so the protocol stream carries replies only, whatever a library
+or a child process writes. The query log, which the owner reads on a terminal, writes a guest's
+sentence into one ASCII line, its first 4{,}096 characters, at most 8{,}192 bytes of the line,
+and a marker of its length, and prints it with every character that is not printable escaped.
 
 \section{Evaluation}
 
@@ -280,7 +287,7 @@ and without the trace.
 \midrule
 sentences admitted and answered & 34 & 30 \\
 admitted, no hits & 3 & 7 \\
-refused (31 scope, 2 lookup, 1 script) & 34 & 34 \\
+refused (31 scope, 2 lookup, 1 error from the script checker) & 34 & 34 \\
 sentences whose output carries the canary & 5 & 0 \\
 \bottomrule
 \end{tabular}
@@ -321,7 +328,7 @@ outputs are those before, byte for byte, no output of the battery carries the ca
 store's error whose reason quotes a path holding an apostrophe, which the redaction leaves in
 clear, reaches the guest as its class and that class's sentence, and the path is on neither the
 stream nor standard error. The default server keeps the local model's tool table and
-instructions, and the store's deterministic test tier passes (3{,}689 tests). The commands are in
+instructions, and the store's deterministic test tier passes (3{,}697 tests). The commands are in
 the repository: \texttt{uv run pytest} over \texttt{tests/adversarial/test\_guest\_leaks.py},
 \texttt{tests/adversarial/test\_guest\_lite.py} and
 \texttt{tests/unit/test\_sentence\_universe\_withheld.py}, and \texttt{sh formal/check.sh}.
@@ -340,12 +347,13 @@ alone. Asked the 71 sentences and eleven of the code source's own (a lexical \te
 the reference stratum, \texttt{read} of a landed file, \texttt{trace}, a file the repository does
 not have), with and without the trace, the guest's 164 outputs carry no canary. Over a second
 such store whose note's body says none of the queried words, in four terms where the first's
-runs to over three hundred, they and the overview are identical, while the local model ranks the
-first note first and counts more units in the first store. Three mutations checked by hand each fail the
-test: a unit count and mean length read over every class, a reference seed that searches every
-class, and an overview that counts every unit. The launcher, spawned over an overlay made from the
-code instance's, answers \texttt{overview}, a lexical \texttt{near}, a \texttt{read} and three
-refusals in their fixed words, one reply per request on standard output.
+runs to over three hundred, and which is alike in all else the guest reads, its repository's
+landing dated to the same second, they and the overview are identical, while the local model
+ranks the first note first and counts more units in the first store. Three mutations checked by
+hand each fail the test: a unit count and mean length read over every class, a reference seed
+that searches every class, and an overview that counts every unit. The launcher, spawned over an
+overlay made from the code instance's, answers \texttt{overview}, a lexical \texttt{near}, a
+\texttt{read} and three refusals in their fixed words, one reply per request on standard output.
 
 \section{Limitations}\label{sec:limits}
 
@@ -356,10 +364,15 @@ held by tests, not by a theorem: the Lean model states what a grant admits, not 
 builder returns. The isolation is in the process: the guest's server opens the stores under the
 account it runs as, and an untrusted party should also be separated by the operating system.
 Response times may depend on the size of the excluded strata; a lexical ranking, for one, reads a
-term's postings in every class before it keeps its own. The reference stratum holds what a store
-lands in it: a repository source is read through git at its ref, and a repository whose tree
-tracked a vault's files would land the notes as code, which the guest reads. The configuration
-does not refuse such a repository; the code instance declares only the store's own.
+term's postings in every class before it keeps its own. So may a time the guest reads: the
+overview shows when each repository landed, and a landing of the notes queued before it in the
+daemon's one queue delays it. The query log grows by a line for every sentence a guest asks, at
+most some 12~KB each, and nothing bounds its size; nor is a sentence's size capped, though a
+string literal is read in memory in proportion to its text. Both bounds are left to the owner.
+The reference stratum holds what a store lands in it: a repository source is read through git at
+its ref, and a repository whose tree tracked a vault's files would land the notes as code, which
+the guest reads. The configuration does not refuse such a repository; the code instance declares
+only the store's own.
 
 Three limits follow from the allow list and the process. First, the event projector records a
 file written under a \texttt{docs/design-notes}, \texttt{docs/findings} or
@@ -370,7 +383,8 @@ exact fix keeps the path at projection; it belongs in the projector and is not i
 Second, a citation neighbour is not checked against the tree at HEAD, since the citation graph is
 read at other cuts; its refs are repository-relative paths projected from the repository's
 history, so they denote its files. Third, the client that spawns the server also reads its
-standard error, where a refusal's traceback and whatever a library prints go unfiltered.
+standard error, where a refusal's traceback and whatever a library or a child process writes go
+unfiltered.
 
 \section{Future work}
 
