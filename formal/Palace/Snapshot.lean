@@ -59,8 +59,19 @@ a cut a prefix length for each. Cited from the note, not from the ledger.
   `Witness.servedNow_restores`). The seal covers the key's versions as it covers its value: the
   history served at a cut ends at the value served there, and at every cut after a retire, the
   head included, it holds only versions landed after that retire (`getLast?_historyAt`,
-  `historyAt_append_of_retire`, `historyAt_of_retire_inside`, `sinceRetire_append_retire`). The
-  control is the erasure that deletes rows (`Witness.compact_moves`). For a keyed chain whose
+  `historyAt_append_of_retire`, `historyAt_of_retire_inside`, `sinceRetire_append_retire`). A
+  retire with no seal: the history of a key at a cut is its landings inside the cut, a derived
+  view of the prefix that holds everything the seal serves (`landingsAt_append`,
+  `landingsAt_mono`, `landingsAt_length`, `historyAt_suffix_landingsAt`). When a landing at a
+  retired path takes a fresh identity, the identity is a function of the events before the
+  landing, the history of the identity a path holds at a cut is the path's landings since its
+  last retire, and a retired identity keeps the life it had at every later cut and gains
+  nothing (`lives_take`,
+  `landingsAt_lives_present`, `landingsAt_lives_of_retire`, `landingsAt_lives_append`). The
+  controls: an identity used again after its retire, whose history holds the retired item's
+  versions, and the seal, under which a later retire empties a history that was served
+  (`Witness.reused_identity_inherits`, `Witness.seal_empties_history`). The control for the
+  erasure is the one that deletes rows (`Witness.compact_moves`). For a keyed chain whose
   holes keep their keys, the read of a key at a cut is its last write at or under the cut, a
   hole when that write is erased, and the three reads agree on it (`stateAt_holes`,
   `stateAt_holes_of_erased`, `not_erased_of_stateAt_holes`, `genRead_gens_holes`,
@@ -806,6 +817,176 @@ theorem historyAt_of_retire_inside (l t : List (κ × Option β)) (x : κ) {c : 
 theorem historyAt_length (l : List (κ × Option β)) (x : κ) :
     historyAt l l.length x = sinceRetire l x := by
   simp [historyAt, sealedAt]
+
+/-! ### A retire with no seal, and the fresh identity -/
+
+/-- SNP-1 With no seal the history of a key at a cut is append invariant: growth of the chain, a
+retire of the key included, changes nothing in it. -/
+theorem landingsAt_append {l : List (κ × Option β)} (t : List (κ × Option β)) {c : ℕ}
+    (hc : c ≤ l.length) (x : κ) : landingsAt (l ++ t) c x = landingsAt l c x := by
+  unfold landingsAt
+  rw [List.take_append_of_le_length hc]
+
+/-- SNP-4 At the head cut the history with no seal is every landing of the key. -/
+theorem landingsAt_length (l : List (κ × Option β)) (x : κ) :
+    landingsAt l l.length x = l.filterMap fun e ↦ if e.1 = x then e.2 else none := by
+  simp [landingsAt]
+
+/-- SNP-2 With no seal the history at an earlier cut is a prefix of the history at a later
+one. -/
+theorem landingsAt_mono (l : List (κ × Option β)) {a b : ℕ} (h : a ≤ b) (x : κ) :
+    landingsAt l a x <+: landingsAt l b x :=
+  (List.take_prefix_take_left h).filterMap _
+
+theorem sinceRetire_suffix_filterMap (m : List (κ × Option β)) (x : κ) :
+    sinceRetire m x <:+ m.filterMap fun e ↦ if e.1 = x then e.2 else none := by
+  induction m using List.reverseRecOn with
+  | nil => exact List.suffix_refl _
+  | append_singleton m e ih =>
+    rw [sinceRetire_append_singleton, List.filterMap_append]
+    by_cases hx : e.1 = x
+    · cases he : e.2 with
+      | none => simp [hx]
+      | some v =>
+        obtain ⟨p, hp⟩ := ih
+        refine ⟨p, ?_⟩
+        simp [hx, he, ← hp]
+    · simpa [hx] using ih
+
+/-- SNP-7 The history with no seal holds everything the stricter seal serves, as its end: the
+seal only withholds, and what it withholds are the landings before a retire. -/
+theorem historyAt_suffix_landingsAt (l : List (κ × Option β)) (c : ℕ) (x : κ) :
+    historyAt l c x <:+ landingsAt l c x := by
+  unfold historyAt landingsAt
+  split_ifs
+  · exact List.nil_suffix
+  · exact sinceRetire_suffix_filterMap _ x
+
+theorem retiresOf_append (l t : List (κ × Option β)) (x : κ) :
+    retiresOf (l ++ t) x = retiresOf l x + retiresOf t x := by
+  simp [retiresOf, List.filter_append]
+
+theorem retiresOf_reverse (l : List (κ × Option β)) (x : κ) :
+    retiresOf l.reverse x = retiresOf l x := by
+  simp [retiresOf, List.filter_reverse]
+
+theorem lives_append_singleton (l : List (κ × Option β)) (e : κ × Option β) :
+    lives (l ++ [e]) = lives l ++ [((e.1, retiresOf l e.1), e.2)] := by
+  simp [lives, livesRev, retiresOf_reverse]
+
+theorem length_lives (l : List (κ × Option β)) : (lives l).length = l.length := by
+  induction l using List.reverseRecOn with
+  | nil => rfl
+  | append_singleton l e ih => simp [lives_append_singleton, ih]
+
+/-- The identity a landing takes is a function of the events before it: the chain of lives of a
+prefix is the prefix of the chain of lives. So a landing run again takes the identity it took. -/
+theorem lives_take (l : List (κ × Option β)) (c : ℕ) : (lives l).take c = lives (l.take c) := by
+  induction l using List.reverseRecOn with
+  | nil => simp [lives, livesRev]
+  | append_singleton l e ih =>
+    rw [lives_append_singleton]
+    by_cases hc : c ≤ l.length
+    · rw [List.take_append_of_le_length (by rw [length_lives]; exact hc),
+        List.take_append_of_le_length hc, ih]
+    · rw [List.take_of_length_le (by simp [length_lives]; omega),
+        List.take_of_length_le (by simp; omega), lives_append_singleton]
+
+/-- No event of a path is keyed by a life the path has not reached. -/
+theorem le_retiresOf_of_mem_lives {l : List (κ × Option β)} {x : κ} {n : ℕ} {v : Option β}
+    (h : ((x, n), v) ∈ lives l) : n ≤ retiresOf l x := by
+  induction l using List.reverseRecOn with
+  | nil => simp [lives, livesRev] at h
+  | append_singleton l e ih =>
+    rw [lives_append_singleton, List.mem_append, List.mem_singleton] at h
+    rw [retiresOf_append]
+    rcases h with h | h
+    · exact (ih h).trans (Nat.le_add_right _ _)
+    · simp only [Prod.mk.injEq] at h
+      obtain ⟨⟨rfl, rfl⟩, -⟩ := h
+      exact Nat.le_add_right _ _
+
+theorem filterMap_lives_of_lt (l : List (κ × Option β)) (x : κ) {n : ℕ}
+    (h : retiresOf l x < n) :
+    (lives l).filterMap (fun e ↦ if e.1 = (x, n) then e.2 else none) = [] := by
+  rw [List.filterMap_eq_nil_iff]
+  rintro ⟨⟨y, m⟩, v⟩ hmem
+  by_cases hk : (y, m) = (x, n)
+  · simp only [Prod.mk.injEq] at hk
+    obtain ⟨rfl, rfl⟩ := hk
+    exact absurd (le_retiresOf_of_mem_lives hmem) (by omega)
+  · simp [hk]
+
+/-- The landings of a path's present identity are the path's landings since its last retire. -/
+theorem filterMap_lives_retiresOf (l : List (κ × Option β)) (x : κ) :
+    (lives l).filterMap (fun e ↦ if e.1 = (x, retiresOf l x) then e.2 else none)
+      = sinceRetire l x := by
+  induction l using List.reverseRecOn with
+  | nil => rfl
+  | append_singleton l e ih =>
+    rw [lives_append_singleton, List.filterMap_append, sinceRetire_append_singleton,
+      retiresOf_append]
+    by_cases hx : e.1 = x
+    · subst hx
+      cases he : e.2 with
+      | none =>
+        have h1 : retiresOf [e] e.1 = 1 := by simp [retiresOf, he]
+        rw [h1, filterMap_lives_of_lt l e.1 (Nat.lt_succ_self _)]
+        simp
+      | some v =>
+        have h0 : retiresOf [e] e.1 = 0 := by simp [retiresOf, he]
+        rw [h0, Nat.add_zero, ih]
+        simp
+    · have h0 : retiresOf [e] x = 0 := by simp [retiresOf, hx]
+      rw [h0, Nat.add_zero, ih]
+      simp [hx]
+
+/-- SNP-7 With a fresh identity at a retired path and no seal, the history of the identity a
+path holds at a cut is the path's landings since its last retire inside the cut: no version of
+an identity retired at the path is in it, at the head or at any cut. -/
+theorem landingsAt_lives_present (l : List (κ × Option β)) (c : ℕ) (x : κ) :
+    landingsAt (lives l) c (x, retiresOf (l.take c) x) = sinceRetire (l.take c) x := by
+  unfold landingsAt
+  rw [lives_take, filterMap_lives_retiresOf]
+
+/-- SNP-7 A retired identity keeps its history and gains nothing: at every cut that holds the
+retire, however the chain grows after it, the history of the identity retired there is the life
+it had. Under the stricter seal the same growth empties it (`historyAt_append_of_retire`). -/
+theorem landingsAt_lives_of_retire (l t : List (κ × Option β)) (x : κ) {c : ℕ}
+    (hc : l.length + 1 ≤ c) :
+    landingsAt (lives (l ++ (x, none) :: t)) c (x, retiresOf l x) = sinceRetire l x := by
+  unfold landingsAt
+  have h1 : (l ++ (x, none) :: t).take c
+      = l ++ (x, none) :: t.take (c - (l.length + 1)) := by
+    rw [List.take_append, List.take_of_length_le (by omega),
+      show c - l.length = (c - (l.length + 1)) + 1 by omega, List.take_succ_cons]
+  rw [lives_take, h1]
+  generalize t.take (c - (l.length + 1)) = b
+  induction b using List.reverseRecOn with
+  | nil =>
+    rw [lives_append_singleton, List.filterMap_append, filterMap_lives_retiresOf]
+    simp
+  | append_singleton b e ih =>
+    rw [show l ++ (x, none) :: (b ++ [e]) = (l ++ (x, none) :: b) ++ [e] by simp,
+      lives_append_singleton, List.filterMap_append, ih]
+    have hne : (e.1, retiresOf (l ++ (x, none) :: b) e.1) ≠ (x, retiresOf l x) := by
+      intro h
+      simp only [Prod.mk.injEq] at h
+      obtain ⟨rfl, h2⟩ := h
+      have : retiresOf ((e.1, none) :: b) e.1 = 1 + retiresOf b e.1 := by
+        rw [show (e.1, (none : Option β)) :: b = [(e.1, none)] ++ b by rfl, retiresOf_append]
+        simp [retiresOf]
+      rw [retiresOf_append, this] at h2
+      omega
+    simp [hne]
+
+/-- SNP-1 The history of an identity at a cut inside the chain is unchanged by any growth of the
+chain: a later retire or a later landing at its path closes nothing and adds nothing. -/
+theorem landingsAt_lives_append {l : List (κ × Option β)} (t : List (κ × Option β)) {c : ℕ}
+    (hc : c ≤ l.length) (y : κ × ℕ) :
+    landingsAt (lives (l ++ t)) c y = landingsAt (lives l) c y := by
+  unfold landingsAt
+  rw [lives_take, lives_take, List.take_append_of_le_length hc]
 
 omit [DecidableEq κ] in
 theorem holes_append (E : κ × β → Bool) (l t : List (κ × β)) :
@@ -1700,6 +1881,25 @@ theorem servedNow_restores :
       servedNow l c () = none ∧ servedNow (l ++ t) c () = some 0 := by
   refine ⟨[((), some 0), ((), none)], [((), some 1)], 1, by decide, ?_, ?_⟩ <;>
     simp [servedNow, stateAt, stateOf]
+
+/-- The control for the retire with no seal: an identity used again after its retire inherits.
+One path lands version 1, is retired, and lands version 2. Keyed by the path, the history at the
+head holds the retired item's version; keyed by lives, the new identity's holds version 2 alone
+and the retired identity's still holds version 1. -/
+theorem reused_identity_inherits :
+    ∃ l : List (Unit × Option ℕ),
+      landingsAt l l.length () = [1, 2] ∧
+        landingsAt (lives l) l.length ((), 1) = [2] ∧
+        landingsAt (lives l) l.length ((), 0) = [1] :=
+  ⟨[((), some 1), ((), none), ((), some 2)], by decide, by decide, by decide⟩
+
+/-- The control for the retire with no seal: what the stricter seal costs. A retire written
+after a cut empties the history the seal serves there, and leaves the history with no seal as
+it was. -/
+theorem seal_empties_history :
+    ∃ (l t : List (Unit × Option ℕ)) (c : ℕ), c ≤ l.length ∧
+      historyAt l c () = [5] ∧ historyAt (l ++ t) c () = [] ∧ landingsAt (l ++ t) c () = [5] :=
+  ⟨[((), some 5)], [((), none)], 1, by decide, by decide, by decide, by decide⟩
 
 /-- The control for SNP-10: under the horizon the pruned store reads a key as absent where it
 held a value. So the horizon is recorded, and a cut under it is not served. -/
