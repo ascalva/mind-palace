@@ -2,12 +2,12 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-100_rows_in_15_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-328_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-105_rows_in_16_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-375_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3651-brightgreen)](docs/runbook.md)
+[![tests](https://img.shields.io/badge/tests-3663-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -121,13 +121,13 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 26 statement files; 25,649 lines of models and proofs, 3,460 of statements, 5,757 of attacks |
-| theorems | 1,538 proved in `formal/Palace`; 328 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 100 rows in 15 families, 334 cited declarations, 87 law markers checked against the rows |
+| the library | 38 proof modules, 37 models, 27 statement files; 25,652 lines of models and proofs, 3,809 of statements, 5,757 of attacks |
+| theorems | 1,538 proved in `formal/Palace`; 375 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 105 rows in 16 families, 381 cited declarations, 92 law markers checked against the rows |
 | attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
 | the replay | 56,231 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
-| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field |
+| families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field · the temporal snapshot |
 
 ## The mathematics
 
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,651 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,663 tests
 uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
