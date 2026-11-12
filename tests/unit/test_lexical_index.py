@@ -593,3 +593,32 @@ def test_a_store_opened_while_another_holds_its_lock_opens_at_once_and_counts_it
     assert store._counted()                                 # that query counted them
     assert store.statistics(classes=[Provenance.OBSERVED], terms=["gap", "random"]) == counted
     recount(store)
+
+
+def test_the_runbooks_revert_step_lets_the_old_code_write_and_the_change_count_again(
+        tmp_path: Path):
+    """docs/runbook.md, reverting the kept statistics: once the triggers and the record are
+    dropped the code before the change writes the units again, and the change, if it lands
+    again, counts the statistics anew from them instead of trusting tables nobody kept."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta", "gamma"))
+    store.close()
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    with pytest.raises(sqlite3.IntegrityError):
+        old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    raw.executescript("DROP TRIGGER IF EXISTS units_kept_insert; "
+                      "DROP TRIGGER IF EXISTS units_kept_update; "
+                      "DROP TRIGGER IF EXISTS units_kept_delete; "
+                      "DELETE FROM meta WHERE key = 'statistics';")
+    old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    old_land(raw, TOKENIZER, "a.md", "v2", AUTHORED, "A", _chunks("delta"))
+    raw.close()
+    again = LexicalStore(path)                                # the change, landed again
+    assert again._counted()
+    assert recount(again)[0] == {(AUTHORED, 1, 1), (OBSERVED, 1, 1)}

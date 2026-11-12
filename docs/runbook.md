@@ -919,6 +919,28 @@ means restart** — a true stop is `launchctl bootout gui/$(id -u)/com.mind-pala
 Rollback = `git revert` + `deploy` again; the run ledger keeps every stretch pinned to its
 commit, so "what was live when" is always answerable.
 
+### Reverting the kept lexical statistics (2026-11-11)
+
+A revert does not take back what that change wrote into an instance's stores. Once a lexical
+index's statistics are counted, three triggers on its units (`units_kept_insert`,
+`units_kept_update`, `units_kept_delete`) refuse every write from code that does not keep the
+statistics, so the reverted code's landings, retires and resets raise. After the revert is
+deployed, drop them, and the record that the statistics are counted, in each instance's
+`lexical.sqlite` (beside its other stores):
+
+```sh
+sqlite3 <data dir>/lexical.sqlite "DROP TRIGGER IF EXISTS units_kept_insert;
+  DROP TRIGGER IF EXISTS units_kept_update; DROP TRIGGER IF EXISTS units_kept_delete;
+  DELETE FROM meta WHERE key = 'statistics';"
+```
+
+Not before: the code being reverted counts the statistics again, and installs the triggers with
+them, whenever an open or a query finds the record gone. The reverted code reads neither
+`class_stats` nor `term_stats`; deleting the record makes the change, if it lands again, count
+them anew rather than trust tables the reverted code did not keep. The ledger needs nothing: its
+`output_hashes` table and the trigger that fills it stay, and the trigger keeps the table on every
+append, whoever appends.
+
 ## CI witness — attested remote verdicts for the deploy gate (owner-operated)
 
 `ops/ci_witness.py` (CLI: `uv run scripts/ci_witness.py check <sha>` · `rotate`)
