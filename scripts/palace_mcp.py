@@ -5,12 +5,13 @@
     uv run --project ~/mind-palace python scripts/palace_mcp.py --role guest
     uv run --project ~/mind-palace python scripts/palace_mcp.py --manifest > edge/palace_tools.json
 
-Seals the core first (Invariant 1), then speaks MCP over stdin/stdout; see
-`agents/ambassador/mcp.py` for the tools and the scoping they enforce. With no `--role`, or
-`--role ambassador`, it is the Ambassador's surface; `--role guest` is an external agent's,
-read-only under the `GUEST` grant (`query` and `overview`, dn-guest-principal). `--manifest`
-prints the Open WebUI bridge's tool list instead (`agents.ambassador.handoff.web_manifest`):
-regenerate the committed file whenever the Ambassador's tool table changes.
+Seals the core first (Invariant 1), then speaks MCP over stdin/stdout, stdout kept for the
+protocol (`protocol_stream`); see `agents/ambassador/mcp.py` for the tools and the scoping they
+enforce. With no `--role`, or `--role ambassador`, it is the Ambassador's surface; `--role guest`
+is an external agent's, read-only under the `GUEST` grant (`query` and `overview`,
+dn-guest-principal). `--manifest` prints the Open WebUI bridge's tool list instead
+(`agents.ambassador.handoff.web_manifest`): regenerate the committed file whenever the
+Ambassador's tool table changes.
 """
 
 from __future__ import annotations
@@ -46,14 +47,17 @@ def main() -> None:
         return
     role = role_of(sys.argv[1:])
     seal()  # structural egress guard first (Invariant 1); only loopback model servers are reachable
-    from agents.ambassador.mcp import ROLES, Server, serve
+    from agents.ambassador.mcp import ROLES, Server, protocol_stream, serve
 
     if role not in ROLES:
         sys.exit(f"palace_mcp: --role is one of {', '.join(ROLES)}")
+    # the replies go to a copy of stdout, and stdout itself to stderr: what anything else in the
+    # process writes there, a library's C code or a child process, cannot reach the client
+    stream = protocol_stream()
     if role == "ambassador":
-        serve()
+        serve(stdout=stream)
     else:
-        serve(server=Server(role))
+        serve(stdout=stream, server=Server(role))
 
 
 if __name__ == "__main__":

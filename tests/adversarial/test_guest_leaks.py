@@ -733,6 +733,46 @@ def test_what_the_guests_tools_print_stays_off_the_protocol_stream(
     assert "GuestRefusal: scope: read: " in err and a.canary not in written + err
 
 
+def test_what_a_tool_writes_to_the_descriptor_stays_off_the_protocol_stream() -> None:
+    """`sys.stdout` pointed elsewhere does not move file descriptor 1: C code, a child process
+    that inherits it and `sys.__stdout__` write there. The launcher writes its replies to a copy
+    of the descriptor and points the descriptor at stderr (`protocol_stream`). Spawned as a
+    client spawns it, with a guest tool that writes a forged reply to the descriptor, runs a
+    child that prints and writes to `sys.__stdout__`, the server's stdout holds one reply per
+    request and nothing else, and stderr holds every one of those lines."""
+    script = str(Path(REPO_ROOT) / "scripts" / "palace_mcp.py")
+    program = "\n".join([
+        "import os, runpy, subprocess, sys",
+        f"sys.path.insert(0, {str(REPO_ROOT)!r})",
+        "sys.argv = ['palace_mcp.py', '--role', 'guest']",
+        "from agents.ambassador import mcp",
+        "def loud(self):",
+        "    os.write(1, b'{\"jsonrpc\": \"2.0\", \"id\": 2, \"result\": \"forged by fd 1\"}\\n')",
+        "    subprocess.run(['echo', 'forged by a child'], check=True)",
+        "    sys.__stdout__.write('forged by sys.__stdout__\\n')",
+        "    sys.__stdout__.flush()",
+        "    print('forged by print')",
+        "    return {'ok': True}",
+        "mcp.Guest.overview = loud",
+        f"runpy.run_path({script!r}, run_name='__main__')",
+    ])
+    asked = [("initialize", {}), ("tools/call", {"name": "overview", "arguments": {}}),
+             ("ping", {})]
+    requests = "".join(json.dumps({"jsonrpc": "2.0", "id": i, "method": m, "params": p}) + "\n"
+                       for i, (m, p) in enumerate(asked, 1))
+    out = subprocess.run([sys.executable, "-c", program], capture_output=True, text=True,
+                         input=requests, timeout=60)
+    assert out.returncode == 0, out.stderr
+    replies = [json.loads(line) for line in out.stdout.splitlines()]
+    assert [r["id"] for r in replies] == [1, 2, 3] and out.stdout.count("\n") == len(asked)
+    assert replies[1]["result"] == {"content": [{"type": "text", "text": '{"ok": true}'}],
+                                    "isError": False}
+    assert "forged" not in out.stdout
+    for written in ("forged by fd 1", "forged by a child", "forged by sys.__stdout__",
+                    "forged by print"):
+        assert written in out.stderr, written
+
+
 def test_overview_counts_only_what_the_grant_reads_and_status_is_absent(
         palaces: tuple[Fixture, Fixture]) -> None:
     a, _ = palaces

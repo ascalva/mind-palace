@@ -17,10 +17,11 @@ never the notes or their interpretations, and `overview`; no write tool, no requ
 
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
 `tools/list`, `tools/call`; a line that is no request is answered with JSON-RPC's error for it,
-and the server reads on (`_answer`). A tool runs with `sys.stdout` pointed at stderr
-(`Server.handle`), so what an operation or a library under it prints joins the diagnostics on
-stderr and stdout carries protocol messages only. The client that spawned the process holds both
-streams.
+and the server reads on (`_answer`). Stdout carries protocol messages only. The launcher writes
+the replies to a copy of file descriptor 1 and points the descriptor itself at stderr
+(`protocol_stream`), and a tool runs with `sys.stdout` pointed at stderr (`Server.handle`), so
+what an operation, a library under it or a child process writes joins the diagnostics on
+stderr. The client that spawned the process holds both streams.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ import sys
 import traceback
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 
 if TYPE_CHECKING:
     from core.query import QueryEngine
@@ -735,6 +736,30 @@ def _answer(server: Server, line: str) -> dict[str, Any] | None:
                 print(traceback.format_exc(), file=sys.stderr)
         mid = msg.get("id") if isinstance(msg, dict) else None
         return _err(mid if _is_id(mid) else None, -32603, "internal error")
+
+
+def protocol_stream() -> TextIO:
+    """The process's stdout, kept for the protocol alone. File descriptor 1 is copied to a
+    descriptor of its own for the replies, one a child process does not inherit, and then
+    pointed at stderr's file, or at the null device when the process has no stderr. Whatever
+    writes to descriptor 1 from then on, C code, a child process that inherits it or
+    `sys.__stdout__`, lands with the diagnostics and never in the stream the client reads;
+    `Server.handle` points `sys.stdout` at stderr as well, for a stream that is not
+    descriptor 1. The launcher (`scripts/palace_mcp.py`) serves on it."""
+    import fcntl
+    import os
+
+    if sys.stdout is not None:
+        sys.stdout.flush()
+    keep = fcntl.fcntl(1, fcntl.F_DUPFD_CLOEXEC, 3)
+    try:
+        os.fstat(2)
+        os.dup2(2, 1)
+    except OSError:                         # no stderr: what is written to descriptor 1 is dropped
+        null = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(null, 1)
+        os.close(null)
+    return open(keep, "w", encoding="utf-8", newline="\n")
 
 
 def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -> None:
