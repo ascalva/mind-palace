@@ -3,9 +3,15 @@
 #
 # Selected by `MIND_PALACE_OVERLAY=config/instances/corpus.toml`. A named overlay replaces the whole
 # per-machine chain, so nothing of Ouroboros's `ouroboros.toml` or `levers.toml` reaches this
-# instance, and every namespace it holds (data, spools, locks, identities, the corpus streams) is
-# derived from its id under `<root>/instances/corpus/` (DI-2). It declares no vault, no transcripts
-# and no code agent, so it reads none of the default instance's sources.
+# instance, and every namespace it holds (data, spools, locks, identities, the corpus streams) lies
+# under its root (DI-2). It declares no vault, no transcripts and no code agent, so it reads none of
+# the default instance's sources.
+#
+# Its root is its own, outside every checkout and worktree (dn-instance-lifecycle §7): the data was
+# moved to `~/.mind-palace/instances/corpus` on 2026-11-11, and the old location, `instances/corpus`
+# in the corpus stage-1 worktree, is a symbolic link to it. It is a dataset other instances draw on
+# (read only, in place, or through the shared cache once `palace cache fill` has run under this
+# overlay) and the fixture for regression and stress runs.
 #
 # It has one writer, `scripts/corpus.py ingest`, a process its operator starts and stops; no
 # LaunchAgent is installed for it and no daemon tick runs it. The edge readers (`edge/corpus/`)
@@ -14,6 +20,7 @@
 
 [instance]
 id = "corpus"
+root = "~/.mind-palace/instances/corpus"
 
 # The stack's embedder, shared with the default instance's daemon when that runs: the runner
 # yields to other callers (dn-corpus-instance §5.1).
