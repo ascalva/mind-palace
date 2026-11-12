@@ -64,6 +64,10 @@ CREATE INDEX IF NOT EXISTS vault_files_digest ON vault_files (digest, active);
 """
 
 
+_BUSY_MS = 5000             # sqlite3.connect's own timeout, five seconds
+_GENESIS_WAIT_MS = 120_000  # how long an open before the genesis waits for another's lock
+
+
 def _utcnow() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
@@ -92,13 +96,26 @@ class VaultCatalog:
         self._conn.row_factory = sqlite3.Row
         self._log = LandingLog(self._conn, self._landing_key)
         try:
+            # Until the log's genesis is written another process may be writing it, six seconds
+            # on a catalog of 400,274 rows: the migration then waits for its lock longer than the
+            # connection's five seconds. Once the log has chains an open waits as it always did.
+            if not self._logged():
+                self._conn.execute(f"PRAGMA busy_timeout = {_GENESIS_WAIT_MS}")
             self._conn.execute("PRAGMA journal_mode=WAL")
             self._conn.executescript(_DDL)
             self._migrate()
             self._conn.commit()
+            self._conn.execute(f"PRAGMA busy_timeout = {_BUSY_MS}")
         except BaseException:
             self._conn.close()
             raise
+
+    def _logged(self) -> bool:
+        """Whether the file holds the landing log with a chain: read only, no lock taken."""
+        if self._conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                              "AND name = 'landing_chains'").fetchone() is None:
+            return False
+        return self._log.has_chains()
 
     def _landing_key(self) -> bytes:
         return parse_key(self.key.hex()) if self.key is not None else landing_log_key()
