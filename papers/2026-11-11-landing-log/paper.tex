@@ -326,12 +326,13 @@ Every read of a chain must be a prefix of the read at its head (SNP-2); the fold
 taken, continued over the rows since, must be the catalog (SNP-3); the state of a path at the head
 must be its catalog row (SNP-4); and at every position of every chain, the genesis's included, the
 seek, the closing-stamp read and the fold of the prefix must give every path the same row, with no
-path alive twice (SNP-5). Twenty more tests take the stage's cases: a write that changes nothing,
-and a landing the writer's unchanged check skips, append nothing; the writer and the sync carry
-each landing's version; a change of identity follows a \lean{move}, and a re-key carries the
-version; each of the six writes, its process killed or the write failed between the catalog's row
-and the log's, leaves neither, in a batch too when its caller catches the error and goes on; a
-failed batch leaves no log row; the genesis is the catalog, closes each tombstoned path's
+path alive twice (SNP-5). Twenty-one more tests take the stage's cases: a write that changes
+nothing, and a landing the writer's unchanged check skips, append nothing; the writer, in a
+batched landing too, and the sync carry each landing's version; a change of identity follows a
+\lean{move}, and a re-key carries the version; each of the six writes, its process killed or the
+write failed between the catalog's row and the log's, leaves neither, in a batch too when its
+caller catches the error and goes on, while the batch's other writes commit; a failed batch leaves
+no log row; the genesis is the catalog, closes each tombstoned path's
 \lean{store} and ends at a horizon; a relabel into a class that has rows changes no row, closed
 rows and holes included; a history over two chains of a class follows its rule; a purge of an old
 version of a live path is a hole by all three reads at a cut where it was the head, and a purge of
@@ -341,7 +342,10 @@ what appends a row or seeks a path by its key and by nothing else, and another i
 every statement by path is planned on the key index. Of 58 bugs seeded one at a time, from a
 write that skips its log row to a purge that keeps a title, every one fails the suite on a fixed
 seed but one that changes nothing, a write of a null over a null; the two that only the property
-test catches fail it on four seeds more.
+test catches fail it on four seeds more. A second review seeded 29 more, four of which passed (a
+batch rolled back whole, a batched landing's version dropped, and a check of holes that left out a
+column, twice); with the tests it asked for, those 29 and three seeded in the purge's emptying by
+position all fail it on that seed.
 
 \paragraph{What is measured.}
 \Cref{tab:measure} gives two runs of the committed harness on two copy-on-write clones of the
@@ -420,7 +424,7 @@ of the later one. The secret is an operational dependency: the first open of a c
 log writes the genesis, whichever process opens it, a reader's included, so that open needs the
 secret, as does every write that appends a row, and a lost secret leaves the log unwritable.
 Whether the genesis should move to a writer's first write, so that no reader needs the secret, is
-left to the design's owner. Every head of a class is read at 3.5 to 3.9~$\mu$s a head returned,
+left to the design's owner; a writer needs it under either choice. Every head of a class is read at 3.5 to 3.9~$\mu$s a head returned,
 which the stage that reads the notes at a cut must lower or bound first. The measurements are of
 one instance, one class and no deletions; a catalog of several classes, with identities apart from
 paths, is tested and not measured.
