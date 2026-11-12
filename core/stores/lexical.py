@@ -34,6 +34,9 @@ count holds the file's write lock while it runs and does not wait for it: a proc
 the store while another process counts it, or holds a write, opens at once, and until the
 statistics are counted a query counts its own from the units, as every query did before they
 were kept (the same integers, so the same scores); a writer waits for the lock as for any write.
+A count that fails for any other reason (a file the process cannot write, a full disk) is rolled
+back and leaves the store as it was, and its queries count their own until it is opened again:
+no open or query fails because of the count.
 
 The rows a query scores are read from the query terms' postings, or from the given paths' units
 when a caller passes paths (the palace's own call, `core/sentence/universe.py`), and the
@@ -80,8 +83,7 @@ _SUM_TERMS = 500
 _STATISTICS = "statistics"     # the meta key set once the statistics are counted
 _WRITER = "writer"             # the meta key this class's write transactions hold while they run
 _BUSY_MS = 30000               # how long a write waits for another connection's write lock
-# a write lock another connection holds, or a file this process cannot write
-_UNWRITABLE = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_READONLY)
+_LOCKED = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)     # a lock another connection holds
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS units (
@@ -140,10 +142,10 @@ def _now() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
 
 
-def _unwritable(exc: sqlite3.Error) -> bool:
-    """Whether a statement failed because another connection holds the write lock or the file
-    cannot be written by this process, rather than for a fault of its own."""
-    return (getattr(exc, "sqlite_errorcode", 0) & 0xFF) in _UNWRITABLE
+def _locked(exc: sqlite3.Error) -> bool:
+    """Whether a statement failed because another connection holds a lock on the file, rather
+    than for a fault of the file or of the statement."""
+    return (getattr(exc, "sqlite_errorcode", 0) & 0xFF) in _LOCKED
 
 
 def _batches(items: Sequence[str]) -> Iterator[Sequence[str]]:
@@ -231,6 +233,7 @@ class LexicalStore:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute(f"PRAGMA busy_timeout={_BUSY_MS}")
         self._conn.executescript(_DDL)
+        self._count_failed = False      # a count failed but for the lock: not tried again here
         self._migrate()
 
     def close(self) -> None:
@@ -250,7 +253,7 @@ class LexicalStore:
         try:
             conn.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as exc:
-            if wait or not _unwritable(exc):
+            if wait or not _locked(exc):
                 raise
             return False
         finally:
@@ -278,15 +281,19 @@ class LexicalStore:
     def _migrate(self) -> bool:
         """Count the statistics of a store that has none yet (one written before they existed,
         or whose record of them was removed), from its current units, in one transaction, and
-        install the units' guards with them; True once they are counted. The count does not wait
-        for the file's write lock: while another connection holds it (another process counting,
-        or writing) or the file cannot be written, nothing is counted, the answer is False, and
-        the store's queries count their statistics from the units (`statistics`) until a later
-        open or query counts them. A store whose units another tokenizer made is left alone: it
+        install the units' guards with them; True once they are counted. Only the open and the
+        queries call it, and it never fails them. The count does not wait for the file's write
+        lock: while another connection holds it (another process counting, or writing) nothing
+        is counted, the answer is False, and a later query tries again. Any other failure of
+        the count (a file this process cannot write, a full disk, an I/O error) rolls it back,
+        leaves the store as it was and answers False, and this store does not try again, so a
+        file that cannot take the count is not read through again at every query; its next
+        open does. Until they are counted, the store's queries count their statistics from the
+        units (`statistics`). A store whose units another tokenizer made is left alone: it
         neither lands nor scores until it is re-derived, and its `reset` counts them."""
         if self._counted():
             return True
-        if self.stale or self._conn.in_transaction:
+        if self.stale or self._conn.in_transaction or self._count_failed:
             return False
         try:
             if not self._begin(wait=False):
@@ -294,11 +301,10 @@ class LexicalStore:
             if not self._counted():
                 self._count_statistics()
             self._commit()
-        except sqlite3.OperationalError as exc:
+        except sqlite3.Error as exc:
             self._rollback()
-            if _unwritable(exc):
-                return False
-            raise
+            self._count_failed = not _locked(exc)
+            return False
         except BaseException:
             self._rollback()
             raise

@@ -595,6 +595,62 @@ def test_a_store_opened_while_another_holds_its_lock_opens_at_once_and_counts_it
     recount(store)
 
 
+@pytest.mark.parametrize("fault", ["read-only", "full"])
+def test_a_store_that_cannot_take_the_count_opens_and_answers_from_its_units(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str):
+    """The count is a write the open and the queries make, and it never fails them. When it
+    fails for a reason other than another connection's lock (a file this process cannot write;
+    a full file, which SQLite refuses as a full disk refuses it), it is rolled back, the store
+    stays as it was and scores as the old statements do, its statistics counted from the units,
+    and it does not try the count again until it is opened again; a write fails, as any write
+    to such a file does. Its next open counts them."""
+    import os
+    import sqlite3
+    import stat
+
+    from tests.fixtures.lexical_reference import new_search, old_scores, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    connect = sqlite3.connect
+
+    def full(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        conn = connect(*args, **kwargs)
+        (pages,) = conn.execute("PRAGMA page_count").fetchone()
+        conn.execute(f"PRAGMA max_page_count = {pages}")         # not one page more
+        return conn
+
+    if fault == "full":
+        monkeypatch.setattr(sqlite3, "connect", full)
+    else:
+        os.chmod(path, stat.S_IRUSR)
+    try:
+        store = LexicalStore(path)
+        assert not store._counted() and not store._conn.in_transaction
+        ran: list[str] = []
+        store._conn.set_trace_callback(ran.append)
+        for q in ("spectral gap", "random graphs", "the gap", "absent"):
+            for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO]):
+                assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10,
+                                                                             classes=cls)
+                assert store.scores(q, classes=cls) == old_scores(store, q, classes=cls)
+        assert not any("BEGIN" in s for s in ran) and not store._counted()   # not tried again
+        store._conn.set_trace_callback(None)
+        with pytest.raises(sqlite3.OperationalError, match="readonly|full"):
+            store.land(source_path="e.md", digest="v1", provenance=OBSERVED, title="E",
+                       chunks=_chunks(" ".join(f"w{i}" for i in range(2000))))
+        assert not store._conn.in_transaction
+        store.close()
+    finally:
+        for name in ("", "-wal", "-shm"):   # SQLite made the companions read-only, as the file
+            if Path(f"{path}{name}").exists():
+                os.chmod(f"{path}{name}", stat.S_IRUSR | stat.S_IWUSR)
+    monkeypatch.undo()
+    again = LexicalStore(path)
+    assert again._counted()
+    recount(again)
+
+
 def test_the_runbooks_revert_step_lets_the_old_code_write_and_the_change_count_again(
         tmp_path: Path):
     """docs/runbook.md, reverting the kept statistics: once the triggers and the record are
