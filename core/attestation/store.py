@@ -130,13 +130,13 @@ class AttestationStore:
     def _migrate(self) -> bool:
         """Give a ledger written before the output-hash side table its table, its rows and its
         trigger, in one transaction (another process may have done it first: checked again
-        inside); True once the table exists. Only the open and the lookups call it, and it never
-        fails them. The migration does not wait for the write lock: while another connection
-        holds it nothing is written, the answer is False, and the lookups pass over the records
-        until a later lookup finds the table or makes it. Any other failure (a file this process
-        cannot write, a full disk, an I/O error) is rolled back and answers False, and this store
-        does not try again; its next open does. A crash midway leaves the ledger as it was, to be
-        migrated at the next open."""
+        inside); True once the table exists. Only the open and the lookups call it, and no SQLite
+        error of the migration reaches them. The migration does not wait for the write lock: while
+        another connection holds it nothing is written, the answer is False, and the lookups pass
+        over the records until a later lookup finds the table or makes it. Any other failure (a
+        file this process cannot write, a full disk, an I/O error) is rolled back and answers
+        False, and this store does not try again; its next open does. A crash midway leaves the
+        ledger as it was, to be migrated at the next open."""
         if self._has_outputs():
             return True
         conn = self._conn

@@ -282,15 +282,15 @@ class LexicalStore:
         """Count the statistics of a store that has none yet (one written before they existed,
         or whose record of them was removed), from its current units, in one transaction, and
         install the units' guards with them; True once they are counted. Only the open and the
-        queries call it, and it never fails them. The count does not wait for the file's write
-        lock: while another connection holds it (another process counting, or writing) nothing
-        is counted, the answer is False, and a later query tries again. Any other failure of
-        the count (a file this process cannot write, a full disk, an I/O error) rolls it back,
-        leaves the store as it was and answers False, and this store does not try again, so a
-        file that cannot take the count is not read through again at every query; its next
-        open does. Until they are counted, the store's queries count their statistics from the
-        units (`statistics`). A store whose units another tokenizer made is left alone: it
-        neither lands nor scores until it is re-derived, and its `reset` counts them."""
+        queries call it, and no SQLite error of the count reaches them. The count does not wait
+        for the file's write lock: while another connection holds it (another process counting,
+        or writing) nothing is counted, the answer is False, and a later query tries again. Any
+        other failure of the count (a file this process cannot write, a full disk, an I/O error)
+        rolls it back, leaves the store as it was and answers False, and this store does not try
+        again, so a file that cannot take the count is not read through again at every query;
+        its next open does. Until they are counted, the store's queries count their statistics
+        from the units (`statistics`). A store whose units another tokenizer made is left alone:
+        it neither lands nor scores until it is re-derived, and its `reset` counts them."""
         if self._counted():
             return True
         if self.stale or self._conn.in_transaction or self._count_failed:
