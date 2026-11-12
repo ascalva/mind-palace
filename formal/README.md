@@ -327,7 +327,12 @@ Roundoff and FloatModel, so it has no statements of its own):
   value only by removing it, where the looser seal that withholds a key only while it is not
   live serves everything the stricter one serves and is lifted by a later landing; the seal
   covers a key's versions as it covers its value, so after a retire the history served holds
-  only versions landed since, at every cut; and on a keyed chain whose holes keep their keys
+  only versions landed since, at every cut; with no seal, which the design takes for a retire,
+  the history of a key at a cut is its landings inside the cut, append invariant and ending
+  with what the stricter seal serves, and where a landing at a retired path takes a fresh
+  identity (`lives`) the identity is a function of the events before it, the history of the
+  identity a path holds is the path's landings since its last retire, and a retired identity
+  keeps the life it had at every later cut; and on a keyed chain whose holes keep their keys
   the read of a key at a cut is its last write at or under the cut, a hole when that write is
   erased; SNP-8 resolution: the consistent cuts (every source of an event inside is inside) are
   CLK-2's cuts among the frontier cuts, so their closure under meet and join is CLK-2's, derived
@@ -355,15 +360,17 @@ Roundoff and FloatModel, so it has no statements of its own):
   alone, every other chain read as asked, and a chain that reads the lowered chains and that
   nothing but itself reads, as a chain of records does, follows them and takes nothing with
   it. The grant and the erasure applied to one read
-  (`shown`) keep the laws of each. The eighteen controls as theorems, in `Witness`: the reader
+  (`shown`) keep the laws of each. The twenty controls as theorems, in `Witness`: the reader
   that ignores the cut (`present_not_appendInvariant`), the store rewritten in place
   (`stateOf_forgets`), an event filter applied before the cut (`filter_before_cut`), positions
   that count hidden events (`position_channel`), the erasure that deletes rows
   (`compact_moves`), the looser seal lifted by a later landing (`servedNow_restores`), the
   pruned store read under its horizon and unable to tell a lost key from one never written
   (`prune_forgets`, `prune_indistinct`), a digest with collisions (`digest_collides`), a hole
-  that loses its key (`keyless_hole`), a seal written after a certified cut
-  (`seal_not_certified`), a renamed chain (`rename_breaks_certificate`), a record on a chain
+  that loses its key (`keyless_hole`), an identity used again after its retire, which
+  inherits the retired item's versions (`reused_identity_inherits`), a served history that a
+  later retire empties under the seal (`seal_empties_history`), a seal written after a
+  certified cut (`seal_not_certified`), a renamed chain (`rename_breaks_certificate`), a record on a chain
   that content reads (`record_drags`), a chain of records lowered with a chain it certifies
   (`record_follows`), a pass attestation whose reference to a landing is resolved, and the
   same reference filtered, where the prefix is not closed and the filtered read is
@@ -901,12 +908,12 @@ at a gain above the rate the ceiling is fixed, on the first instance; at exponen
 not constant, on the first instance; and the greedy walk's empirical measure is not within `1/8`
 of the structural stationary distribution, on the first instance.
 
-The snapshot is attacked on the model's own definitions (seeds 430 to 520): stores of two
+The snapshot is attacked on the model's own definitions (seeds 430 to 528): stores of two
 chains over three events, cuts from two naturals, keyed chains over three keys, chains of
 landings and retires from codes, grants from two bits and event filters and erasures from three,
 reads-from relations as lists of edges between the two chains at positions under four, a
 digest that reads a chain as a numeral in base four, which is collision free, and the positions
-a chain serves from ten bits. Forty-nine attacks survived, every one all 500 instances: the read
+a chain serves from ten bits. Fifty-four attacks survived, every one all 500 instances: the read
 at a cut and between two cuts under growth; the prefix order and the meet; the two compositions
 and the journal; the head cut; the generational store against the recomputed state and the last
 write, one generation alive at most, the same under growth, and the keyed journal; an event of
@@ -915,7 +922,10 @@ narrower grant, the chains a snapshot reads, and the grant and the erasure toget
 (nothing erased visible or shown, positions kept, the holes dropped), the keyed read on a chain
 whose holes keep their keys, the retire that seals every earlier cut, growth that only removes,
 the two seals in their order, the history served under the seal, and the kept rows with their
-sources; the resolver, the meet and the join of consistent cuts, and the monotone resolution;
+sources; the history with no seal under growth, ending with what the seal serves and growing by
+prefix, the history of the identity a path holds under fresh identities, a retired identity's
+history at every later cut, and the identity a landing takes as a function of the events before
+it; the resolver, the meet and the join of consistent cuts, and the monotone resolution;
 the certificate under growth, the digest of a reversed chain, the certificate over the delta, at
 the meet and the join, and across an erasure on a committed store; the pruned generational
 store at and past its horizon, never wrong under it, and two horizons as the later one; and,
@@ -930,7 +940,7 @@ lowers a frontier until no event inside it has a source outside, checked against
 consistent cut by enumerating the thirty-six cuts of the grid (461), and its alternation with
 the floor to the served positions, checked against the greatest consistent served cut (492).
 
-The forty-two controls, each refuted, with the instances it took. A read at a cut past the
+The forty-five controls, each refuted, with the instances it took. A read at a cut past the
 head changes with growth, for the prefix, the read between two cuts and the generational store
 (11, 11, 7). The read at one cut is a prefix of the read at any other (6); a cut of a cut is
 the join (5); the read at a cut that is not the head is the store (8). The composition with
@@ -941,7 +951,9 @@ applied before the cut (26); a hidden event more before the cut (7); a narrower 
 smaller erasure (45). An erasure that deletes rows (29); a seek over the rows that kept their
 key, and over the chain with its holes deleted (35, 17); the state served without the seal
 (53); the looser seal as one under which growth only removes (48); the history without the
-seal (33); the kept rows served without their sources (11). The frontier taken for a
+seal (33); the sealed history taken for append invariant (30); a path's identity used again
+after its retire (30); a retired identity's history taken for empty (18); the kept rows served
+without their sources (11). The frontier taken for a
 consistent cut (11); a consistent cut advanced by one position (12); resolution falling as the
 frontier rises (6). The additive digest (11); a digest over the contents (14); the certificate
 of a cut past the head (6); the meet certified from the later digest (5). The pruned store read
