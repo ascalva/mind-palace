@@ -6,7 +6,7 @@
 [![Lean statements](https://img.shields.io/badge/Lean-328_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-227_with_controls-blue)](formal/PalaceTest)
+[![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
 [![tests](https://img.shields.io/badge/tests-3651-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 26 statement files; 25,426 lines of models and proofs, 3,460 of statements, 5,705 of attacks |
-| theorems | 1,520 proved in `formal/Palace`; 328 statements in `formal/Spec` judged identical by the comparator |
+| the library | 38 proof modules, 37 models, 26 statement files; 25,649 lines of models and proofs, 3,460 of statements, 5,757 of attacks |
+| theorems | 1,538 proved in `formal/Palace`; 328 statements in `formal/Spec` judged identical by the comparator |
 | the ledger | 100 rows in 15 families, 334 cited declarations, 87 law markers checked against the rows |
-| attacks | 227 Plausible attacks and 203 negative controls over 33 modules, fixed seeds |
+| attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 56,188 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| the replay | 56,231 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field |
 
 ## The mathematics
