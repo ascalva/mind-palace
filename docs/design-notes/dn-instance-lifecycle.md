@@ -3,7 +3,7 @@ type: design-note
 id: dn-instance-lifecycle
 track: deployed-instances
 status: draft                  # provenance description, never a gate; the merge is ratification
-implementation: design-only    # part A of the pull request; part B builds what §4 to §8 say
+implementation: built          # part B built §4 to §8; §10 records where the build departs
 created: 2026-11-12
 updated: 2026-11-12
 links:
@@ -613,6 +613,38 @@ Each is proposed, with the recommendation first.
   command that lands.
 - **D13, the corpus's configuration** declares `[instance] root = "~/.mind-palace/instances/corpus"`
   in `config/instances/corpus.toml`.
+
+## 10. As built
+
+Part B built §3 to §8 with these departures, each found in the code:
+
+1. **The membership store is kept, not rebuilt (§3.3 step 5).** `memberships.sqlite` holds the code
+   atoms' embedder ledger (`MembershipStore.record_atoms`, `known_atoms` by embedder identity)
+   beside the occupancy rows, so deleting the file would forget which code atoms the plane holds
+   and make the code lane embed them again. It is classed as kept; `palace code-rebuild` remains
+   what derives its occupancy. The rebuild runs steps 1 to 4 and 6 to 10.
+2. **Code membership vectors do not enter the cache (§6.4).** No reader takes a code atom back from
+   the cache (the code lane does not look there), so caching them would store what nothing reads.
+   The vectors that enter are the plane's prose atoms held by open items.
+3. **The reuse wiring is `with_cache`, not `build_stores` (§6.5).** `core/ingest/ingress.py` is
+   changed by pull request #89, so the cache is attached to the writer's stores by
+   `core.stores.cache.with_cache` where the drain runs: the embed job, `palace embed`, the reset and
+   the corpus runner. A landing through `run_library` alone does not take raw objects from the
+   cache.
+4. **A source is reused when its stream is empty (§6.5).** The edge readers write streams, not
+   whole downloads, so the reuse is `scripts/corpus.py fetch` copying a cached stream, checked file
+   by file against its manifest, into a source that has none before the reader resumes it.
+5. **A derived root `<repo>/instances/<id>` may be destroyed (§6.1, §6.2).** It lies in a working
+   tree but is the gitignored instance directory §6.2 names; any other root in a working tree
+   refuses. A root that is itself a symbolic link refuses too.
+6. **A rebuild step whose input store is absent writes nothing**: the chat events without a chat
+   log, the causal edges without chat events, the agent observations without a repository, so a
+   reset creates no empty store an instance never had.
+7. **The vector drain keeps only a cached vector of the plane's width**, so a cache filled under a
+   key whose geometry the configuration names but the plane does not hold is never landed.
+8. **The corpus's lexical index predates the recorded tokenizer.** The read-only check of §7 found
+   no `meta` table: by the store's own rule its units are the legacy tokenizer's, so the next
+   landing into the corpus re-derives its 1,369,944 units before it lands (§5).
 
 ## Falsifiers
 
