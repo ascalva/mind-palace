@@ -1,7 +1,8 @@
 """The lexical index as it was before its statistics were kept (core/stores/lexical.py at
-f969904e), kept verbatim as the reference the rewritten statements are tested against: the
-schema, the landing, and the scoring statements (one count of each term's document frequency and
-one row statement a term, scored in Python, a sort of every scored unit).
+f969904e), kept as the reference the rewritten statements are tested against: the schema, the
+landing and the scoring statements, their SQL verbatim, as functions of a connection (one count of
+each term's document frequency and one row statement a term, scored in Python, a sort of every
+scored unit).
 """
 
 from __future__ import annotations
