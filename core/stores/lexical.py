@@ -16,11 +16,26 @@ was opened is known not to be: the drain tells the two apart (`derive.pending`) 
 lands the second (`derive.derive_lexical`).
 
 A query is scored over the current units of the classes a reader may see, by the arithmetic of
-`core/ingest/lexical.py`, with the document frequencies, the unit count and the mean length read
-from the current units at query time; so a landing changes no stored weight, and the index
-needs no rebuild as the corpus grows. The index is derived and regenerable: it can be rebuilt
-from the raw store and the catalog, and nothing but a lexical `near` and the UNCHANGED check of a
-lazy landing reads it.
+`core/ingest/lexical.py`, with the unit count, the mean length and the document frequencies of
+those classes' current units. They are kept, not counted at query time: per class, the current
+units and their total length (`class_stats`), and per class and term, the current units holding
+the term (`term_stats`), written in the transaction of every write that changes which units are
+current (a landing, a retire, a reset), from the units whose currency the transaction changed. A
+reader's statistics are the sums over its cleared classes' rows and nothing else, so a filtered
+read is a function of the cleared rows alone, as when they were counted. A landing changes no
+stored weight, and the index needs no rebuild as the corpus grows. The index is derived and
+regenerable: it can be rebuilt from the raw store and the catalog, and nothing but a lexical
+`near` and the UNCHANGED check of a lazy landing reads it. A store written before the statistics
+existed gets them on its first open, counted from its current units in one transaction (a store
+whose units another tokenizer made is re-derived first, and its statistics with it); from then on
+its units refuse a write that does not come through this class, since a writer that does not
+keep the statistics (an older process still running) would leave them wrong without a sign.
+
+The rows a query scores are read from the query terms' postings, or from the given paths' units
+when a caller passes paths (the palace's own call, `core/sentence/universe.py`), and the
+arithmetic, the sum over the terms and the top `k` are one statement. The sum is written out in
+the order of the sorted terms, not taken by SQLite's `sum()`, which compensates its rounding, so
+a score is the reference's to the last bit (ties broken by unit id).
 
 The units' terms are a tokenizer's (`core/ingest/lexical.py::Tokenizer`), and the store records
 the tokenizer's identity with its first landing, as the plane records its embedder's. A store
@@ -28,10 +43,10 @@ whose recorded identity is not its tokenizer's refuses to land or to score (`Tok
 a query tokenized one way against units tokenized another would match some words and silently
 miss others. A store that holds versions and records no identity predates the record, and its
 units are LEGACY's. Re-deriving is the lexical backfill over a reset index: `reset` forgets the
-units, the postings, the versions and the identity, and `derive.derive_lexical`, which resets a
-stale index itself, lands every active item again under the current tokenizer. The currency
-reads (`holds_current`, `units_of`, the version records) do not depend on the terms and do not
-refuse.
+units, the postings, the versions, the statistics and the identity, and `derive.derive_lexical`,
+which resets a stale index itself, lands every active item again under the current tokenizer. The
+currency reads (`holds_current`, `units_of`, the version records) do not depend on the terms and
+do not refuse.
 """
 
 from __future__ import annotations
@@ -42,15 +57,18 @@ from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import core.ingest.lexical as lexical
-from core.ingest.lexical import LEGACY, Tokenizer, TokenizerMismatch, idf, tf_weight
+from core.ingest.lexical import LEGACY, Tokenizer, TokenizerMismatch, idf
 from core.kernel.config import Config
 from core.kernel.ingest.chunk import Chunk
 from core.kernel.provenance import Provenance
 
 LEXICAL_FILE = "lexical.sqlite"
 _BATCH = 400
+_STATISTICS = "statistics"     # the meta key set once the statistics are counted
+_WRITER = "writer"             # the meta key this class's write transactions hold while they run
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS units (
@@ -81,7 +99,30 @@ CREATE TABLE IF NOT EXISTS versions (
     PRIMARY KEY (source_path, digest)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS class_stats (
+    provenance TEXT    PRIMARY KEY,
+    units      INTEGER NOT NULL,
+    tokens     INTEGER NOT NULL
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS term_stats (
+    term       TEXT    NOT NULL,
+    provenance TEXT    NOT NULL,
+    df         INTEGER NOT NULL,
+    PRIMARY KEY (term, provenance)
+) WITHOUT ROWID;
 """
+
+# Installed with the statistics: a write to the units from outside this class's transactions (a
+# process that does not keep the statistics) is refused, whole, rather than left to make them
+# wrong. A unit's postings are written and deleted only with it, in the same transaction.
+_GUARDS = tuple(
+    f"CREATE TRIGGER IF NOT EXISTS units_kept_{name} BEFORE {event} ON units "
+    f"WHEN NOT EXISTS (SELECT 1 FROM meta WHERE key = '{_WRITER}') BEGIN "
+    "SELECT RAISE(ABORT, 'the lexical index keeps statistics of its current units: write its "
+    "units through core/stores/lexical.py, which keeps them (an older process does not)'); END"
+    for name, event in (("insert", "INSERT"),
+                        ("update", "UPDATE OF current, provenance, length, unit_id"),
+                        ("delete", "DELETE")))
 
 
 def _now() -> str:
@@ -115,6 +156,38 @@ class LexicalHit:
     score: float
 
 
+@dataclass(frozen=True)
+class LexicalStatistics:
+    """What a reader's scores are computed with: over the current units of its classes, their
+    count, their total length in tokens and, for each term asked about, the units holding it."""
+
+    units: int
+    tokens: int
+    df: dict[str, int]
+
+
+class _Currency:
+    """The units whose currency a transaction changed, each with the sign of its net change (+1
+    made current, -1 no longer current); a unit made current and then not, in one transaction,
+    leaves no change."""
+
+    def __init__(self) -> None:
+        self.net: dict[int, int] = {}
+
+    def add(self, unit_ids: Iterable[int], sign: int) -> None:
+        for uid in unit_ids:
+            value = self.net.get(uid, 0) + sign
+            if value:
+                self.net[uid] = value
+            else:
+                self.net.pop(uid, None)
+
+    def take(self, unit_ids: Iterable[int]) -> dict[int, int]:
+        """The pending changes of these units, removed from the transaction's: they are kept now,
+        while the units' postings still exist."""
+        return {uid: self.net.pop(uid) for uid in unit_ids if uid in self.net}
+
+
 def lexical_path(cfg: Config) -> Path:
     """Where an instance keeps its lexical index: beside its other derived stores."""
     return Path(cfg.paths.data_dir) / LEXICAL_FILE
@@ -140,9 +213,124 @@ class LexicalStore:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA busy_timeout=30000")
         self._conn.executescript(_DDL)
+        self._migrate()
 
     def close(self) -> None:
         self._conn.close()
+
+    # ── transactions ─────────────────────────────────────────────────────────────────────────
+
+    def _begin(self) -> None:
+        """A write transaction of this class: it holds the writer's key, which the units' guards
+        read, and removes it before it commits, so no other transaction ever sees it."""
+        self._conn.execute("BEGIN IMMEDIATE")
+        self._conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')", [_WRITER])
+
+    def _commit(self) -> None:
+        self._conn.execute("DELETE FROM meta WHERE key = ?", [_WRITER])
+        self._conn.execute("COMMIT")
+
+    # ── the statistics ───────────────────────────────────────────────────────────────────────
+
+    def _counted(self) -> bool:
+        return self._conn.execute("SELECT 1 FROM meta WHERE key = ?",
+                                  [_STATISTICS]).fetchone() is not None
+
+    def _migrate(self) -> None:
+        """Count the statistics of a store that has none yet (one written before they existed,
+        or whose record of them was removed), from its current units, in one transaction, and
+        install the units' guards with them. A store whose units another tokenizer made is left
+        alone: it neither lands nor scores until it is re-derived, and its `reset` counts them."""
+        if self._counted() or self.stale:
+            return
+        conn = self._conn
+        self._begin()
+        try:
+            if not self._counted():
+                self._count_statistics()
+            self._commit()
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+
+    def _count_statistics(self) -> None:
+        """The statistics counted from the units, inside the caller's transaction: one pass over
+        the postings a class, in term order, so the counts arrive in the table's order."""
+        conn = self._conn
+        conn.execute("DELETE FROM class_stats")
+        conn.execute("DELETE FROM term_stats")
+        conn.execute("INSERT INTO class_stats (provenance, units, tokens) "
+                     "SELECT provenance, count(*), sum(length) FROM units WHERE current = 1 "
+                     "GROUP BY provenance")
+        for (prov,) in conn.execute(
+                "SELECT provenance FROM class_stats ORDER BY provenance").fetchall():
+            conn.execute("INSERT INTO term_stats (term, provenance, df) "
+                         "SELECT p.term, ?, count(*) FROM postings p "
+                         "CROSS JOIN units u ON u.unit_id = p.unit_id "
+                         "WHERE u.current = 1 AND u.provenance = ? GROUP BY p.term", [prov, prov])
+        for guard in _GUARDS:
+            conn.execute(guard)
+        conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')", [_STATISTICS])
+
+    def _keep(self, changes: dict[int, int]) -> None:
+        """Move the statistics by the units whose currency changed (+1 made current, -1 no
+        longer current), inside the caller's transaction and before any of their postings goes;
+        nothing while the statistics are not counted (their count, when it comes, reads the
+        units as they are then)."""
+        if not changes or not self._counted():
+            return
+        conn = self._conn
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS lex_shift (unit_id INTEGER PRIMARY KEY)")
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS lex_delta (term TEXT NOT NULL, "
+                     "provenance TEXT NOT NULL, n INTEGER NOT NULL, "
+                     "PRIMARY KEY (term, provenance)) WITHOUT ROWID")
+        for sign in sorted(set(changes.values())):
+            conn.execute("DELETE FROM temp.lex_shift")
+            conn.executemany("INSERT INTO temp.lex_shift (unit_id) VALUES (?)",
+                             [(uid,) for uid, s in changes.items() if s == sign])
+            conn.execute("INSERT INTO class_stats (provenance, units, tokens) "
+                         "SELECT u.provenance, ? * count(*), ? * sum(u.length) "
+                         "FROM temp.lex_shift s CROSS JOIN units u ON u.unit_id = s.unit_id "
+                         "WHERE true GROUP BY u.provenance "
+                         "ON CONFLICT (provenance) DO UPDATE SET units = units + excluded.units, "
+                         "tokens = tokens + excluded.tokens", [sign, sign])
+            conn.execute("DELETE FROM temp.lex_delta")
+            conn.execute("INSERT INTO temp.lex_delta (term, provenance, n) "
+                         "SELECT p.term, u.provenance, count(*) FROM temp.lex_shift s "
+                         "CROSS JOIN units u ON u.unit_id = s.unit_id "
+                         "CROSS JOIN postings p ON p.unit_id = s.unit_id "
+                         "GROUP BY p.term, u.provenance")
+            conn.execute("INSERT INTO term_stats (term, provenance, df) "
+                         "SELECT term, provenance, ? * n FROM temp.lex_delta WHERE true "
+                         "ON CONFLICT (term, provenance) DO UPDATE SET df = df + excluded.df",
+                         [sign])
+            if sign < 0:
+                conn.execute("DELETE FROM term_stats WHERE df = 0 AND (term, provenance) IN "
+                             "(SELECT term, provenance FROM temp.lex_delta)")
+                conn.execute("DELETE FROM class_stats WHERE units = 0")
+
+    def statistics(self, *, classes: Iterable[Provenance] | None = None,
+                   terms: Iterable[str] = ()) -> LexicalStatistics:
+        """A reader's statistics: the sums of its classes' rows (every class when None), over
+        the current units; a term no current unit of those classes holds has no entry."""
+        values = sorted({p.value for p in classes}) if classes is not None else None
+        if values is not None and not values:
+            return LexicalStatistics(0, 0, {})
+        where = f" WHERE provenance IN ({', '.join('?' for _ in values)})" if values else ""
+        n, total = self._conn.execute(
+            f"SELECT COALESCE(sum(units), 0), COALESCE(sum(tokens), 0) FROM class_stats{where}",
+            values or []).fetchone()
+        df: dict[str, int] = {}
+        wanted = sorted(set(terms))
+        for batch in _batches(wanted):
+            marks = ", ".join("?" for _ in batch)
+            clause = f" AND provenance IN ({', '.join('?' for _ in values)})" if values else ""
+            for term, count in self._conn.execute(
+                    f"SELECT term, sum(df) FROM term_stats WHERE term IN ({marks}){clause} "
+                    "GROUP BY term", [*batch, *(values or [])]):
+                if int(count):
+                    df[str(term)] = int(count)
+        return LexicalStatistics(int(n), int(total), df)
 
     # ── the tokenizer's identity ─────────────────────────────────────────────────────────────
 
@@ -178,17 +366,18 @@ class LexicalStore:
                 "item again)")
 
     def reset(self) -> None:
-        """Forget every unit, posting and version record, and the recorded tokenizer, in one
-        transaction: the index is derived, and the lexical backfill rebuilds it from the raw
-        store (`derive.derive_lexical`)."""
+        """Forget every unit, posting, version record and statistic, and the recorded tokenizer,
+        in one transaction: the index is derived, and the lexical backfill rebuilds it from the
+        raw store (`derive.derive_lexical`). The empty store's statistics are counted (none)."""
         conn = self._conn
-        conn.execute("BEGIN IMMEDIATE")
+        self._begin()
         try:
             conn.execute("DELETE FROM postings")
             conn.execute("DELETE FROM units")
             conn.execute("DELETE FROM versions")
             conn.execute("DELETE FROM meta WHERE key = 'tokenizer'")
-            conn.execute("COMMIT")
+            self._count_statistics()
+            self._commit()
         except BaseException:
             conn.execute("ROLLBACK")
             raise
@@ -207,20 +396,23 @@ class LexicalStore:
                   ) -> list[LexicalLanding]:
         """Land several versions, each `(source_path, digest, provenance, title, chunks)`, in one
         transaction, each as `land` lands it: a batched landing's lexical stage, or a backfill's.
+        The statistics move with the currency in the same transaction, once for the whole batch.
         The transaction commits every version or none."""
         conn = self._conn
-        conn.execute("BEGIN IMMEDIATE")
+        self._begin()
         try:
             self._check_tokenizer(record=True)
-            out = [self._land_one(*item) for item in items]
-            conn.execute("COMMIT")
+            currency = _Currency()
+            out = [self._land_one(*item, currency=currency) for item in items]
+            self._keep(currency.net)
+            self._commit()
         except BaseException:
             conn.execute("ROLLBACK")
             raise
         return out
 
     def _land_one(self, source_path: str, digest: str, provenance: str, title: str,
-                  chunks: Sequence[Chunk]) -> LexicalLanding:
+                  chunks: Sequence[Chunk], *, currency: _Currency) -> LexicalLanding:
         conn = self._conn
         wanted = {c.index for c in chunks}
         held = {int(r[0]) for r in conn.execute(
@@ -228,9 +420,15 @@ class LexicalStore:
             [source_path, digest])}
         written = 0
         if held != wanted:
-            for (uid,) in conn.execute(
-                    "SELECT unit_id FROM units WHERE source_path = ? AND digest = ?",
-                    [source_path, digest]).fetchall():
+            gone = [int(r[0]) for r in conn.execute(
+                "SELECT unit_id FROM units WHERE source_path = ? AND digest = ?",
+                [source_path, digest]).fetchall()]
+            # units leaving while current leave the statistics first, while their postings exist
+            currency.add([int(r[0]) for r in conn.execute(
+                "UPDATE units SET current = 0 WHERE source_path = ? AND digest = ? "
+                "AND current = 1 RETURNING unit_id", [source_path, digest]).fetchall()], -1)
+            self._keep(currency.take(gone))
+            for uid in gone:
                 conn.execute("DELETE FROM postings WHERE unit_id = ?", [uid])
             conn.execute("DELETE FROM units WHERE source_path = ? AND digest = ?",
                          [source_path, digest])
@@ -248,21 +446,33 @@ class LexicalStore:
                 written += 1
         conn.execute("INSERT OR REPLACE INTO versions (source_path, digest, units) "
                      "VALUES (?, ?, ?)", [source_path, digest, len(wanted)])
-        superseded = conn.execute(
+        superseded = [int(r[0]) for r in conn.execute(
             "UPDATE units SET current = 0 WHERE source_path = ? AND digest <> ? "
-            "AND current = 1", [source_path, digest]).rowcount
-        made = conn.execute(
+            "AND current = 1 RETURNING unit_id", [source_path, digest]).fetchall()]
+        made = [int(r[0]) for r in conn.execute(
             "UPDATE units SET current = 1 WHERE source_path = ? AND digest = ? "
-            "AND current = 0", [source_path, digest]).rowcount
-        return LexicalLanding(units_written=written, superseded=int(superseded),
-                              made_current=made > 0)
+            "AND current = 0 RETURNING unit_id", [source_path, digest]).fetchall()]
+        currency.add(superseded, -1)
+        currency.add(made, +1)
+        return LexicalLanding(units_written=written, superseded=len(superseded),
+                              made_current=bool(made))
 
     def retire(self, source_path: str) -> int:
         """The path is gone: its units stop being current and stay, as the plane keeps a retired
-        version's rows. Returns the units retired."""
-        return int(self._conn.execute(
-            "UPDATE units SET current = 0 WHERE source_path = ? AND current = 1",
-            [source_path]).rowcount)
+        version's rows, and leave the statistics in the same transaction. Returns the units
+        retired."""
+        conn = self._conn
+        self._begin()
+        try:
+            gone = [int(r[0]) for r in conn.execute(
+                "UPDATE units SET current = 0 WHERE source_path = ? AND current = 1 "
+                "RETURNING unit_id", [source_path]).fetchall()]
+            self._keep({uid: -1 for uid in gone})
+            self._commit()
+        except BaseException:
+            conn.execute("ROLLBACK")
+            raise
+        return len(gone)
 
     # ── what is held ─────────────────────────────────────────────────────────────────────────
 
@@ -305,89 +515,92 @@ class LexicalStore:
     # ── scoring ──────────────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _class_clause(classes: Iterable[Provenance] | None) -> tuple[str, list[str]]:
+    def _class_clause(classes: Iterable[Provenance] | None,
+                      column: str = "provenance") -> tuple[str, list[str]]:
         if classes is None:
             return "", []
         values = sorted({p.value for p in classes})
         if not values:
             return " AND 0", []
-        return f" AND provenance IN ({', '.join('?' for _ in values)})", values
+        return f" AND {column} IN ({', '.join('?' for _ in values)})", values
 
-    def _stats(self, classes: Iterable[Provenance] | None) -> tuple[int, float]:
-        where, params = self._class_clause(classes)
-        n, total = self._conn.execute(
-            f"SELECT count(*), COALESCE(sum(length), 0) FROM units WHERE current = 1{where}",
-            params).fetchone()
-        return int(n), (float(total) / int(n) if n else 0.0)
+    def _ranked(self, query: str, *, classes: Iterable[Provenance] | None,
+                paths: Collection[str] | None, k: int | None, per_path: bool) -> list[Any]:
+        """The current units' BM25 scores for a query, among the classes (all when None) and the
+        paths (all when None), in one statement: `(unit_id, score, source_path, digest,
+        chunk_index, title, provenance)` best first, ties by unit id, the first `k` (every one
+        when None); or with `per_path`, `(source_path, score)`, each path's best unit. A unit
+        that shares no term with the query is absent.
 
-    def _score_units(self, query: str, *, classes: Iterable[Provenance] | None,
-                     paths: Collection[str] | None) -> dict[int, float]:
-        """Every current unit's BM25 score for a query, among the classes (all when None) and the
-        paths (all when None); units sharing no term with the query are absent."""
+        Each posting's weight is `core/ingest/lexical.py`'s arithmetic, operation for operation,
+        and a unit's score is the sum of its terms' weights in the order of the sorted terms,
+        written out, each term the unit lacks adding 0.0; adding 0.0 leaves a positive double as
+        it is, so the sum is the reference loop's to the bit."""
         self._check_tokenizer(record=False)
+        if not self._counted():
+            self._migrate()
         terms = sorted(set(self.tokenizer(query)))
         cls = list(classes) if classes is not None else None
-        n, avgdl = self._stats(cls)
-        if n == 0 or not terms:
-            return {}
-        where, params = self._class_clause(cls)
-        scores: dict[int, float] = {}
-        path_batches: list[Sequence[str]] = (list(_batches(sorted(set(paths))))
-                                             if paths is not None else [()])
-        for term in terms:
-            df = int(self._conn.execute(
-                "SELECT count(*) FROM postings p JOIN units u ON u.unit_id = p.unit_id "
-                f"WHERE p.term = ? AND u.current = 1{where}", [term, *params]).fetchone()[0])
-            if df == 0:
-                continue
-            weight = idf(n, df)
-            for batch in path_batches:
-                extra, more = "", []
-                if paths is not None:
-                    if not batch:
-                        continue
-                    extra = f" AND u.source_path IN ({', '.join('?' for _ in batch)})"
-                    more = list(batch)
-                for uid, tf, dl in self._conn.execute(
-                        "SELECT p.unit_id, p.tf, u.length FROM postings p "
-                        "JOIN units u ON u.unit_id = p.unit_id "
-                        f"WHERE p.term = ? AND u.current = 1{where}{extra}",
-                        [term, *params, *more]):
-                    scores[int(uid)] = scores.get(int(uid), 0.0) \
-                        + weight * tf_weight(int(tf), int(dl), avgdl)
-        return scores
+        stats = self.statistics(classes=cls, terms=terms)
+        if stats.units == 0 or not terms:
+            return []
+        avgdl = float(stats.tokens) / stats.units
+        weighted = [(t, idf(stats.units, stats.df[t])) for t in terms if stats.df.get(t, 0)]
+        wanted = sorted(set(paths)) if paths is not None else None
+        if not weighted or wanted == []:
+            return []
+        conn = self._conn
+        conn.execute("CREATE TEMP TABLE IF NOT EXISTS lex_query (i INTEGER PRIMARY KEY, "
+                      "term TEXT NOT NULL, w REAL NOT NULL)")
+        conn.execute("DELETE FROM temp.lex_query")
+        conn.executemany("INSERT INTO temp.lex_query (i, term, w) VALUES (?, ?, ?)",
+                         [(i, t, w) for i, (t, w) in enumerate(weighted)])
+        where, values = self._class_clause(cls, "u.provenance")
+        if wanted is not None:
+            conn.execute("CREATE TEMP TABLE IF NOT EXISTS lex_paths (path TEXT PRIMARY KEY)")
+            conn.execute("DELETE FROM temp.lex_paths")
+            conn.executemany("INSERT INTO temp.lex_paths (path) VALUES (?)",
+                             [(p,) for p in wanted])
+            rows = ("FROM temp.lex_paths w CROSS JOIN units u ON u.source_path = w.path "
+                    "AND u.current = 1 CROSS JOIN temp.lex_query q "
+                    "CROSS JOIN postings p ON p.term = q.term AND p.unit_id = u.unit_id "
+                    f"WHERE true{where}")
+        else:
+            rows = ("FROM temp.lex_query q CROSS JOIN postings p ON p.term = q.term "
+                    f"CROSS JOIN units u ON u.unit_id = p.unit_id WHERE u.current = 1{where}")
+        k1, b = lexical.K1, lexical.B
+        weights = ("SELECT p.unit_id AS unit_id, q.i AS i, "
+                   "q.w * ((p.tf * ?) / (p.tf + ? * (? + (? * u.length) / ?))) AS c " + rows)
+        total = " + ".join(f"COALESCE(max(CASE WHEN r.i = {i} THEN r.c END), 0.0)"
+                           for i in range(len(weighted)))
+        scored = f"SELECT r.unit_id AS unit_id, {total} AS score FROM ({weights}) r " \
+                 "GROUP BY r.unit_id"
+        params: list[Any] = [k1 + 1.0, k1, 1.0 - b, b, avgdl, *values]
+        if per_path:
+            sql = (f"SELECT u.source_path, max(s.score) FROM ({scored}) s "
+                   "CROSS JOIN units u ON u.unit_id = s.unit_id "
+                   "GROUP BY u.source_path ORDER BY min(s.unit_id)")
+        else:
+            sql = (f"SELECT s.unit_id, s.score, u.source_path, u.digest, u.chunk_index, u.title, "
+                   f"u.provenance FROM ({scored} ORDER BY score DESC, unit_id LIMIT ?) s "
+                   "CROSS JOIN units u ON u.unit_id = s.unit_id "
+                   "ORDER BY s.score DESC, s.unit_id")
+            params.append(-1 if k is None else k)
+        return conn.execute(sql, params).fetchall()
 
     def search(self, query: str, *, k: int = 10, classes: Iterable[Provenance] | None = None,
                paths: Collection[str] | None = None) -> list[LexicalHit]:
         """The `k` best current units for a query, best first, ties by unit id; a unit that
         shares no term with the query is never returned."""
-        scored = self._score_units(query, classes=classes, paths=paths)
-        if not scored:
-            return []
-        best = sorted(scored.items(), key=lambda kv: (-kv[1], kv[0]))[:k]
-        out = []
-        for uid, score in best:
-            row = self._conn.execute(
-                "SELECT source_path, digest, chunk_index, title, provenance FROM units "
-                "WHERE unit_id = ?", [uid]).fetchone()
-            out.append(LexicalHit(str(row[0]), str(row[1]), int(row[2]), str(row[3]),
-                                  str(row[4]), float(score)))
-        return out
+        rows = self._ranked(query, classes=classes, paths=paths, k=k if k >= 0 else None,
+                            per_path=False)
+        hits = [LexicalHit(str(r[2]), str(r[3]), int(r[4]), str(r[5]), str(r[6]), float(r[1]))
+                for r in rows]
+        return hits if k >= 0 else hits[:k]
 
     def scores(self, query: str, *, classes: Iterable[Provenance] | None = None,
                paths: Collection[str] | None = None) -> dict[str, float]:
         """Each path's score for a query: the best of its current units' scores; paths sharing no
         term with the query are absent."""
-        scored = self._score_units(query, classes=classes, paths=paths)
-        if not scored:
-            return {}
-        out: dict[str, float] = {}
-        ids = sorted(scored)
-        for i in range(0, len(ids), _BATCH):
-            batch = ids[i:i + _BATCH]
-            for uid, path in self._conn.execute(
-                    "SELECT unit_id, source_path FROM units WHERE unit_id IN "
-                    f"({', '.join('?' for _ in batch)})", batch):
-                p = str(path)
-                out[p] = max(out.get(p, 0.0), scored[int(uid)])
-        return out
+        return {str(p): float(s) for p, s in
+                self._ranked(query, classes=classes, paths=paths, k=None, per_path=True)}

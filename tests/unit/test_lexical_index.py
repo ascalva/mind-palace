@@ -357,3 +357,141 @@ def test_a_store_from_before_the_record_holds_legacy_units(tmp_path: Path):
     assert LexicalStore(tmp_path / "lex.sqlite", tokenizer=Tokenizer()).stale
     empty = LexicalStore(tmp_path / "empty.sqlite", tokenizer=Tokenizer())
     assert empty.recorded_tokenizer() is None and not empty.stale
+
+
+# ── the kept statistics: the migration, the guards, a transaction that dies ────────────────────
+
+def _old_store(path: Path, tokenizer: Tokenizer, *, record: bool = True) -> None:
+    """A store written by the code before the statistics existed (its schema and its landing,
+    `tests/fixtures/lexical_reference.py`), with a retire as that code retired a path."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import OLD_DDL, old_land
+
+    conn = sqlite3.connect(str(path), isolation_level=None)
+    conn.executescript(OLD_DDL)
+    for p, d, cls, texts in (("a.md", "v1", AUTHORED, ["spectral gap of a graph", "random"]),
+                             ("b.md", "v1", OBSERVED, ["random walks on graphs"]),
+                             ("a.md", "v2", AUTHORED, ["spectral gap"]),
+                             ("c.md", "v1", OBSERVED, ["the gap between two numbers"]),
+                             ("d.md", "v1", AUTHORED, ["nothing relevant"])):
+        old_land(conn, tokenizer, p, d, cls, p, _chunks(*texts))
+    conn.execute("UPDATE units SET current = 0 WHERE source_path = 'd.md' AND current = 1")
+    if not record:
+        conn.execute("DELETE FROM meta")
+    conn.close()
+
+
+def test_a_store_from_before_the_statistics_counts_them_on_its_first_open(tmp_path: Path):
+    from tests.fixtures.lexical_reference import new_search, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    store = LexicalStore(path)
+    classes, terms = recount(store)
+    assert classes == {(AUTHORED, 1, 2), (OBSERVED, 2, 9)}
+    assert ("gap", OBSERVED, 1) in terms and ("gap", AUTHORED, 1) in terms
+    for q in ("spectral gap", "random graphs", "the gap", "absent"):
+        for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO]):
+            assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10,
+                                                                         classes=cls)
+    store.close()
+    again = LexicalStore(path)                        # counted once: a second open counts nothing
+    assert again.statistics().units == 3 and again.statistics(terms=["gap"]).df == {"gap": 2}
+
+
+def test_a_stale_store_is_counted_by_its_reset_not_by_its_open(tmp_path: Path):
+    import sqlite3
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, LEGACY, record=False)            # LEGACY's units, from before the record
+    store = LexicalStore(path)                        # the current tokenizer: stale
+    assert store.stale
+    assert store._conn.execute("SELECT count(*) FROM class_stats").fetchone()[0] == 0
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("UPDATE units SET current = 1 WHERE source_path = 'd.md'")   # nothing guards it
+    raw.close()
+    store.reset()
+    store.land(source_path="a.md", digest="v3", provenance=AUTHORED, title="A",
+               chunks=_chunks("Straße und Weg"))
+    from tests.fixtures.lexical_reference import recount
+
+    assert recount(store)[0] == {(AUTHORED, 1, 3)}
+    assert "a.md" in store.scores("strasse")
+
+
+def test_the_units_refuse_a_write_that_does_not_keep_the_statistics(tmp_path: Path):
+    """A process of the code before the statistics (or any writer but this class) would change
+    which units are current without moving the statistics; the units refuse it, whole."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta", "gamma"))
+    kept = recount(store)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    for sql in ("UPDATE units SET current = 0 WHERE source_path = 'a.md'",
+                "DELETE FROM units WHERE source_path = 'a.md'",
+                "INSERT INTO units (source_path, digest, chunk_index, provenance, title, length, "
+                "current, landed_at) VALUES ('b.md', 'v', 0, 'observed', 'B', 1, 1, 'now')"):
+        with pytest.raises(sqlite3.IntegrityError, match="keeps statistics"):
+            raw.execute(sql)
+    with pytest.raises(sqlite3.IntegrityError):
+        old_land(raw, store.tokenizer, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    raw.close()
+    assert recount(store) == kept and store.units_of("b.md", current=False) == 0
+    assert store.retire("a.md") == 2 and recount(store) == (set(), set())
+
+
+def test_a_transaction_that_dies_between_the_units_and_the_statistics_leaves_neither(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    from tests.fixtures.lexical_reference import recount
+
+    store = LexicalStore(tmp_path / "lex.sqlite")
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+
+    def dying(self: LexicalStore, changes: dict[int, int]) -> None:
+        raise RuntimeError("died after the unit rows, before the statistics")
+    monkeypatch.setattr(LexicalStore, "_keep", dying)
+    with pytest.raises(RuntimeError):
+        store.land_many([("b.md", "v1", OBSERVED, "B", _chunks("beta gamma")),
+                         ("a.md", "v2", AUTHORED, "A", _chunks("delta"))])
+    with pytest.raises(RuntimeError):
+        store.retire("a.md")
+    monkeypatch.undo()
+    assert recount(store) == kept
+    assert store.units_of("b.md", current=False) == 0 and store.holds_current("a.md", "v1")
+    assert store.landed_versions() == {("a.md", "v1")}
+
+
+def test_a_landing_killed_before_its_commit_leaves_neither(tmp_path: Path):
+    """The process dies (no exception, no rollback) between the unit rows and the statistics:
+    the uncommitted transaction is gone when the store is opened again."""
+    import subprocess
+    import sys
+
+    from tests.fixtures.lexical_reference import recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+    store.close()
+    script = (
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        "from core.kernel.ingest.chunk import Chunk\n"
+        "from core.stores.lexical import LexicalStore\n"
+        "LexicalStore._keep = lambda self, changes: os._exit(9)\n"
+        "s = LexicalStore(Path(sys.argv[1]))\n"
+        "s.land_many([('b.md', 'v1', 'observed', 'B', [Chunk(0, 'beta gamma')])])\n")
+    done = subprocess.run([sys.executable, "-c", script, str(path)], capture_output=True)
+    assert done.returncode == 9, done.stderr
+    again = LexicalStore(path)
+    assert recount(again) == kept and again.units_of("b.md", current=False) == 0
