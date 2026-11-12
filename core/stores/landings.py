@@ -28,9 +28,13 @@ read by path seeks on and the one name a purged row keeps, so a hole still shado
 earlier versions (§6.1). Its key is derived from two halves: the chain's 32 random bytes in the
 file, and the instance's landing-log secret, which is never in the file: it is read from the
 environment (`get_secret`, Keychain-backed in the owner's setup, the instance's own item under a
-named instance). A missing or malformed secret refuses the write, or the migration, loudly; no
-row is ever written unkeyed. A secret that is not the one a chain was written with is refused as
-well, by the chain's `key_check`, so a chain is never keyed two ways.
+named instance). Whatever appends a row, or seeks a path's rows by their key, needs the secret:
+the genesis, a `record` or a `tombstone` that changes the map, a re-key, `remove`, and the two
+reads by path. Without it they refuse, loudly, before anything is written; no row is ever
+written unkeyed. A relabel and a purge by digest need none: they append no row, and the purge
+finds its rows by the digest, by the names they carry and by the keys the emptied rows keep. A
+secret that is not the one a chain was written with is refused as well, by the chain's
+`key_check`, so a chain is never keyed two ways.
 
 Nothing reads the log yet: the reads below are the ones the later stages build on.
 """
@@ -183,8 +187,16 @@ class Landing:
 
     @property
     def hole(self) -> bool:
-        """The row was emptied by a purge: its content is gone, its position stays."""
+        """The row was emptied by a purge: its content is gone, its position stays. A row is
+        told a hole by its salt; `verify` fails a row without its salt that keeps any of the
+        content a purge empties (`content`)."""
         return self.salt is None
+
+    def content(self) -> dict[str, object]:
+        """The fields a purge empties beside the salt (§6.1): the path, the identity, the digest,
+        the title and the bookmark."""
+        return {"source_path": self.source_path, "doc_id": self.doc_id, "digest": self.digest,
+                "title": self.title, "at": self.at}
 
     def fields(self) -> dict[str, object]:
         """The fields the commitment covers (§3.2): every column but the key, the salt, the
@@ -478,9 +490,40 @@ class LandingLog:
 
     def empty_digest(self, digest: str) -> int:
         """`remove_digest`: every row of the digest emptied as §6.1 says, its key and position
-        kept. Another version of the same path is not touched."""
-        return self._conn.execute(
+        kept. Another version of the same path is not touched, so while a `store` of the path
+        keeps its content the path's other rows keep its name, and the hole stays tied to it. A
+        path whose every `store`, in every chain, is then a hole has its other rows emptied as
+        well, its `retire`, `move` and `leave`: no row then names it, or the identity and the
+        date its tombstone carried. A path's rows are found by the names they carry and by the
+        keys the emptied rows keep, so the purge needs no secret; the rows of the digest and the
+        names are read by a walk of the log, which has no index by digest or by name. Returns
+        the rows emptied."""
+        hit = [(int(c), bytes(k), str(p)) for c, k, p in self._conn.execute(
+            "SELECT chain, path_key, source_path FROM landings WHERE digest = ? "
+            "AND path_key IS NOT NULL AND source_path IS NOT NULL", [digest])]
+        n = self._conn.execute(
             f"UPDATE landings SET {_EMPTY} WHERE digest = ?", [digest]).rowcount
+        paths = sorted({p for _, _, p in hit})
+        if not paths:
+            return n
+        keys: dict[str, set[tuple[int, bytes]]] = {p: set() for p in paths}
+        for c, k, p in hit:
+            keys[p].add((c, k))
+        for c, k, p in self._conn.execute(
+                "SELECT DISTINCT chain, path_key, source_path FROM landings WHERE path_key IS NOT "
+                f"NULL AND source_path IN ({', '.join('?' * len(paths))})", paths):
+            keys[str(p)].add((int(c), bytes(k)))
+        for path in paths:
+            if any(self._conn.execute(
+                    "SELECT 1 FROM landings INDEXED BY landings_path WHERE chain = ? AND "
+                    "path_key = ? AND kind = 'store' AND salt IS NOT NULL LIMIT 1",
+                    [c, k]).fetchone() for c, k in keys[path]):
+                continue                    # a version of the path keeps its content
+            for c, k in sorted(keys[path]):
+                n += self._conn.execute(
+                    f"UPDATE landings INDEXED BY landings_path SET {_EMPTY} "
+                    "WHERE chain = ? AND path_key = ? AND salt IS NOT NULL", [c, k]).rowcount
+        return n
 
     # reads ----------------------------------------------------------------------------------
 
@@ -533,9 +576,14 @@ class LandingLog:
         return staying[-1] if staying else None
 
     def history_at(self, cls: str, path: str, c: Mapping[int, int] | int) -> list[Landing]:
-        """The path's `store` rows at or under the cut over the class's chains, oldest first, a
-        hole where a version was purged. Where the path has events in two chains of the class,
-        the chains it had left at the cut come first: a rule of the prefix alone."""
+        """The path's `store` rows at or under the cut over the class's chains, a hole where a
+        version was purged. In one chain they are oldest first. A path has events in two chains
+        of one class only after it changed class and the two classes were merged by a relabel;
+        then the chains it had left at the cut come first, by chain id, and the chain that holds
+        its present last. That is a rule of the prefixes alone, not the order the versions
+        landed in, which no position across two chains records: the order can differ from it,
+        and across the chains the read at an earlier cut need not be a prefix of the read at a
+        later one. Chain by chain it is (SNP-2)."""
         chains = self.chains(cls)
         parts: list[tuple[bool, int, list[Landing]]] = []
         for chain in chains:
@@ -570,14 +618,19 @@ class LandingLog:
 
     def verify(self, chain: int) -> ChainCheck:
         """The chain's hashes recomputed from its first row, and the commitment of every row that
-        still has its salt (SNP-9): the first position where either fails, or none."""
+        still has its salt (SNP-9); a row without its salt is a hole, and it must keep none of
+        the content a purge empties (§6.1), since nothing else can be checked of it. The first
+        position where one of these fails, or none."""
         previous = _ZERO
         n = checked = 0
         for row in self.rows(chain):
             n += 1
             if row.seq != n:
                 return ChainCheck(chain, n, checked, n, "a position is missing")
-            if row.salt is not None:
+            if row.salt is None:
+                if any(v is not None for v in row.content().values()):
+                    return ChainCheck(chain, n, checked, row.seq, "a hole keeps content")
+            else:
                 checked += 1
                 if not hmac.compare_digest(commitment(row.salt, row.fields()), row.commitment):
                     return ChainCheck(chain, n, checked, row.seq, "the commitment")

@@ -22,11 +22,14 @@ The catalog keeps its own past (dn-temporal-snapshot §3.2, stage SN-1): the lan
 `core/stores/landings.py`, two tables in this file that the six writing methods below append to
 in the transaction of the row each writes, so a `deferred()` batch carries its log rows and the
 catalog is the fold of the log. The migration that fills `doc_id` also creates the log and, on a
-catalog that has rows and no log yet, writes its genesis. The log's keyed hash of a path needs the
-instance's landing-log secret, which is read from the environment and never stored here: without
-it the genesis and every write refuse, loudly, and nothing is written unkeyed. The reads of the
-log (`chains`, `head`, `read_at`, `state_at`, `history_at`, `heads_at`, `read_between`,
-`verify`) have no reader yet.
+catalog that has rows and no log yet, writes its genesis: every process's first open of such a
+catalog runs it, a reader's included. The log's keyed hash of a path needs the instance's
+landing-log secret, which is read from the environment and never stored here: without it the
+genesis, every write that appends a row (`record` and `tombstone` when they change the map, the
+re-key) and `remove` refuse, loudly, and nothing is written unkeyed; `relabel_provenance` and
+`remove_digest` append no row and need none. The reads of the log (`chains`, `head`, `read_at`,
+`state_at`, `history_at`, `heads_at`, `read_between`, `verify`) have no reader yet; the two by
+path, `state_at` and `history_at`, need the secret.
 """
 
 from __future__ import annotations
@@ -155,11 +158,20 @@ class VaultCatalog:
     def _writing(self) -> Iterator[None]:
         """The transaction of one write: the catalog's row and its log rows commit together, or
         neither does. Inside `deferred()` the batch's transaction is the one, and it commits at
-        the end of the batch."""
+        the end of the batch; each write in it is a savepoint, so a write that fails leaves
+        neither of its rows, even when the batch's caller catches the error and goes on."""
         if not self._conn.in_transaction:
             self._conn.execute("BEGIN IMMEDIATE")
         if self._defer:
-            yield
+            self._conn.execute("SAVEPOINT catalog_write")
+            try:
+                yield
+            except BaseException:
+                if self._conn.in_transaction:   # an error SQLite rolled back whole has no savepoint
+                    self._conn.execute("ROLLBACK TO catalog_write")
+                    self._conn.execute("RELEASE catalog_write")
+                raise
+            self._conn.execute("RELEASE catalog_write")
             return
         try:
             yield
@@ -225,7 +237,9 @@ class VaultCatalog:
     def deferred(self) -> Iterator[None]:
         """The records made inside commit once, at the end, in one transaction (a batch's keys,
         the last writes of its landing, and their rows of the landing log); an exception inside
-        rolls them back, so none of them is written."""
+        rolls them back, so none of them is written. A write inside that fails is undone, its
+        catalog row with its log rows, before its error reaches the caller, so a caller that
+        catches it and goes on commits neither."""
         self._defer = True
         try:
             yield
@@ -359,7 +373,8 @@ class VaultCatalog:
         of the path in the landing log is emptied in the same transaction: the path, the
         identity, the digest, the title, the salt and the bookmark go; the position, the key,
         the commitment and the hash stay (dn-temporal-snapshot §6.1), so the chain still
-        verifies and the hole still shadows the path's earlier versions."""
+        verifies and the hole still shadows the path's earlier versions. It seeks the path's
+        rows by their key, so it needs the landing log's secret."""
         with self._writing():
             self._conn.execute("DELETE FROM vault_files WHERE source_path = ?", [source_path])
             self._log.empty_path(source_path)
@@ -376,7 +391,9 @@ class VaultCatalog:
 
         Every row of the digest in the landing log is emptied in the same transaction, as
         `remove` empties a path's, including a version a live path held before: the log then
-        returns a hole at a cut where that version was the head, never the version before it."""
+        returns a hole at a cut where that version was the head, never the version before it. A
+        path none of whose versions keeps its content afterwards has its tombstones emptied too,
+        so no row of the log names it (`LandingLog.empty_digest`). It needs no secret."""
         with self._writing():
             cur = self._conn.execute("DELETE FROM vault_files WHERE digest = ?", [digest])
             self._log.empty_digest(digest)
@@ -409,8 +426,11 @@ class VaultCatalog:
 
     def history_at(self, provenance: Provenance | str, source_path: str,
                    c: Mapping[int, int] | int) -> list[Landing]:
-        """A path's `store` rows at or under the cut, over the class's chains, oldest first; a
-        purged version is a hole in place."""
+        """A path's `store` rows at or under the cut, over the class's chains; a purged version
+        is a hole in place. Oldest first in each chain; across two chains of one class, which a
+        path has only after a change of class and a relabel that merged the two, the chains it
+        left come first and the one that holds its present last, a rule of the prefixes and not
+        the order the versions landed in (`LandingLog.history_at`)."""
         return self._log.history_at(str(provenance), source_path, c)
 
     def heads_at(self, provenance: Provenance | str, c: Mapping[int, int] | int) -> list[Landing]:
