@@ -371,10 +371,12 @@ any chain read below a position it certified. The adjective takes \texttt{head},
 date, which selects the last record whose wall bookmark is not later. Wall time is a lookup key
 there and orders nothing. The resolver follows three references, each through a recorded bound
 that is sound because there is one writer (\Cref{thm:lattice}): a landing's to the attestation
-ledger, an attestation's to its commit, a record's to its frontier. A pass's attestation reads
-landings too; resolved, it would lower the ledger and can take another landing chain down
-(\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice} withholds it from the read,
-and with it the rows of model output.
+ledger, the repository sensor's attestation of a commit to that commit, a record's to its
+frontier. A pass's attestation reads landings too; resolved, it would lower the ledger and can
+take another landing chain down (\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice}
+withholds it from the read, and with it the rows of model output. A continuous-integration
+witness's attestation of a commit, which the commit ledger may not hold yet, is filtered the same
+way and not resolved.
 
 \begin{algorithm}[t]
 \caption{The cut a read under \texttt{as of} is taken at. $S_k$: the positions chain $k$ serves.
@@ -456,9 +458,11 @@ on Lean~4 \cite{moura2021lean4}, v4.36.0-rc2, and the Mathlib \cite{mathlib2020}
 theorems, twenty of them the controls, no
 \lean{sorry}, and the axioms of all 5{,}250 library declarations audited (\lean{propext},
 \lean{Classical.choice}, \lean{Quot.sound} only). The library's export, 56{,}231 declarations
-from \lean{Init} up, is replayed by Lean's kernel and five independent checkers. These are
-design theorems: no code relies on them yet, so they are not among the 328 statements the
-library restates separately and judges against its ledger of laws.
+from \lean{Init} up, is replayed by Lean's kernel and five independent checkers. The laws of
+\Cref{thm:append,thm:compose,thm:forms}, SNP-1 to SNP-5, entered the ledger with the design's
+first stage, the landing log: their 47 declarations are among the 375 statements the library
+restates separately and judges against its ledger of laws. SNP-6 to SNP-10 remain design
+theorems, which no code relies on yet.
 
 \paragraph{The attacks.}
 The definitions compute, so they are attacked as they are with property-based testing
