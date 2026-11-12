@@ -13,9 +13,9 @@ commits or dies):
    that has only the scan);
 3. a ledger the old code wrote gets the table on its first open, and from then on every append,
    by this class or by any other writer of the table, writes its rows in its own statement;
-4. a ledger the old code wrote, opened while another connection holds its write lock or by a
-   process that cannot write it, opens at once and answers every lookup from the records, as
-   the old code did, until the table exists.
+4. a ledger the old code wrote, opened while another connection holds its write lock, by a
+   process that cannot write it, or when it is full, opens at once and answers every lookup from
+   the records, as the old code did, until the table exists.
 """
 
 from __future__ import annotations
