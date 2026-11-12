@@ -369,6 +369,7 @@ def _old_store(path: Path, tokenizer: Tokenizer, *, record: bool = True) -> None
     from tests.fixtures.lexical_reference import OLD_DDL, old_land
 
     conn = sqlite3.connect(str(path), isolation_level=None)
+    conn.execute("PRAGMA journal_mode=WAL")           # as the old store opened its file
     conn.executescript(OLD_DDL)
     for p, d, cls, texts in (("a.md", "v1", AUTHORED, ["spectral gap of a graph", "random"]),
                              ("b.md", "v1", OBSERVED, ["random walks on graphs"]),
@@ -406,8 +407,9 @@ def test_a_stale_store_is_counted_by_its_reset_not_by_its_open(tmp_path: Path):
     path = tmp_path / "lex.sqlite"
     _old_store(path, LEGACY, record=False)            # LEGACY's units, from before the record
     store = LexicalStore(path)                        # the current tokenizer: stale
-    assert store.stale
-    assert store._conn.execute("SELECT count(*) FROM class_stats").fetchone()[0] == 0
+    assert store.stale and not store._counted()
+    assert store._conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'class_stats'"
+                               ).fetchone() is None   # its open wrote nothing
     raw = sqlite3.connect(str(path), isolation_level=None)
     raw.execute("UPDATE units SET current = 1 WHERE source_path = 'd.md'")   # nothing guards it
     raw.close()
@@ -525,3 +527,69 @@ def test_a_write_killed_before_its_commit_leaves_neither(tmp_path: Path):
         assert recount(again) == kept and again.units_of("b.md", current=False) == 0
         assert again.holds_current("a.md", "v1")
         again.close()
+
+
+def test_a_write_whose_writer_key_fails_leaves_no_transaction_open(tmp_path: Path):
+    """The writer's key is the transaction's first write: when it fails (here a trigger refuses
+    it, as a full disk would), the transaction is rolled back, the write lock is free for other
+    connections, and the store's next write begins its own."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("CREATE TRIGGER refuse_writer BEFORE INSERT ON meta WHEN NEW.key = 'writer' "
+                "BEGIN SELECT RAISE(ABORT, 'no room for the key'); END")
+    for write in (lambda: store.retire("a.md"), store.reset,
+                  lambda: store.land(source_path="b.md", digest="v1", provenance=OBSERVED,
+                                     title="B", chunks=_chunks("beta"))):
+        with pytest.raises(sqlite3.IntegrityError, match="no room"):
+            write()
+        assert not store._conn.in_transaction
+        raw.execute("BEGIN IMMEDIATE")                       # the lock is free
+        raw.execute("ROLLBACK")
+    raw.execute("DROP TRIGGER refuse_writer")
+    raw.close()
+    assert recount(store) == kept
+    store.land(source_path="b.md", digest="v1", provenance=OBSERVED, title="B",
+               chunks=_chunks("beta"))
+    assert store.holds_current("b.md", "v1") and recount(store)[0] == {(AUTHORED, 1, 2),
+                                                                        (OBSERVED, 1, 1)}
+
+
+def test_a_store_opened_while_another_holds_its_lock_opens_at_once_and_counts_its_queries(
+        tmp_path: Path):
+    """The migration does not wait for the write lock: a store from before the statistics,
+    opened while another connection holds the lock (another process counting it, or writing),
+    opens at once and scores with statistics counted from the units, the same integers the
+    tables will hold, so the same scores; the first query after the lock is free counts them."""
+    import sqlite3
+    import time
+
+    from tests.fixtures.lexical_reference import new_search, old_scores, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("BEGIN IMMEDIATE")                          # another connection's write lock
+    t0 = time.perf_counter()
+    store = LexicalStore(path)
+    assert time.perf_counter() - t0 < 5 and not store._counted()
+    asked = [(q, cls) for q in ("spectral gap", "random graphs", "the gap", "absent")
+             for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO])]
+    for q, cls in asked:
+        assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10, classes=cls)
+        assert store.scores(q, classes=cls) == old_scores(store, q, classes=cls)
+    counted = store.statistics(classes=[Provenance.OBSERVED], terms=["gap", "random"])
+    assert not store._counted()
+    raw.execute("ROLLBACK")
+    raw.close()
+    assert new_search(store, "the gap", k=3) == old_search(store, "the gap", k=3)
+    assert store._counted()                                 # that query counted them
+    assert store.statistics(classes=[Provenance.OBSERVED], terms=["gap", "random"]) == counted
+    recount(store)
