@@ -16,9 +16,11 @@ interpreted relation edges. Long operations (dream, relate, sync) wake models an
 never the notes or their interpretations, and `overview`; no write tool, no request, no `status`.
 
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
-`tools/list`, `tools/call`. A tool runs with `sys.stdout` pointed at stderr (`Server.handle`), so
-what an operation or a library under it prints joins the diagnostics on stderr and stdout carries
-protocol messages only. The client that spawned the process holds both streams.
+`tools/list`, `tools/call`; a line that is no request is answered with JSON-RPC's error for it,
+and the server reads on (`_answer`). A tool runs with `sys.stdout` pointed at stderr
+(`Server.handle`), so what an operation or a library under it prints joins the diagnostics on
+stderr and stdout carries protocol messages only. The client that spawned the process holds both
+streams.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import math
 import sys
 import traceback
 from collections.abc import Callable
@@ -633,10 +636,20 @@ class Server:
             self._amb = Guest() if self.role == "guest" else Ambassador()
         return self._amb
 
-    def handle(self, msg: dict[str, Any]) -> dict[str, Any] | None:
+    def handle(self, msg: Any) -> dict[str, Any] | None:
+        """The reply to one message, `None` for a notification. A message that is not a request
+        object (an array, which this protocol version has no batch for, a number, a string,
+        null), an id that is no string or number, and params that are not an object are each
+        refused with JSON-RPC's invalid request, the id null when the request's cannot be used."""
+        if not isinstance(msg, dict):
+            return _err(None, -32600, "invalid request: a message is a JSON object")
         method, mid = msg.get("method"), msg.get("id")
         if mid is None:  # a notification (e.g. notifications/initialized)
             return None
+        if not _is_id(mid):
+            return _err(None, -32600, "invalid request: an id is a string or a number")
+        if not isinstance(msg.get("params") or {}, dict):
+            return _err(mid, -32600, "invalid request: params is a JSON object")
         if method == "initialize":
             client = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL_VERSION
             return _ok(
@@ -697,6 +710,33 @@ def _err(mid: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": mid, "error": {"code": code, "message": message}}
 
 
+def _is_id(mid: Any) -> bool:
+    """A JSON-RPC id this server echoes: a string or a finite number, never a bool."""
+    if isinstance(mid, float):
+        return math.isfinite(mid)
+    return isinstance(mid, str) or (isinstance(mid, int) and not isinstance(mid, bool))
+
+
+def _answer(server: Server, line: str) -> dict[str, Any] | None:
+    """The reply to one line of the stream, `None` for a notification. A line that is not JSON
+    is a parse error; so is a number past Python's limit on the digits it converts, and nesting
+    past the stack, which `json.loads` raises as `ValueError` and `RecursionError`. Whatever
+    else fails while the message is handled is answered as an internal error, its traceback on
+    stderr when the process has one. Either way the server goes on to the next line."""
+    try:
+        msg = json.loads(line)
+    except (ValueError, RecursionError):
+        return _err(None, -32700, "parse error")
+    try:
+        return server.handle(msg)
+    except Exception:
+        if sys.stderr is not None:      # `print` to a stderr that is None writes to stdout
+            with contextlib.suppress(Exception):
+                print(traceback.format_exc(), file=sys.stderr)
+        mid = msg.get("id") if isinstance(msg, dict) else None
+        return _err(mid if _is_id(mid) else None, -32603, "internal error")
+
+
 def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -> None:
     """Speak MCP on stdio for `server`, the Ambassador's surface when none is given."""
     stdin, stdout = stdin or sys.stdin, stdout or sys.stdout
@@ -704,13 +744,7 @@ def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -
     for line in stdin:
         if not line.strip():
             continue
-        try:
-            msg = json.loads(line)
-        except json.JSONDecodeError:
-            stdout.write(json.dumps(_err(None, -32700, "parse error")) + "\n")
-            stdout.flush()
-            continue
-        reply = server.handle(msg)
+        reply = _answer(server, line)
         if reply is not None:
             line = json.dumps(reply, ensure_ascii=False)
             try:

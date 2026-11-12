@@ -358,6 +358,47 @@ def test_mcp_handshake_lists_tools_and_ignores_notifications():
     assert replies[2]["error"]["code"] == -32601
 
 
+def test_a_line_that_is_no_request_is_answered_and_the_server_reads_on(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """The stream may carry JSON that is no request: an array (one nested 100,000 deep among
+    them), a number, a string, null, params that are not an object, an id that is no string or
+    number, a number past Python's limit on the digits it converts. Each is answered with
+    JSON-RPC's error for it, the id null when the request's cannot be used, and the next request
+    is answered as ever. A server that fails while it handles a request answers an internal
+    error and reads on, its traceback on stderr."""
+    from agents.ambassador import mcp
+
+    ping = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "ping"})
+    lines = ["[]", "1", '"x"', "null", "[1, 2]", "[" * 100_000 + "]" * 100_000,
+             json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": [1]}),
+             json.dumps({"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": "x"}),
+             json.dumps({"jsonrpc": "2.0", "id": [3], "method": "ping"}),
+             json.dumps({"jsonrpc": "2.0", "id": True, "method": "ping"}),
+             '{"jsonrpc": "2.0", "id": ' + "1" * 5000 + ', "method": "ping"}', "not json"]
+    out = io.StringIO()
+    mcp.serve(io.StringIO("".join(f"{x}\n{ping}\n" for x in lines)), out, mcp.Server("guest"))
+    replies = [json.loads(r) for r in out.getvalue().splitlines()]
+    assert len(replies) == 2 * len(lines)
+    assert all(r == {"jsonrpc": "2.0", "id": 7, "result": {}} for r in replies[1::2])
+    refused = replies[0::2]
+    assert [r["error"]["code"] for r in refused] == [-32600] * 10 + [-32700] * 2
+    assert [r["id"] for r in refused] == [None] * 6 + [1, 2] + [None] * 4
+
+    class Failing(mcp.Server):
+        def handle(self, msg: Any) -> dict[str, Any] | None:
+            if msg.get("method") == "tools/list":
+                raise RuntimeError("the table could not be read")
+            return super().handle(msg)
+
+    out = io.StringIO()
+    listed = json.dumps({"jsonrpc": "2.0", "id": 4, "method": "tools/list"})
+    mcp.serve(io.StringIO(f"{listed}\n{ping}\n"), out, Failing("guest"))
+    first, second = (json.loads(r) for r in out.getvalue().splitlines())
+    assert first == {"jsonrpc": "2.0", "id": 4,
+                     "error": {"code": -32603, "message": "internal error"}}
+    assert second["id"] == 7 and "the table could not be read" in capsys.readouterr().err
+
+
 def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.MonkeyPatch):
     from agents.ambassador import mcp
 
