@@ -686,10 +686,15 @@ def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -
             continue
         reply = server.handle(msg)
         if reply is not None:
+            line = json.dumps(reply, ensure_ascii=False)
             try:
-                stdout.write(json.dumps(reply, ensure_ascii=False) + "\n")
+                # a lone surrogate, which UTF-8 does not encode: a sentence may hold one, and an
+                # answer repeats its sentence. Asked here, not left to the stream: one with
+                # `surrogateescape`, as Python's UTF-8 mode makes stdout, writes a surrogate from
+                # U+DC80 to U+DCFF as a byte that is not UTF-8 instead of refusing it
+                line.encode("utf-8")
+                stdout.write(line + "\n")
             except UnicodeEncodeError:
-                # a lone surrogate, which no encoding of the stream carries: a sentence may hold
-                # one, and an answer repeats its sentence. The same JSON, written as ASCII
+                # the same JSON, written as ASCII
                 stdout.write(json.dumps(reply, ensure_ascii=True) + "\n")
             stdout.flush()
