@@ -30,7 +30,9 @@ the asker's **grant** (`snapshot`: the chains it names and the events it may see
 position kept; `holes`: the same for a keyed chain, the hole keeping its key; `shown`: the grant
 and the erasure applied to one read; `servedAt`: a key retired after the cut is served at no
 earlier cut, with `servedNow` the looser seal that a later landing lifts, and `historyAt` the
-versions the stricter seal serves). The control for the erasure is `compact`, an erasure that
+versions the stricter seal serves). A retire with no seal is `landingsAt`, every landing of a key
+inside the cut, read on `lives`, the chain keyed by the identity a landing takes when a landing at
+a retired path takes a fresh one. The control for the erasure is `compact`, an erasure that
 deletes rows and lets the later ones move up.
 
 Events may read from events of other chains (`R k i k' j`: the `i`-th event of chain `k` reads
@@ -201,6 +203,27 @@ seal: nothing when the key is sealed there, else its landings inside the cut tha
 follows. A version landed before a retire of its key is in no history, at any cut. -/
 def historyAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : List β :=
   if sealedAt l c x then [] else sinceRetire (l.take c) x
+
+/-- The history of a key at a cut with no seal: every landing of the key inside the cut, oldest
+first. A retire closes nothing here, at this cut or at an earlier one, so it is a derived view of
+the prefix. -/
+def landingsAt [DecidableEq κ] (l : List (κ × Option β)) (c : ℕ) (x : κ) : List β :=
+  (l.take c).filterMap fun e ↦ if e.1 = x then e.2 else none
+
+/-- How many times a chain of landings and retires retires a key. -/
+def retiresOf [DecidableEq κ] (l : List (κ × Option β)) (x : κ) : ℕ :=
+  (l.filter fun e ↦ decide (e.1 = x) && e.2.isNone).length
+
+/-- The chain of `lives`, given newest first. -/
+def livesRev [DecidableEq κ] : List (κ × Option β) → List ((κ × ℕ) × Option β)
+  | [] => []
+  | e :: older => ((e.1, retiresOf older e.1), e.2) :: livesRev older
+
+/-- A chain of landings and retires at paths, keyed again by the identity each event belongs to
+when a landing at a retired path takes a fresh identity: the path with the number of the path's
+retires before the event. The identity is a function of the events before it. -/
+def lives [DecidableEq κ] (l : List (κ × Option β)) : List ((κ × ℕ) × Option β) :=
+  (livesRev l.reverse).reverse
 
 /-- A keyed chain with a hole at each erased write: the hole keeps the write's key and its
 position and loses its value, so it still shadows the key's earlier writes. The alternative, a
