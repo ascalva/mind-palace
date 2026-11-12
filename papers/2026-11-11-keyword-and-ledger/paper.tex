@@ -258,7 +258,10 @@ store writes nothing unless it counts. The count does not wait for the file's wr
 that opens the store while another holds it, counting or writing, opens at once, and until the
 statistics are counted its queries count their own from the units, as every query did before:
 the same integers, so the same scores. The first open or query that finds the lock free counts
-them, in that call. A writer waits for the lock as any write does.
+them, in that call. A writer waits for the lock as any write does. A count that fails for another
+reason, a file the process cannot write or a full disk, is rolled back and leaves the store as it
+was, and its queries count their own until it is opened again: no open or query fails because of
+the count.
 
 \paragraph{The upkeep.} \Cref{alg:upkeep} is the landing's part; a retire is its last two lines.
 The currency moves by two statements a version, each returning the ids it changed, and the net
@@ -321,9 +324,10 @@ unit of the class for each path.
 \paragraph{The ledger.} \code{output\_hashes(hash, att\_id, action, pos)}, keyed by hash, record
 and position, is created, filled from the records by one \code{json\_each} pass and given its
 trigger in one transaction on the first open of a ledger without it. That migration does not wait
-for the lock either, nor runs inside a transaction already open on the connection; until the table
-exists, the lookups answer from one pass over the records, the hashes asked for given as one JSON
-array, which reads no temporary table and opens no transaction. The lookups read it by seeks, a statement
+for the lock either, nor runs inside a transaction already open on the connection, and one that
+fails for another reason is rolled back and tried again at the next open; until the table exists,
+the lookups answer from one pass over the records, the hashes asked for given as one JSON array,
+which reads no temporary table and opens no transaction. The lookups read it by seeks, a statement
 for a few hundred hashes, and only read: the statement it replaced filled a temporary table, which
 in the ledger's transaction mode opened a transaction that kept a shared lock on the file until the
 connection next committed. \code{attested\_by} and \code{already\_attested} read the producers by
@@ -423,16 +427,18 @@ ranking of a store that holds the cleared units alone. Each runs 60 examples in 
 passed 1{,}000 in a longer run. A store written by the old code counts its statistics on its
 first open, and one
 opened while another connection holds its write lock opens at once and answers as the old
-statements do; a stale one waits for its reset; a write to the units from another connection is
-refused, also the old landing, until the runbook's revert step drops the guard; a landing or a
-retire that dies at the statistics, after its unit rows or its currency are written (the test
+statements do, as does one whose count fails because this process cannot write the file or the
+file is full; a stale one waits for its reset; a write to the units from another connection is
+refused, also the old landing, until the runbook's revert step drops the guard, which a store of
+the change still open installs again at its next query; a landing or a retire that dies at the
+statistics, after its unit rows or its currency are written (the test
 records them before it dies), by an exception or by the process ending, leaves neither; and a write
 whose first statement fails leaves no transaction open. For the ledger, after any sequence of
 appends, appends again, and deferred blocks that commit or die, the table equals a scan of the
 records, and the four lookups answer what the scan and the replaced statement answer, also on a
 ledger the old code wrote, after other writers append to it, while another connection holds its
-lock, and when this process cannot write it; those two properties run 80 examples in the suite
-and passed 1{,}000 in the longer run.
+lock, when this process cannot write it, and when it is full; those two properties run 80 examples
+in the suite and passed 1{,}000 in the longer run.
 
 \section{Limitations}\label{sec:limits}
 
@@ -440,8 +446,9 @@ A free query still reads every posting of its terms, and its time grows with the
 for the query with 6.5 million postings); pruning would read a fraction \citep{turtle1995query}.
 The kept statistics are the present's: a read at a past cut must count its own under the cut's mask
 or keep them per epoch. The guard turns an older process's writes into errors, by design, and a
-revert of the change needs the runbook's step to drop it; the statistics of a stale store wait for
-its reset, and the corpus's file, made by the earlier tokenizer, must be re-derived before the
+revert of the change needs the runbook's step to drop it, once no process of the change is left to
+install it again; the statistics of a stale store wait for its reset, and the corpus's file, made
+by the earlier tokenizer, must be re-derived before the
 store's current tokenizer scores it. The migration holds the file's write lock for its
 \migrationLex{}~s on the corpus: a writer that waits longer than the store's 30~s timeout fails,
 while a reader opens at once and counts its queries' statistics from the units until the count is
