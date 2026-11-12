@@ -44,8 +44,8 @@ reads between cuts, so a job's checkpoint is a cut. A derived store kept by gene
 recomputation reads, with at most one generation of a key alive at a cut. A narrower grant's
 snapshot is the restriction of a wider one's, and positions on a shared chain count what a filter
 hides. Nothing erased is visible at any cut when an erasure leaves holes; a hole must keep its
-key, or a read by key returns a superseded version; and a seal keeps a retired identity, with
-its versions, out of earlier cuts. Every frontier resolves to one greatest consistent cut. The
+key, or a read by key returns a superseded version; and a seal, where one is applied, keeps a
+retired identity out of earlier cuts. Every frontier resolves to one greatest consistent cut. The
 digest of each prefix certifies a cut, survives an erasure that keeps commitments, and attests
 no erasure. A store that drops old generations is exact from its horizon on, never wrong under
 it, and unable to tell what it lost. The last law gives the rule for an incomplete history: a
@@ -77,7 +77,7 @@ store at a cut. The contributions:
 \begin{enumerate}
 \item A model (\Cref{sec:model}) of a multi-store as a family of append chains with cuts, reads at
   and between cuts, derived views, a grant, an erasure and certificates.
-\item Ten laws (\Cref{sec:laws}), SNP-1 to SNP-10, machine-checked as 175 theorems, with eighteen
+\item Ten laws (\Cref{sec:laws}), SNP-1 to SNP-10, machine-checked as 193 theorems, with twenty
   failure modes as theorems too, among them the reader that ignores the cut, the store rewritten
   in place, a filter applied before the cut, an erasure that deletes rows, a hole that loses its
   key, a digest with collisions, a pruned store read under its horizon, and a record of a cut
@@ -305,7 +305,7 @@ Append invariance of the prefix; induction from the end for injectivity of the f
 \end{proof}
 A certificate thus pins what it digests and nothing else. It attests no erasure, so a copy taken
 before an erasure verifies it and still holds what was erased; no seal, since a retire written
-after the cut changes what is served at it (\lean{Witness.seal_not_certified}); and no grant.
+after the cut changes what a seal serves (\lean{Witness.seal_not_certified}); and no grant.
 Its chains are named, and a renamed chain no longer verifies
 (\lean{Witness.rename_breaks_certificate}).
 
@@ -371,15 +371,15 @@ any chain read below a position it certified. The adjective takes \texttt{head},
 date, which selects the last record whose wall bookmark is not later. Wall time is a lookup key
 there and orders nothing. The resolver follows three references, each through a recorded bound
 that is sound because there is one writer (\Cref{thm:lattice}): a landing's to the attestation
-ledger, an attestation's to its commit, a record's to its frontier. A pass's attestation and a
-row of model output read landings too; resolved, they would lower the ledger, and that can take
-another landing chain down (\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice} withholds them
-from the read instead.
+ledger, an attestation's to its commit, a record's to its frontier. A pass's attestation reads
+landings too; resolved, it would lower the ledger and can take another landing chain down
+(\lean{Witness.pass_drags}), so the filter of \Cref{thm:lattice} withholds it from the read,
+and with it the rows of model output.
 
 \begin{algorithm}[t]
 \caption{The cut a read under \texttt{as of} is taken at. $S_k$: the positions chain $k$ serves.
-$\beta_k(i)$: for the $i$-th event of chain $k$, the heads of the chains it reads, as recorded at
-its writing; they rise with $i$.}\label{alg:resolve}
+$\beta_k(i)$: for the $i$-th event of chain $k$, the bounds recorded at its writing for its
+resolved references only; they rise with $i$.}\label{alg:resolve}
 \begin{algorithmic}[1]
 \Require a frontier $f$ from the name
 \Ensure the greatest consistent cut under $f$ every position of which is served
@@ -420,10 +420,10 @@ within reach of an erasure. The cut is a predicate on rows taken from the log.
 Both are parameters of a read, not functions of the cut. A purge empties the log's row and keeps
 its position, its commitment, its hash and the keyed hash of its path, so that a read by path
 finds the hole (\Cref{thm:erase,thm:cert}); the salt goes with the content, so the commitment
-cannot be tested against a guess. A retire seals the identity's earlier cuts under the stricter
-seal, lifted only by an owner's act. A new note written at a deleted note's path inherits its
-identity by default; the looser seal would bring the deleted versions back at earlier cuts, and
-without the seal on the history they would stand under the new note at every later one. The grant is the asker's now, an event filter is applied after the read,
+cannot be tested against a guess. A retire, by a decision taken after this article was written,
+seals nothing: the item leaves the present and its history stays readable at the cuts where it
+existed. A new note at a deleted note's path would inherit its identity and its versions, so it
+takes a fresh identity. The grant is the asker's now, an event filter is applied after the read,
 and an answer names the cut only on the chains the grant names (\Cref{thm:grant}).
 
 \paragraph{What an answer says.}
@@ -452,23 +452,23 @@ versions of each) would leave no horizon to record.
 \paragraph{What is proved.}
 \Cref{thm:append,thm:compose,thm:forms,thm:grant,thm:erase,thm:lattice,thm:cert,thm:horizon} are
 machine-checked in \lean{formal/Palace/Snapshot.lean} over \lean{formal/Palace/Snapshot/Defs.lean}
-on Lean~4 \cite{moura2021lean4}, v4.36.0-rc2, and the Mathlib \cite{mathlib2020} it pins: 175
-theorems, eighteen of them the controls, no
-\lean{sorry}, and the axioms of all 5{,}213 library declarations audited (\lean{propext},
-\lean{Classical.choice}, \lean{Quot.sound} only). The library's export, 56{,}188 declarations
+on Lean~4 \cite{moura2021lean4}, v4.36.0-rc2, and the Mathlib \cite{mathlib2020} it pins: 193
+theorems, twenty of them the controls, no
+\lean{sorry}, and the axioms of all 5{,}250 library declarations audited (\lean{propext},
+\lean{Classical.choice}, \lean{Quot.sound} only). The library's export, 56{,}231 declarations
 from \lean{Init} up, is replayed by Lean's kernel and five independent checkers. These are
 design theorems: no code relies on them yet, so they are not among the 328 statements the
 library restates separately and judges against its ledger of laws.
 
 \paragraph{The attacks.}
 The definitions compute, so they are attacked as they are with property-based testing
-(\lean{formal/PalaceTest/Snapshot.lean}, seeds 430 to 520, 500 draws each): stores of two chains
+(\lean{formal/PalaceTest/Snapshot.lean}, seeds 430 to 528, 500 draws each): stores of two chains
 over three events, keyed chains over three keys, chains of landings and retires, grants and
 erasures from bit masks, reads-from relations as edge lists, a base-four digest, served positions
-from ten bits. Forty-nine attacks survive every draw. \Cref{alg:resolve}, which the library
+from ten bits. Fifty-four attacks survive every draw. \Cref{alg:resolve}, which the library
 does not define, is run as an equivalent alternation, every chain floored and then one pass of
 the descent, and agrees on every draw with the pointwise maximum of every consistent served cut
-under the frontier. Forty-two controls are refuted within 61 draws: among them a read at a cut past the head, generations
+under the frontier. Forty-five controls are refuted within 61 draws: among them a read at a cut past the head, generations
 without the closing stamp, an event filter before the cut, an erasure that deletes rows, a seek
 over rows that lost their key, an additive digest, the pruned store read under its horizon, a chain that others read lowered alone, and the floor and the
 descent each run once, in either order.
@@ -520,7 +520,7 @@ freedom and a binding commitment are hypotheses of \Cref{thm:cert}, not theorems
 function. \Cref{alg:resolve} is attacked, not proved; the library proves the cut it must return
 exists and is unique. The laws of the grant and the erasure are laws of a reader that reads
 through them; that every reader in the code does is an obligation of the build, and no single
-reader in the model applies the resolution, the grant, the erasure and the seal together. A
+reader in the model applies the resolution, the grant and the erasure together. A
 repository history with merges is a partial order, which the clock's down-set laws cover and
 the chain model does not. Every measurement is on a synthetic fixture and cannot yet be repeated from the
 repository: the cost of the lexical statistics from a mask at a corpus's size, of a vector
@@ -531,7 +531,7 @@ leaves the choice to the store's owner.
 \section{Future work}
 
 The build is eight stages, each with its tests and its rollback: the landing log;
-recorded cuts, names and the resolver; the erasure's reach and the seal; the notes, vectors and
+recorded cuts, names and the resolver; the two forms of removal; the notes, vectors and
 lexical index at a cut; the causal edges at a cut; model output by generation; retention; and
 the delta between two cuts. Each stage property-tests its transcription against the Lean
 statements, and its laws then enter the ledger.
