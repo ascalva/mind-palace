@@ -10,14 +10,15 @@ the role that asked, the strata its clauses read, the modes, and the outcome: `a
 `unsupported`) and its reason, or `requested` for a command the ingress spooled. The log holds no
 note text: a sentence is the asker's own words and the hits are counted, never named; a command's
 string literals, which may be corpus text (`do capture "…"`), are logged as their lengths
-(`redact_command`). A sentence is whatever its asker typed, and the asker may be a guest: the log
-keeps its first `SENTENCE_MAX` characters, and a line is ASCII, every other character written as
-its JSON escape, so nothing a sentence holds can end a line. `summarize` reads the log back as the
-sensor the brainstorm asked for — which strata serve which roles, which translations fail — and
-`palace query --log` renders it, each character that is not printable as its escape, since the
-reader is a terminal. A sensor never breaks the instrument: a log that cannot be written is
-reported on stderr and the answer is returned anyway, and a line that is not an entry is skipped
-and counted.
+(`redact_command`). A sentence is whatever its asker typed, and the asker may be a guest: a line
+is ASCII, every other character written as its JSON escape, so nothing a sentence holds can end a
+line, and the log keeps a sentence's head, up to `SENTENCE_MAX` characters and `SENTENCE_BYTES`
+bytes as the line writes it (`_kept`). `summarize` reads the log back as the sensor the
+brainstorm asked for — which strata serve which roles, which translations fail — in one pass over
+a line at a time (`QueryLog.read`), and `palace query --log` renders it, each character that is
+not printable as its escape, since the reader is a terminal. A sensor never breaks the
+instrument: a log that cannot be written is reported on stderr and the answer is returned
+anyway, and a line that is not an entry is skipped and counted.
 
 `run_query` is `palace query` (scripts/palace.py): read-only, under `sentence_grant()` — the
 Ambassador's grant with the hypothetical overlay the owner granted on 2026-11-04 (the note's
@@ -32,8 +33,8 @@ import contextlib
 import json
 import sys
 import time
-from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections import Counter, deque
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import asdict, dataclass, fields
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,6 +59,9 @@ from core.sentence.types import (
 LOG_NAME = "query_log.jsonl"
 REASON_MAX = 240   # a refusal's reason, truncated: the log is a sensor, not a transcript
 SENTENCE_MAX = 4096   # a sentence, cut at this many characters with a marker of its full length
+# and at this many bytes as the log's ASCII line writes it, a character outside ASCII as its escape
+# (six bytes, or twelve outside the BMP): a sentence of printable ASCII is never cut by it
+SENTENCE_BYTES = 2 * SENTENCE_MAX
 MAX_COMMAND_BYTES = 32 * 1024     # the ingress's cap (`core/ingest/ingress.py`), checked first
 USAGE = ('usage: palace query "<sentence>" [--json] [--no-plan] [--trace] [--as <role>]\n'
          "       palace query --log [--json]      the sensor: strata by role, failed translations")
@@ -129,27 +133,32 @@ class QueryLog:
             with contextlib.suppress(Exception):
                 print(f"query log not written ({self.path}): {e}", file=sys.stderr)
 
-    def entries(self) -> list[Entry]:
-        """The entries, oldest first. The file is split at `\\n` alone: `str.splitlines` also
-        splits at U+2028, U+2029 and U+0085, which a line written before the log was ASCII may
-        hold inside a sentence. A line that is not an entry, torn or of another shape, is
-        skipped, and one line on stderr says how many were."""
+    def read(self) -> Iterator[Entry]:
+        """The entries, oldest first, read a line at a time: a reader holds one line of the log,
+        never the whole file. The file is split at `\\n` alone: `str.splitlines` also splits at
+        U+2028, U+2029 and U+0085, which a line written before the log was ASCII may hold inside
+        a sentence. A line that is not an entry, torn or of another shape, is skipped, and when
+        the file has been read one line on stderr says how many were."""
         if not self.path.exists():
-            return []
-        out: list[Entry] = []
+            return
         skipped = 0
-        for line in self.path.read_bytes().decode("utf-8", errors="replace").split("\n"):
-            if not line.strip():
-                continue
-            entry = _read_entry(line)
-            if entry is None:
-                skipped += 1
-            else:
-                out.append(entry)
+        with self.path.open("rb") as f:
+            for raw in f:                   # a binary file is split at b"\n" alone
+                line = raw.decode("utf-8", errors="replace")
+                if not line.strip():
+                    continue
+                entry = _read_entry(line)
+                if entry is None:
+                    skipped += 1
+                else:
+                    yield entry
         if skipped:
             print(f"query log ({self.path}): {skipped} lines are not entries and were skipped",
                   file=sys.stderr)
-        return out
+
+    def entries(self) -> list[Entry]:
+        """The entries, oldest first (`read`), as a list."""
+        return list(self.read())
 
 
 def default_log() -> QueryLog:
@@ -327,13 +336,29 @@ def ask_logged(text: str, grant: Grant, *, surface: str, role: str,
 def _entry(text: str, surface: str, role: str, started: float, plan: Plan | None,
            precedents: Precedents, **rest: Any) -> Entry:
     """The log's entry for `text`: its shape read from the whole text, the sentence itself kept
-    up to `SENTENCE_MAX` characters and followed, when it was longer, by its full length."""
+    as `_kept` keeps it."""
     sort, modes, strata = _shape(text, plan, precedents)
-    kept = text if len(text) <= SENTENCE_MAX else (
-        f"{text[:SENTENCE_MAX]} <{len(text)} characters, cut at {SENTENCE_MAX}>")
     return Entry(at=datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds"),
-                 surface=surface, role=role, sentence=kept, sort=sort, modes=modes, strata=strata,
-                 ms=int((time.perf_counter() - started) * 1000), **rest)
+                 surface=surface, role=role, sentence=_kept(text), sort=sort, modes=modes,
+                 strata=strata, ms=int((time.perf_counter() - started) * 1000), **rest)
+
+
+def _kept(text: str) -> str:
+    """A sentence as the log keeps it: its head, up to `SENTENCE_MAX` characters and up to
+    `SENTENCE_BYTES` bytes as the line writes it, each character counted as its JSON escape;
+    then, when the sentence was longer, a marker of its full length and of where it was cut. A
+    line holds a few kilobytes of a sentence whatever characters it is made of."""
+    head = text[:SENTENCE_MAX]
+    if len(json.dumps(head)) - 2 > SENTENCE_BYTES:
+        size = 0
+        for i, c in enumerate(head):
+            size += len(json.dumps(c)) - 2
+            if size > SENTENCE_BYTES:
+                head = head[:i]
+                break
+    if len(head) == len(text):
+        return text
+    return f"{head} <{len(text)} characters, cut at {len(head)}>"
 
 
 def _shape(text: str, plan: Plan | None,
@@ -357,20 +382,30 @@ def _shape(text: str, plan: Plan | None,
 
 
 def summarize(entries: Iterable[Entry]) -> dict[str, Any]:
-    """Which strata served which roles, and which translations failed (the lessons loop)."""
-    rows = list(entries)
+    """Which strata served which roles, and which translations failed (the lessons loop). One
+    pass over the entries, keeping the counts and the last ten failures: given the log's `read`,
+    a reader holds those and one line, never the log."""
+    asked = 0
+    outcomes: Counter[str] = Counter()
     served: dict[str, Counter[str]] = {}
-    for e in rows:
+    refusals: Counter[str] = Counter()
+    failed: deque[dict[str, str]] = deque(maxlen=10)
+    for e in entries:
+        asked += 1
+        outcomes[e.outcome] += 1
         served.setdefault(f"{e.role} · {','.join(e.strata) or '∅'}", Counter())[e.outcome] += 1
+        if e.outcome == "refused":
+            refusals[e.refusal] += 1
+        if e.outcome in ("refused", "empty"):
+            failed.append({"at": e.at, "role": e.role, "sentence": e.sentence,
+                           "why": f"{e.refusal}: {e.reason}" if e.outcome == "refused"
+                           else "empty"})
     return {
-        "asked": len(rows),
-        "outcomes": dict(sorted(Counter(e.outcome for e in rows).items())),
+        "asked": asked,
+        "outcomes": dict(sorted(outcomes.items())),
         "served": {k: dict(sorted(v.items())) for k, v in sorted(served.items())},
-        "refusals": dict(sorted(Counter(e.refusal for e in rows
-                                        if e.outcome == "refused").items())),
-        "failed": [{"at": e.at, "role": e.role, "sentence": e.sentence,
-                    "why": f"{e.refusal}: {e.reason}" if e.outcome == "refused" else "empty"}
-                   for e in rows if e.outcome in ("refused", "empty")][-10:],
+        "refusals": dict(sorted(refusals.items())),
+        "failed": list(failed),
     }
 
 
@@ -477,7 +512,7 @@ def run_query(argv: list[str], *, out: TextIO | None = None, grant: Grant | None
         return 2
     as_json = "--json" in flags
     if "--log" in flags:
-        s = summarize((log if log is not None else default_log()).entries())
+        s = summarize((log if log is not None else default_log()).read())
         print(_json_text(s) if as_json else render_summary(s), file=out)
         return 0
     text = " ".join(words)

@@ -20,7 +20,14 @@ from core.sentence import surface
 from core.sentence.ast import Rel
 from core.sentence.execute import Relation, Universe
 from core.sentence.precedents import DEFAULT
-from core.sentence.surface import SENTENCE_MAX, Entry, QueryLog, run_query, summarize
+from core.sentence.surface import (
+    SENTENCE_BYTES,
+    SENTENCE_MAX,
+    Entry,
+    QueryLog,
+    run_query,
+    summarize,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -339,6 +346,56 @@ def test_the_log_keeps_the_head_of_a_long_sentence(tmp_path: Path) -> None:
     whole = 'near "' + "a" * (SENTENCE_MAX - 7) + '"'
     _run([whole], log)
     assert len(whole) == SENTENCE_MAX and log.entries()[-1].sentence == whole
+
+
+def test_the_log_bounds_a_sentence_by_the_bytes_its_line_writes(tmp_path: Path) -> None:
+    """A character outside ASCII is written as its escape, six bytes or twelve, and so is a
+    control. The log keeps a sentence's head up to `SENTENCE_BYTES` bytes of the line as well as
+    `SENTENCE_MAX` characters, so a sentence costs the log a few kilobytes whatever it is made
+    of, and the marker says where it was cut. A sentence of printable ASCII is cut by
+    characters alone, its quotes and backslashes included."""
+    log = QueryLog(tmp_path / "q.jsonl")
+    ascii_whole = 'near "' + '\\"' * ((SENTENCE_MAX - 7) // 2) + '"'
+    hostile = ['near "' + "\U0001f600" * 5000 + '" over dialogue',
+               'near "' + "é" * 5000 + '"', 'nearby "' + "\ud800" * 3000 + '"',
+               'near "' + "\x1b" * 2000 + '"', ascii_whole]
+    for sentence in hostile:
+        _run([sentence], log)
+    lines = (tmp_path / "q.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == len(hostile) and all(line.isascii() for line in lines)
+    assert max(map(len, lines)) < SENTENCE_BYTES + 700
+    for sentence, e in zip(hostile[:4], log.entries()[:4], strict=True):
+        head, marker = e.sentence.rsplit(" <", 1)
+        assert sentence.startswith(head) and marker == (
+            f"{len(sentence)} characters, cut at {len(head)}>")
+        written = len(json.dumps(head)) - 2
+        assert written <= SENTENCE_BYTES < written + len(json.dumps(sentence[len(head)])) - 2
+    assert len(ascii_whole) <= SENTENCE_MAX and log.entries()[4].sentence == ascii_whole
+
+
+def test_the_log_is_read_a_line_at_a_time(tmp_path: Path) -> None:
+    """`palace query --log` summarizes the log in one pass over its lines (`QueryLog.read`), so
+    the reader's memory is the summary's and one line's, not a multiple of the file's: over a
+    log of some 8 MB it stays under 3 MB. The summary is the one the whole list gives."""
+    import tracemalloc
+
+    p = tmp_path / "q.jsonl"
+    row = {"at": "2026-11-12T00:00:00", "surface": "mcp", "role": "guest", "outcome": "refused",
+           "refusal": "parse", "reason": "clause: expected a verb", "strata": ["dialogue"]}
+    with p.open("w", encoding="utf-8") as f:
+        for i in range(2000):
+            f.write(json.dumps({**row, "sentence": f"nearby {i} " + "x" * 4000}) + "\n")
+    assert p.stat().st_size > 8_000_000
+    log = QueryLog(p)
+    tracemalloc.start()
+    try:
+        rc, text = _run(["--log", "--json"], log)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    assert rc == 0 and peak < 3_000_000, peak
+    assert json.loads(text) == summarize(log.entries())
+    assert json.loads(text)["asked"] == 2000 and len(json.loads(text)["failed"]) == 10
 
 
 def test_the_summary_escapes_what_a_terminal_would_obey(tmp_path: Path) -> None:
