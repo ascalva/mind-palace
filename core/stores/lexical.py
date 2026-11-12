@@ -35,7 +35,9 @@ The rows a query scores are read from the query terms' postings, or from the giv
 when a caller passes paths (the palace's own call, `core/sentence/universe.py`), and the
 arithmetic, the sum over the terms and the top `k` are one statement. The sum is written out in
 the order of the sorted terms, not taken by SQLite's `sum()`, which compensates its rounding, so
-a score is the reference's to the last bit (ties broken by unit id).
+a score is the reference's to the last bit (ties broken by unit id); a query of more terms than
+SQLite parses in one sum (`_SUM_TERMS`) has the same weights summed outside the statement, in the
+same order.
 
 The units' terms are a tokenizer's (`core/ingest/lexical.py::Tokenizer`), and the store records
 the tokenizer's identity with its first landing, as the plane records its embedder's. A store
@@ -67,6 +69,10 @@ from core.kernel.provenance import Provenance
 
 LEXICAL_FILE = "lexical.sqlite"
 _BATCH = 400
+# The most terms a query's sum is written out for in one statement: SQLite parses `a + b + ...`
+# as a tree as deep as its terms and refuses one deeper than 1,000. A longer query's weights are
+# summed outside the statement, in the same order.
+_SUM_TERMS = 500
 _STATISTICS = "statistics"     # the meta key set once the statistics are counted
 _WRITER = "writer"             # the meta key this class's write transactions hold while they run
 
@@ -535,7 +541,8 @@ class LexicalStore:
         Each posting's weight is `core/ingest/lexical.py`'s arithmetic, operation for operation,
         and a unit's score is the sum of its terms' weights in the order of the sorted terms,
         written out, each term the unit lacks adding 0.0; adding 0.0 leaves a positive double as
-        it is, so the sum is the reference loop's to the bit."""
+        it is, so the sum is the reference loop's to the bit. Past `_SUM_TERMS` terms the weights
+        come out of the statement in that order and are summed here."""
         self._check_tokenizer(record=False)
         if not self._counted():
             self._migrate()
@@ -573,11 +580,18 @@ class LexicalStore:
         k1, b = lexical.K1, lexical.B
         weights = ("SELECT p.unit_id AS unit_id, q.i AS i, "
                    "q.w * ((p.tf * ?) / (p.tf + ? * (? + (? * u.length) / ?))) AS c " + rows)
-        total = " + ".join(f"COALESCE(max(CASE WHEN r.i = {i} THEN r.c END), 0.0)"
+        params: list[Any] = [k1 + 1.0, k1, 1.0 - b, b, avgdl, *values]
+        if len(weighted) > _SUM_TERMS:
+            # past SQLite's depth for one written-out sum: the same weights, summed here in the
+            # same order of the terms
+            acc: dict[int, float] = {}
+            for uid, _, c in conn.execute(weights + " ORDER BY q.i", params):
+                acc[int(uid)] = acc.get(int(uid), 0.0) + float(c)
+            return self._rank_sums(acc, k=k, per_path=per_path)
+        total = " + ".join(f"COALESCE(max(r.c) FILTER (WHERE r.i = {i}), 0.0)"
                            for i in range(len(weighted)))
         scored = f"SELECT r.unit_id AS unit_id, {total} AS score FROM ({weights}) r " \
                  "GROUP BY r.unit_id"
-        params: list[Any] = [k1 + 1.0, k1, 1.0 - b, b, avgdl, *values]
         if per_path:
             sql = (f"SELECT u.source_path, max(s.score) FROM ({scored}) s "
                    "CROSS JOIN units u ON u.unit_id = s.unit_id "
@@ -589,6 +603,31 @@ class LexicalStore:
                    "ORDER BY s.score DESC, s.unit_id")
             params.append(-1 if k is None else k)
         return conn.execute(sql, params).fetchall()
+
+    def _rank_sums(self, acc: dict[int, float], *, k: int | None,
+                   per_path: bool) -> list[Any]:
+        """`_ranked`'s rows from scores summed outside the statement: the top `k` with their
+        units' fields, best first, ties by unit id; or each path's best, in the order of its
+        first unit."""
+        conn = self._conn
+        if per_path:
+            best: dict[str, float] = {}
+            ids = sorted(acc)
+            for i in range(0, len(ids), _BATCH):
+                batch = ids[i:i + _BATCH]
+                for uid, path in conn.execute(
+                        "SELECT unit_id, source_path FROM units WHERE unit_id IN "
+                        f"({', '.join('?' for _ in batch)}) ORDER BY unit_id", batch):
+                    p = str(path)
+                    best[p] = max(best[p], acc[int(uid)]) if p in best else acc[int(uid)]
+            return list(best.items())
+        ranked = sorted(acc.items(), key=lambda kv: (-kv[1], kv[0]))
+        out = []
+        for uid, score in ranked if k is None else ranked[:k]:
+            row = conn.execute("SELECT source_path, digest, chunk_index, title, provenance "
+                               "FROM units WHERE unit_id = ?", [uid]).fetchone()
+            out.append((uid, score, *row))
+        return out
 
     def search(self, query: str, *, k: int = 10, classes: Iterable[Provenance] | None = None,
                paths: Collection[str] | None = None) -> list[LexicalHit]:
