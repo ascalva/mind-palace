@@ -7,6 +7,8 @@ import io
 import json
 import sqlite3
 import sys
+import threading
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -358,31 +360,60 @@ def test_mcp_handshake_lists_tools_and_ignores_notifications():
     assert replies[2]["error"]["code"] == -32601
 
 
+def _on_a_small_stack(run: Callable[[], None]) -> None:
+    """`run` on a thread whose C stack is 1 MB, what it raises raised again here. How deep
+    `json.loads` and `json.dumps` nest is bounded by the stack, which differs between machines:
+    8 MB for a Linux main thread under the usual `ulimit -s`, 16 MB for the main thread of a
+    macOS framework build, which sets its own. A test that needs a nesting past the stack runs
+    on a stack it chose. In 1 MB, on arm64, `json.loads` reaches some 8,000 levels and
+    `json.dumps` some 6,400; a nesting 100,000 deep would fit only at under 11 bytes a level."""
+    failed: list[BaseException] = []
+
+    def guarded() -> None:
+        try:
+            run()
+        except BaseException as e:
+            failed.append(e)
+
+    before = threading.stack_size(1 << 20)
+    try:
+        thread = threading.Thread(target=guarded)
+        thread.start()
+        thread.join()
+    finally:
+        threading.stack_size(before)
+    if failed:
+        raise failed[0]
+
+
 def test_a_line_that_is_no_request_is_answered_and_the_server_reads_on(
         capsys: pytest.CaptureFixture[str]) -> None:
-    """The stream may carry JSON that is no request: an array (one nested 100,000 deep among
-    them), a number, a string, null, params that are not an object, an id that is no string or
-    number, a number past Python's limit on the digits it converts. Each is answered with
-    JSON-RPC's error for it, the id null when the request's cannot be used, and the next request
-    is answered as ever. A server that fails while it handles a request answers an internal
-    error and reads on, its traceback on stderr."""
+    """The stream may carry JSON that is no request: an array (one holding another among them),
+    a number, a string, null, params that are not an object, an id that is no string or number.
+    Each is answered with JSON-RPC's invalid request, the id null when the request's cannot be
+    used. A line `json.loads` cannot read is a parse error: one that is not JSON, a number past
+    Python's limit on the digits it converts, and an array nested 100,000 deep, past the stack
+    the lines are served on (`_on_a_small_stack`). After each, the next request is answered as
+    ever. A server that fails while it handles a request answers an internal error and reads
+    on, its traceback on stderr."""
     from agents.ambassador import mcp
 
     ping = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "ping"})
-    lines = ["[]", "1", '"x"', "null", "[1, 2]", "[" * 100_000 + "]" * 100_000,
+    lines = ["[]", "1", '"x"', "null", "[1, 2]", "[[1]]",
              json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": [1]}),
              json.dumps({"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": "x"}),
              json.dumps({"jsonrpc": "2.0", "id": [3], "method": "ping"}),
              json.dumps({"jsonrpc": "2.0", "id": True, "method": "ping"}),
-             '{"jsonrpc": "2.0", "id": ' + "1" * 5000 + ', "method": "ping"}', "not json"]
-    out = io.StringIO()
-    mcp.serve(io.StringIO("".join(f"{x}\n{ping}\n" for x in lines)), out, mcp.Server("guest"))
+             '{"jsonrpc": "2.0", "id": ' + "1" * 5000 + ', "method": "ping"}', "not json",
+             "[" * 100_000 + "]" * 100_000]
+    stream, out = io.StringIO("".join(f"{x}\n{ping}\n" for x in lines)), io.StringIO()
+    _on_a_small_stack(lambda: mcp.serve(stream, out, mcp.Server("guest")))
     replies = [json.loads(r) for r in out.getvalue().splitlines()]
     assert len(replies) == 2 * len(lines)
     assert all(r == {"jsonrpc": "2.0", "id": 7, "result": {}} for r in replies[1::2])
     refused = replies[0::2]
-    assert [r["error"]["code"] for r in refused] == [-32600] * 10 + [-32700] * 2
-    assert [r["id"] for r in refused] == [None] * 6 + [1, 2] + [None] * 4
+    assert [r["error"]["code"] for r in refused] == [-32600] * 10 + [-32700] * 3
+    assert [r["id"] for r in refused] == [None] * 6 + [1, 2] + [None] * 5
 
     class Failing(mcp.Server):
         def handle(self, msg: Any) -> dict[str, Any] | None:
