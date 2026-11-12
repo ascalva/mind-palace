@@ -192,7 +192,7 @@ class AttestationStore:
     def _outputs(self, hashes: set[str], columns: str) -> list[sqlite3.Row]:
         """The output-hash table's rows for the hashes, by seeks of its key, a statement a few
         hundred hashes. Reads alone: no transaction is opened, so no lock outlives the call."""
-        wanted = sorted(hashes)
+        wanted = list(hashes)
         rows: list[sqlite3.Row] = []
         with self._lock:
             for i in range(0, len(wanted), _BATCH):
