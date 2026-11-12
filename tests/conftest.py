@@ -80,3 +80,19 @@ def _isolate_from_the_instance_overlay(monkeypatch: pytest.MonkeyPatch,
     loader.get_config.cache_clear()
     yield
     loader.get_config.cache_clear()
+
+
+# The landing log's secret for the suite: fixed, so a run is reproducible, and no instance's.
+LANDING_LOG_TEST_KEY = bytes(range(32)).hex()
+
+
+@pytest.fixture(autouse=True)
+def _landing_log_test_key() -> Iterator[None]:
+    """Every catalog a test writes keys its landing log (dn-temporal-snapshot §3.2) with the
+    suite's fixed secret, read from the environment as an instance reads its own. A test of the
+    refusal without one deletes it. Its own patch, so a test's `monkeypatch.undo()` keeps it."""
+    from core.stores.landings import LANDING_LOG_KEY
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv(LANDING_LOG_KEY, LANDING_LOG_TEST_KEY)
+        yield

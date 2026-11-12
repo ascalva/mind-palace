@@ -177,6 +177,7 @@ class VaultSync:
         # resolved above, else the path (what the catalog will default to when the key lands), so a
         # rename carries the chain forward instead of forking it.
         appended = False
+        version = None              # the version this landing is, carried by the landing log
         if self.version_store is not None:
             doc_id = (self.catalog.doc_id_for(source_path) if prev is not None
                       else resolved_doc_id if resolved_doc_id is not None else source_path)
@@ -188,17 +189,21 @@ class VaultSync:
             rename = prev is None and any(
                 other != source_path for other in self.catalog.paths_for(doc_id))
             if rename:
-                self.version_store.record(doc_id, digest)
+                version = self.version_store.record(doc_id, digest).version_seq
                 appended = True
             else:
-                appended = record_version_if_new(self.version_store, doc_id, digest) is not None
+                added = record_version_if_new(self.version_store, doc_id, digest)
+                appended = added is not None
+                head = added if added is not None else self.version_store.current(doc_id)
+                version = head.version_seq if head is not None else None
         # input == output == the content digest: for AUTHORED content the bytes read and the
         # content-addressed object written share one address. This is the chain's leaf. A landing
         # that appended a version is an event of its own (a revert to bytes attested before);
         # one that did not attests only when nothing names its digest (a re-run after a crash)
         attest_once(self.attestor, agent_role="vault_watcher", action="ingest_note", digest=digest,
                     event=appended)
-        self.catalog.record(source_path, digest, record.title, doc_id=resolved_doc_id)   # the key
+        self.catalog.record(source_path, digest, record.title, doc_id=resolved_doc_id,
+                            version=version)                                        # the key
         return SyncOutcome.INDEXED
 
     def sync_one(self, path: Path) -> SyncOutcome:
