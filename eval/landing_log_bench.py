@@ -1,14 +1,14 @@
 """The landing log, measured (dn-temporal-snapshot §11; stage SN-1).
 
     uv run python -m eval.landing_log_bench --catalog COPY [--batch 10000] [--rounds 5]
-                                            [--repeat 200] [--out PATH]
+                                            [--repeat 200] [--fresh 30000,100000] [--out PATH]
 
 COPY is a copy of an instance's catalog file, never a live one: a copy-on-write clone of the file
 with its `-wal` and `-shm` beside it (`cp -c`), which the harness migrates in place. It refuses the
 catalog the configuration names. The landing log's secret is a random one made for the run and
 dropped with it, so nothing written here can be read by path afterwards, and nothing needs to be.
 
-Four measurements, each on the copy's own size:
+Five measurements, the first four on the copy's own size:
 
 1. **The migration.** The first open of the catalog with the log: the tables, their indexes and
    the genesis of every class the catalog holds, timed whole; the file's bytes before and after
@@ -17,17 +17,25 @@ Four measurements, each on the copy's own size:
 2. **Its check.** Each chain verified from its first row, every commitment recomputed and every
    hash, timed; and the fold of the log compared with the catalog row by row.
 3. **The write overhead.** Batches of catalog writes in one transaction each, as a landing batch
-   writes its keys (`deferred()`): new paths, and new versions of paths the catalog holds, timed
-   with the log and with the log's appending switched off on the same file, alternated over
-   `--rounds`, so the difference is what the log adds to a key's write.
+   writes its keys (`deferred()`): new paths, and new versions of paths the catalog holds, each
+   timed three ways on the same file, the order turned over `--rounds`: `record` as built; the
+   same with the log's appending switched off (a patch of `LandingLog.store`), which keeps the
+   read of the path's row before the write, the explicit transaction and each write's savepoint
+   that SN-1 added; and the write as `record` made it before SN-1 (`f969904e`), the upsert
+   alone. The first against the third is what SN-1 adds to a key's write, and the first against
+   the second what the log's rows add.
 4. **The reads.** `state_at` and `history_at` of one path, the paths drawn from the catalog;
    `heads_at` at a tenth of the chain, at its middle and at its head, and the same predicate
    counted in SQL, the walk without the rows built; `read_at` and
    `read_between` of a thousand positions; `head`; and the keyed hash of a path alone. Medians
    with their ranges over `--repeat` (a whole-class read over five).
+5. **Every head of a smaller chain.** With `--fresh`, for each size a new catalog beside the copy
+   with that many paths of one class, landed through `record` in batches, its paths and titles of
+   the corpus's lengths: `heads_at` at its head and the walk counted in SQL, five times each, so
+   the cost a head returned can be read apart from the walk. The file is removed after.
 
 Timings are wall time on whatever else the machine is doing, so the load average is recorded at
-the start and the end, with the versions of Python and SQLite.
+the start and the end, and before each fresh chain, with the versions of Python and SQLite.
 """
 
 from __future__ import annotations
@@ -51,7 +59,17 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 
 from core.kernel.provenance import Provenance  # noqa: E402
-from core.stores.catalog import VaultCatalog  # noqa: E402
+from core.stores.catalog import VaultCatalog, _utcnow  # noqa: E402
+
+# The key's write as `record` made it before SN-1 (`core/stores/catalog.py` at `f969904e`): this
+# upsert alone, in the batch's transaction, with no read of the row before it and no log.
+_UPSERT_BEFORE = (
+    "INSERT INTO vault_files (source_path, digest, title, provenance, active, updated_at, doc_id)"
+    " VALUES (?, ?, ?, ?, 1, ?, ?)"
+    " ON CONFLICT(source_path) DO UPDATE SET"
+    "   digest=excluded.digest, title=excluded.title,"
+    "   provenance=excluded.provenance, active=1, updated_at=excluded.updated_at")
+ARMS = ("with", "without", "before")   # record as built; its log rows off; the write before SN-1
 
 
 def _files(db: Path) -> dict[str, int]:
@@ -128,10 +146,23 @@ def _catalog(cat: VaultCatalog) -> dict[str, tuple[str, str, str, bool, str]]:
 
 
 def _batch(cat: VaultCatalog, records: list[tuple[str, str, str, Provenance]],
-           log: bool) -> float:
-    """One batch of records in one transaction, as a landing batch writes its keys; with the
-    log's appending switched off when `log` is false. Seconds."""
-    switch = (contextlib.nullcontext() if log      # the control: no log row appended
+           arm: str) -> float:
+    """One batch of records in one transaction, as a landing batch writes its keys, by one arm:
+    `with`, `record` as built; `without`, the same with the log's appending switched off (the
+    read of the row before, the explicit transaction and the savepoints kept); `before`, the
+    upsert `record` ran before SN-1, alone. Seconds."""
+    if arm == "before":
+        conn = cat._conn
+        t0 = time.perf_counter()
+        try:
+            for path, digest, title, cls in records:
+                conn.execute(_UPSERT_BEFORE, [path, digest, title, str(cls), _utcnow(), path])
+            conn.commit()
+        except BaseException:
+            conn.rollback()
+            raise
+        return time.perf_counter() - t0
+    switch = (contextlib.nullcontext() if arm == "with"   # the control: no log row appended
               else mock.patch.object(cat._log, "store", lambda *a, **k: None))
     with switch:
         t0 = time.perf_counter()
@@ -141,7 +172,42 @@ def _batch(cat: VaultCatalog, records: list[tuple[str, str, str, Provenance]],
         return time.perf_counter() - t0
 
 
-def measure(db: Path, batch: int, rounds: int, repeat: int, seed: int) -> dict[str, Any]:
+def _fresh_heads(where: Path, n: int, key: bytes, batch: int) -> dict[str, Any]:
+    """A new catalog of `n` paths of one class, landed through `record` in batches, its paths and
+    titles about the corpus's lengths (28.6 and 63.8 characters): every head at its head, and the
+    walk counted in SQL, five times each. The file is removed after."""
+    db = where / f"fresh-{n}.sqlite"
+    for suffix in ("", "-wal", "-shm"):
+        Path(f"{db}{suffix}").unlink(missing_ok=True)
+    out: dict[str, Any] = {"paths": n, "load_start": os.getloadavg()}
+    cat = VaultCatalog(db, key=key)
+    try:
+        for start in range(0, n, batch):
+            with cat.deferred():
+                for i in range(start, min(n, start + batch)):
+                    cat.record(f"corpus/item-{i:08}-{'p' * 6}.md", f"{i:064x}",
+                               f"{'t' * 56} {i:07}", provenance=Provenance.OBSERVED)
+        (chain,) = cat.chains(Provenance.OBSERVED)
+        head = cat.head(chain)
+        cut = {chain: head}
+        out["chain_rows"] = head
+        out["heads_at"] = {**_timed(functools.partial(cat.heads_at, Provenance.OBSERVED, cut), 5),
+                           "rows": len(cat.heads_at(Provenance.OBSERVED, cut))}
+        out["heads_walk"] = _timed(functools.partial(
+            _count, cat._conn, "SELECT count(*) FROM landings WHERE chain = ? AND seq <= ? AND "
+            "kind = 'store' AND (closed_at IS NULL OR closed_at > ?)", [chain, head, head]), 5)
+        past = out["heads_at"]["median_us"] - out["heads_walk"]["median_us"]
+        out["us_a_head_past_the_walk"] = past / out["heads_at"]["rows"]
+    finally:
+        cat.close()
+        for suffix in ("", "-wal", "-shm"):
+            Path(f"{db}{suffix}").unlink(missing_ok=True)
+    out["load_end"] = os.getloadavg()
+    return out
+
+
+def measure(db: Path, batch: int, rounds: int, repeat: int, seed: int,
+            fresh: tuple[int, ...] = ()) -> dict[str, Any]:
     from core.kernel.config import get_config
 
     if db.resolve() == Path(get_config().paths.vault_catalog).resolve():
@@ -225,33 +291,34 @@ def measure(db: Path, batch: int, rounds: int, repeat: int, seed: int) -> dict[s
             functools.partial(_count, cat._conn, walk, [big, c, c]), 5)
     out["reads"] = reads
 
-    # the write overhead: new paths, then new versions of held paths, with and without the log
-    writes: dict[str, Any] = {"new": {"with": [], "without": []},
-                              "changed": {"with": [], "without": []}}
-    held = rng.sample(paths, min(batch * rounds * 2, len(paths)))
+    # the write overhead: new paths, then new versions of held paths, by each arm in turn
+    writes: dict[str, Any] = {kind: {arm: [] for arm in ARMS} for kind in ("new", "changed")}
+    held = rng.sample(paths, min(batch * rounds * len(ARMS), len(paths)))
     n = 0
     for r in range(rounds):
-        for log in ((True, False) if r % 2 == 0 else (False, True)):
-            fresh = [(f"bench/r{r}/{'w' if log else 'o'}/{i:06}.md", f"bench-{r}-{log}-{i}",
-                      f"bench {i}", Provenance(cls)) for i in range(batch)]
-            secs = _batch(cat, fresh, log)
-            writes["new"]["with" if log else "without"].append(secs / batch * 1e6)
-            changed = [(p, f"changed-{r}-{log}-{i}", f"changed {i}", Provenance(cls))
+        for arm in ARMS[r % len(ARMS):] + ARMS[:r % len(ARMS)]:
+            new = [(f"bench/r{r}/{arm}/{i:06}.md", f"bench-{r}-{arm}-{i}", f"bench {i}",
+                    Provenance(cls)) for i in range(batch)]
+            secs = _batch(cat, new, arm)
+            writes["new"][arm].append(secs / batch * 1e6)
+            changed = [(p, f"changed-{r}-{arm}-{i}", f"changed {i}", Provenance(cls))
                        for i, p in enumerate(held[n:n + batch])]
             n += batch
-            secs = _batch(cat, changed, log)
-            writes["changed"]["with" if log else "without"].append(secs / len(changed) * 1e6)
+            secs = _batch(cat, changed, arm)
+            writes["changed"][arm].append(secs / len(changed) * 1e6)
     for kind in ("new", "changed"):
         w = writes[kind]
-        w["with_median_us"] = statistics.median(w["with"])
-        w["without_median_us"] = statistics.median(w["without"])
-        w["overhead_us"] = w["with_median_us"] - w["without_median_us"]
+        for arm in ARMS:
+            w[f"{arm}_median_us"] = statistics.median(w[arm])
+        w["sn1_adds_us"] = w["with_median_us"] - w["before_median_us"]
+        w["log_rows_add_us"] = w["with_median_us"] - w["without_median_us"]
     out["writes_us_a_record"] = writes
     out["verify_after_writes"] = all(cat.verify(c).ok for c in cat._log.all_chains())
     _checkpoint(cat._conn)
     out["files_end"] = _files(db)
     out["load_end"] = os.getloadavg()
     cat.close()
+    out["fresh_chains"] = [_fresh_heads(db.parent, n, key, batch) for n in fresh]
     return out
 
 
@@ -263,9 +330,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--rounds", type=int, default=5)
     ap.add_argument("--repeat", type=int, default=200)
     ap.add_argument("--seed", type=int, default=11)
+    ap.add_argument("--fresh", default="",
+                    help="sizes of fresh one-class chains to read every head of, comma separated")
     ap.add_argument("--out", type=Path)
     args = ap.parse_args(argv)
-    out = measure(args.catalog, args.batch, args.rounds, args.repeat, args.seed)
+    fresh = tuple(int(n) for n in args.fresh.split(",") if n.strip())
+    out = measure(args.catalog, args.batch, args.rounds, args.repeat, args.seed, fresh)
     text = json.dumps(out, indent=2, default=str)
     if args.out:
         args.out.write_text(text + "\n", encoding="utf-8")
