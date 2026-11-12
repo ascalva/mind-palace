@@ -1833,7 +1833,10 @@ class Launcher:
         unless confirmed. Refused beside a live daemon, while another writer holds the supervisor
         lock, and when the configured embedder is not the plane's geometry; each refusal writes
         nothing. Runs under the lock, behind a marker that makes the daemon and every on-demand
-        writer refuse until the last step has run; run again, it finishes an interrupted reset."""
+        writer refuse until the last step has run; run again, it finishes an interrupted reset.
+        A step input that has gone missing (a ledgered commit the repository no longer holds)
+        refuses before anything is cleared, so no deterministic failure is left behind the
+        marker."""
         from ops.lifecycle import rebuild
         from ops.lifecycle.inventory import reset_pending
 
@@ -1851,6 +1854,11 @@ class Launcher:
                 print(f"refusing reset — {e}. A reset keeps the atoms of one geometry; a change of "
                       "embedder is `palace reembed --confirm`.")
                 return 1
+        missing = rebuild.missing_inputs(self.cfg, self.repo_root, stores)
+        if missing:
+            for m in missing:
+                print(f"refusing reset — {m}. Nothing was cleared; bring the input back first.")
+            return 1
         pending = reset_pending(self.cfg)
         print(("finishing an interrupted reset" if pending is not None else "reset")
               + f" of instance {self.cfg.instance.id!r} ({self.cfg.paths.data_dir}):")

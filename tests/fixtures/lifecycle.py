@@ -276,7 +276,41 @@ def build_palace(root: Path, repo: Path, *, named: str | None = None) -> Built:
         apply_verdict(rec, dispositions)
     verdicts.close()
     dispositions.close()
+    write_kept_stores(cfg)
     return b
+
+
+def write_kept_stores(cfg: Any) -> None:
+    """One row or more in each kept store a reset must leave as it was (§3.5, §3.7): an
+    interpreted artifact (decision D4), a queued job carrying a request (D7), a dream run and its
+    claim, a claim operation and a staged hypothesis."""
+    from core.kernel.provenance import Provenance
+    from core.kernel.recursion_ops import OpKind
+    from core.kernel.scope import Stratum
+    from core.stores.claim_ops import open_claim_op_store
+    from core.stores.derived import DerivedStore
+    from core.stores.runledger import open_run_ledger
+    from core.stores.staging import StagedItem, open_staging_store
+    from scheduler.queue import JobQueue
+
+    derived = DerivedStore(Path(cfg.paths.derived_store))
+    derived.add(kind="synthesis", summary="a model's sentence over two notes", subjects=("x",))
+    derived.close()
+    queue = JobQueue(Path(cfg.paths.data_dir) / "queue.sqlite")
+    queue.enqueue("ingress", "small", 1024, payload={"text": "a request only the queue holds"})
+    queue.close()
+    runs = open_run_ledger(cfg)
+    run = runs.start_run(pipeline="toy", config_fingerprint="f", corpus_digest="c", node_count=3,
+                         edge_count=2, duration_s=0.1, spectral_stats={})
+    runs.add_claim(run, kind="bridge", confidence=0.5, support=("a", "b"),
+                   surface_text="a claim a model wrote", polarity="support")
+    runs.close()
+    ops = open_claim_op_store(cfg)
+    ops.record(OpKind.RECORD_WARRANT, "claim-1", text="a warrant")
+    ops.close()
+    staging = open_staging_store(cfg)
+    staging.stage("toy", [StagedItem(Stratum.OBSERVED, Provenance.OBSERVED, "d" * 64, "p")])
+    staging.close()
 
 
 # ── reading a palace back ───────────────────────────────────────────────────────────────────

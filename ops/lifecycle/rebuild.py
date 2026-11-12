@@ -19,7 +19,9 @@ D2): no ledger names a superseded version's path outside the version chains.
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -43,6 +45,10 @@ class Context:
     embedder_factory: Callable[[Any], Any]
     cache: Any = None
     opened: dict[str, Any] = field(default_factory=dict)
+    # The plane's current occupancies before the clearing, as (path, digest): what the plane step
+    # rebuilds, and nothing more (§4.4). Read once and kept in the marker, so a reset run again
+    # after an interruption rebuilds what the plane held before the first run cleared it.
+    plane_heads: set[tuple[str, str]] = field(default_factory=set)
 
     def raw(self) -> Any:
         if "raw" not in self.opened:
@@ -134,10 +140,23 @@ def _remove_file(path: Path) -> None:
         p.unlink(missing_ok=True)
 
 
+def _inside_data(cfg: Any, path: Path) -> None:
+    """Refuse to clear a store that does not lie under the instance's data directory: the class
+    table computes each path from the configuration, and a path mistake must not reach outside."""
+    data = Path(os.path.realpath(cfg.paths.data_dir))
+    real = Path(os.path.realpath(path))
+    if data not in real.parents:
+        raise RuntimeError(f"refusing to clear {path}: it does not lie under the data directory "
+                           f"{cfg.paths.data_dir}")
+
+
 def clear(ctx: Context, stores: list[Store]) -> None:
     """Clear each store, idempotently. The chat sensor's retention ledger is seeded from the chat
-    log first, for an instance whose chat log predates it, while there is a chat log to read."""
+    log first, for an instance whose chat log predates it, while there is a chat log to read. Every
+    path is checked to lie under the data directory before anything is cleared."""
     cfg = ctx.cfg
+    for s in stores:
+        _inside_data(cfg, s.path(cfg))
     names = {s.name for s in stores}
     if "chatlog.sqlite" in names:
         from core.stores.chat_retention import open_retention_ledger
@@ -184,9 +203,12 @@ def _lexical(ctx: Context) -> str:
 
 
 def _plane(ctx: Context) -> str:
+    """Re-occupy what the plane held before the clearing, and nothing more: an item still waiting
+    for its vector (a lazy instance's backlog) is left to the embed job, so the plane comes back to
+    its state before and the embedder is called only for a held atom the atom table lacks."""
     from types import SimpleNamespace
 
-    from core.ingest.derive import drain
+    from core.ingest.derive import derive_entries
 
     cfg = ctx.cfg
     vectors = ctx.vectors()
@@ -199,7 +221,10 @@ def _plane(ctx: Context) -> str:
                              lexical=ctx.lexical(),
                              embedder=_LazyEmbedder(lambda: ctx.embedder_factory(cfg)),
                              cache=view)
-    report = drain(stores, batch=cfg.embedding.batch, streams=cfg.embedding.streams)
+    entries = [e for e in ctx.catalog().active_entries()
+               if (e.source_path, e.digest) in ctx.plane_heads]
+    report = derive_entries(stores, entries, batch=cfg.embedding.batch,
+                            streams=cfg.embedding.streams)
     dropped = vectors.plane.drop_unheld()
     repaired = vectors.plane.repair()
     return (f"plane: {report}; {dropped} atom(s) no rebuilt row holds dropped; held cache "
@@ -349,9 +374,16 @@ def run(ctx: Context, stores: list[Store], say: Callable[[str], None] = print) -
     and the marker's removal last. Interrupted anywhere, the marker stays and names every store,
     so the next run clears and rebuilds them all again."""
     m = marker(ctx.cfg)
-    record = {"stores": sorted({s.name for s in stores}
-                               | set((reset_pending(ctx.cfg) or {}).get("stores", ()))),
-              "started": datetime.now(UTC).isoformat(timespec="seconds")}
+    before = reset_pending(ctx.cfg) or {}
+    record: dict[str, Any] = {
+        "stores": sorted({s.name for s in stores} | set(before.get("stores", ()))),
+        "started": datetime.now(UTC).isoformat(timespec="seconds")}
+    if any(s.clear == "relations" for s in stores):
+        held = before.get("plane_heads")
+        if held is None:
+            held = sorted(plane_heads(ctx.cfg))
+        record["plane_heads"] = held
+        ctx.plane_heads = {(str(p), str(d)) for p, d in held}
     m.parent.mkdir(parents=True, exist_ok=True)
     tmp = m.with_name(m.name + ".tmp")
     tmp.write_text(json.dumps(record), encoding="utf-8")
@@ -369,7 +401,68 @@ def run(ctx: Context, stores: list[Store], say: Callable[[str], None] = print) -
     return done
 
 
-# ── reading, for the dry run ───────────────────────────────────────────────────────────────
+# ── reading, for the refusals and the dry run ──────────────────────────────────────────────
+
+
+def plane_heads(cfg: Any) -> set[tuple[str, str]]:
+    """The (path, digest) of every current occupancy of every plane class, read only."""
+    from core.stores.plane import OCC, PLANE_FILE
+
+    db = Path(cfg.paths.vector_store) / PLANE_FILE
+    if not db.is_file():
+        return set()
+    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    try:
+        out: set[tuple[str, str]] = set()
+        for occ in OCC.values():
+            try:
+                out |= {(str(p), str(d)) for p, d in conn.execute(
+                    f"SELECT DISTINCT source_path, digest FROM {occ} WHERE current = 1")}
+            except sqlite3.Error:
+                continue
+        return out
+    finally:
+        conn.close()
+
+
+def missing_inputs(cfg: Any, repo: Path, stores: list[Store]) -> list[str]:
+    """What a rebuild step would need and cannot read, found before anything is cleared, so a
+    reset that could not finish refuses with nothing written instead of failing after the
+    clearing. Today one input can go missing under a step: a commit the commit ledger holds that
+    the repository no longer has (pruned by a rewrite and a garbage collection), which the code
+    observations' re-projection reads. A retained transcript whose raw object a purge erased is
+    not missing: the chat log's replay skips it and says so (§6.6)."""
+    out: list[str] = []
+    if any(s.name == "code_observations.sqlite" for s in stores):
+        ledger = Path(cfg.paths.data_dir) / "code_snapshots.sqlite"
+        if ledger.is_file():
+            conn = sqlite3.connect(f"file:{ledger}?mode=ro", uri=True)
+            try:
+                shas = [str(r[0]) for r in conn.execute("SELECT commit_sha FROM snapshots")]
+            except sqlite3.Error:
+                shas = []
+            finally:
+                conn.close()
+            gone = _absent_commits(repo, shas)
+            if gone:
+                out.append(f"{len(gone)} commit(s) the commit ledger holds are not in the "
+                           f"repository {repo} ({', '.join(g[:10] for g in gone[:3])}"
+                           f"{', ...' if len(gone) > 3 else ''}), so their code observations "
+                           "could not be re-projected")
+    return out
+
+
+def _absent_commits(repo: Path, shas: list[str]) -> list[str]:
+    """The commits of `shas` the repository at `repo` does not hold, by one `cat-file` pass."""
+    if not shas:
+        return []
+    if not (Path(repo) / ".git").exists():
+        return sorted(shas)
+    proc = subprocess.run(["git", "-C", str(repo), "cat-file", "--batch-check"],
+                          input="".join(f"{s}^{{commit}}\n" for s in shas), text=True,
+                          capture_output=True, check=True)
+    return sorted(s for s, line in zip(shas, proc.stdout.splitlines(), strict=True)
+                  if line.endswith(" missing"))
 
 
 def row_count(path: Path) -> int | None:
@@ -406,19 +499,53 @@ def describe(cfg: Any, stores: list[Store]) -> list[str]:
         lines.append(f"  {s.step:>2}. {s.name}  ({'?' if n is None else n} row(s); {how}) "
                      f"<- {s.note}")
         if s.clear == "relations":
-            held = _head_atoms(target)
-            lines.append(f"      the current heads hold {held} distinct atom(s); the atom table "
-                         "keeps them, so the embedder is called only for an atom it lacks")
+            lines.extend(_plane_lines(cfg, target))
     for kind in (Kind.LEDGER, Kind.DECLARATION, Kind.KEPT, Kind.OPERATIONAL):
         present = [s.name for s in STORES if s.kind is kind and s.path(cfg).exists()]
         lines.append(f"keeps ({kind.value}): {', '.join(present) or '(none present)'}")
     return lines
 
 
-def _head_atoms(plane_db: Path) -> int:
+def _plane_lines(cfg: Any, plane_db: Path) -> list[str]:
+    """The plane's part of the dry run: what the rebuild re-occupies, the atoms that needs and how
+    many of them the atom table lacks (those, and only those, call the embedder), and the items
+    with no vector, which the reset leaves to the embed job."""
+    heads = plane_heads(cfg)
+    atoms = _head_atoms(plane_db)
+    lacking = 0
+    if atoms:
+        from core.stores.vectorstore import open_vector_store
+
+        lacking = len(atoms - open_vector_store(cfg).plane.atoms.present(sorted(atoms)))
+    waiting = _without_vector(cfg, heads)
+    return [f"      re-occupies the {len(heads)} item(s) the plane holds current, with "
+            f"{len(atoms)} distinct atom(s); the atom table lacks {lacking} of them, so the "
+            f"embedder is called for {lacking} atom(s)",
+            f"      {waiting} item(s) of the plane's classes hold no vector (waiting for the embed "
+            "job, or with no text); the reset leaves them so"]
+
+
+def _without_vector(cfg: Any, heads: set[tuple[str, str]]) -> int:
+    """The active catalog items of the plane's classes the plane does not hold current, read
+    only."""
+    from core.ingest.derive import HOLDS
+
+    path = Path(cfg.paths.vault_catalog)
+    if not path.is_file():
+        return 0
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute("SELECT source_path, digest, provenance FROM vault_files "
+                            "WHERE active = 1").fetchall()
+    finally:
+        conn.close()
+    return sum(1 for p, d, c in rows if str(c) in HOLDS and (str(p), str(d)) not in heads)
+
+
+def _head_atoms(plane_db: Path) -> set[str]:
     """The distinct atoms the plane's current occupancies hold, read only."""
     if not plane_db.is_file():
-        return 0
+        return set()
     from core.stores.plane import OCC
 
     conn = sqlite3.connect(f"file:{plane_db}?mode=ro", uri=True)
@@ -430,6 +557,6 @@ def _head_atoms(plane_db: Path) -> int:
                     f"SELECT DISTINCT atom_id FROM {occ} WHERE current = 1")}
             except sqlite3.Error:
                 continue
-        return len(held)
+        return held
     finally:
         conn.close()

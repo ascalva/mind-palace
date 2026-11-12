@@ -134,6 +134,10 @@ def test_p2_p3_p5_p8_a_reset_keeps_every_ledger_and_the_rebuild_converges(
     lau, made = launcher_for(b)
     before_kept, before_raw, before = dump(b.cfg, KEPT), raw_files(b), heads(b.cfg)
     before_atts = dump(b.cfg)["attestations.sqlite"]
+    for name in ("derived.sqlite", "queue.sqlite", "run_ledger.sqlite", "claim_ops.sqlite",
+                 "staging.sqlite", "verdicts.sqlite", "versions.sqlite", "chat_retention.sqlite",
+                 "code_snapshots.sqlite", "reference_edges.sqlite", "attestations.sqlite"):
+        assert any(before_kept[name].values()), f"the fixture writes no row in {name}"
     assert lau.reset(confirm=True) == 0
     assert raw_files(b) == before_raw                                   # P2: raw, byte for byte
     assert dump(b.cfg, KEPT) == before_kept                             # P2: every kept store
@@ -175,6 +179,106 @@ def test_p4_a_reset_twice_is_the_reset_once_and_the_causal_edges_a_fresh_integra
     from core.integrator import build_integrator
     build_integrator(b.cfg).integrate(max_sessions=100)                 # a fresh pass adds none
     assert causal(b) == once_causal
+
+
+def test_p3_the_atom_table_holds_exactly_what_the_rebuilt_rows_name(palace: Built) -> None:
+    """The plane's occupancies are forgotten and rebuilt for the heads (§4.2, §4.4), and the atoms
+    no rebuilt row holds are dropped last: a superseded version's occupancy and its atom go."""
+    from core.stores.plane import OCC
+    from core.stores.vectorstore import VectorStore, fingerprint_of
+    from tests.fixtures.embedding import DIM
+
+    def atoms() -> set[str]:
+        return VectorStore(palace.cfg.paths.vector_store, dim=DIM,
+                           embedder=fingerprint_of(palace.cfg)).plane.atoms.ids()
+
+    def rows(current: int) -> list[tuple[str, str]]:
+        con = sqlite3.connect(Path(palace.cfg.paths.vector_store) / "plane.sqlite")
+        try:
+            return [(str(p), str(a)) for t in OCC.values() for p, a in con.execute(
+                f"SELECT source_path, atom_id FROM {t} WHERE current = ?", [current])]
+        finally:
+            con.close()
+
+    superseded = rows(0)
+    assert superseded, "the fixture holds a superseded version's occupancy"
+    before = atoms()
+    lau, _ = launcher_for(palace)
+    assert lau.reset(confirm=True) == 0
+    assert rows(0) == []                                    # the old relations are forgotten
+    after = atoms()
+    assert after == {a for _, a in rows(1)}                 # exactly what the rebuilt rows name
+    assert before - after                                   # the superseded atom was dropped
+
+
+def test_p3_a_lazy_backlog_is_left_to_the_embed_job(
+        tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """On a lazy instance, items landed without their vector stay so: the reset re-occupies only
+    what the plane held, calls no embedder, and the dry run counts the backlog."""
+    from core.ingest.derive import drain
+
+    cfg = instance_config(tmp_path / "lazy", None, lazy=True)
+    stores = stores_for(cfg, CountingEmbedder())
+    for i in range(3):
+        (Path(cfg.ingestion.vault.path) / f"n{i}.md").write_text(f"note {i}, embedded later\n")
+    assert perform(cfg, stores, "do sync_vault")["effects"] == {"landed": 3}
+    assert drain(stores, max_items=1).items == 1            # one held, two waiting
+    before = heads(cfg)
+    made: list[Any] = []
+    lau = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"), repo_root=tmp_path,
+                   embedder_factory=lambda c: made.append(c) or CountingEmbedder(),
+                   cache_root=tmp_path / "cache", installed_plist=tmp_path / "no.plist")
+    assert lau.reset(confirm=False) == 0
+    out = capsys.readouterr().out
+    assert "re-occupies the 1 item(s)" in out and "2 item(s) of the plane's classes hold no " \
+        "vector" in out and "the embedder is called for 0 atom(s)" in out
+    assert lau.reset(confirm=True) == 0
+    assert made == []
+    assert heads(cfg)["plane.occupancies"] == before["plane.occupancies"]
+    assert sum(len(v) for v in before["plane.occupancies"].values()) == 1
+
+
+def test_p3_a_purged_transcript_is_skipped_and_the_reset_finishes(
+        palace: Built, capsys: pytest.CaptureFixture[str]) -> None:
+    """A purge is how raw content is erased, and a transcript has no catalog row, so a retained
+    transcript can lose its raw object. The replay skips it and says so; the reset finishes, and
+    the chat log comes back without that session."""
+    from core.ingest.purge import purge_raw
+
+    b = palace
+    con = sqlite3.connect(Path(b.cfg.paths.data_dir) / "chat_retention.sqlite")
+    held = [str(d) for d, f in con.execute("SELECT digest, file FROM retained ORDER BY seq")
+            if f == "s-held"]
+    con.close()
+    assert len(held) == 2
+    for digest in held:
+        purge_raw(digest, raw=b.stores.raw, store=b.stores.plane, catalog=b.stores.catalog,
+                  confirm=True)
+    lau, _ = launcher_for(b)
+    assert lau.reset(confirm=True) == 0
+    assert "purged=2" in capsys.readouterr().out
+    assert not (Path(b.cfg.paths.data_dir) / "reset.pending").exists()
+    con = sqlite3.connect(Path(b.cfg.paths.data_dir) / "chatlog.sqlite")
+    sessions = {str(r[0]) for r in con.execute("SELECT DISTINCT session_id FROM chat_utterances")}
+    con.close()
+    assert "s-plain" in sessions and "s-held" not in sessions
+    assert lau.reset(confirm=True) == 0                     # and again, as a reset is
+
+
+def test_p7_a_missing_commit_refuses_before_anything_is_cleared(tmp_path: Path) -> None:
+    """A commit the commit ledger holds that the repository has since pruned: the re-projection
+    could not read it, so the reset refuses with nothing written, rather than failing after the
+    clearing and leaving the marker behind."""
+    from tests.fixtures.lifecycle import git
+
+    repo = make_repo(tmp_path / "git" / "repo")
+    b = build_palace(tmp_path / "p", repo)
+    git(repo, "reset", "-q", "--hard", "HEAD~1")
+    git(repo, "reflog", "expire", "--expire=now", "--all")
+    git(repo, "gc", "-q", "--prune=now")
+    lau, _ = launcher_for(b)
+    _unchanged(b, lambda: lau.reset(confirm=True))
+    assert not (Path(b.cfg.paths.data_dir) / "reset.pending").exists()
 
 
 # ── P6: the dry run ─────────────────────────────────────────────────────────────────────────
@@ -475,6 +579,45 @@ def test_p13_a_cached_vector_is_reused_without_the_embedder(
             assert {a: list(v) for a, (_t, v) in mine.items()} == cache.vectors(key, atoms)
         else:
             assert emb.calls > 0 and report.cached == 0
+
+
+def test_p13_a_cached_vector_of_another_width_is_not_landed(tmp_path: Path) -> None:
+    """A cache entry under the instance's key whose width is not the plane's is never landed
+    (§10 item 7): the drain embeds the atom instead."""
+    from core.ingest.derive import drain
+    from core.kernel.ingest.pipeline import derive_chunks
+    from core.stores.cache import Cache, key_of, with_cache
+    from core.stores.plane import atom_id
+    from tests.fixtures.embedding import DIM
+    from tests.fixtures.lifecycle import fill_stream
+
+    cfg = instance_config(tmp_path / "w", None, lazy=True)
+    cache = Cache(tmp_path / "cache")
+    emb = CountingEmbedder()
+    stores = with_cache(stores_for(cfg, emb), cfg, cache)
+    fill_stream(cfg)
+    perform(cfg, stores, f'do sync_corpus(name: "{CORPUS_SOURCE}", batch: 10)', role="corpus",
+            batch=True)
+    atoms = {atom_id(c.text) for e in stores.catalog.active_entries()
+             for c in derive_chunks(stores.raw.get(e.digest))}
+    key, fields = key_of(cfg)
+    assert cache.put_vectors(key, fields, {a: [0.5] * (DIM + 1) for a in atoms}) == len(atoms)
+    report = drain(stores)
+    assert report.cached == 0 and emb.calls > 0
+    held = stores.plane.plane.atoms.payload(sorted(atoms))
+    assert held and all(len(v) == DIM for _t, v in held.values())
+
+
+def test_p13_the_vector_key_names_the_backend() -> None:
+    """Two instances that differ only in the backend serving the embedder share no vectors."""
+    from core.kernel.config import get_config
+    from core.stores.cache import key_of
+
+    base = get_config()
+    other = replace(base, runtime=replace(base.runtime, embedding_backend=(
+        "ollama" if base.runtime.embedding_backend != "ollama" else "llamacpp")))
+    assert key_of(base)[0] != key_of(other)[0]
+    assert key_of(base)[1]["backend"] != key_of(other)[1]["backend"]
 
 
 def test_p14_a_raw_object_is_taken_by_digest_and_checked(tmp_path: Path) -> None:

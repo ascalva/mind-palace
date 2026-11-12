@@ -248,12 +248,15 @@ class ChatSyncReport:
     empty: list[str] = field(default_factory=list)              # parsed to 0 utterances
     unparseable: list[str] = field(default_factory=list)        # every line failed to decode
     skipped_active: str | None = None    # the excluded open session (Q4), if present
+    # a rebuild's replay only: a retained transcript whose raw object a purge erased, skipped (the
+    # erasure stands, and the chat log comes back without it; dn-instance-lifecycle §6.6)
+    purged: list[str] = field(default_factory=list)
 
     def total_accounted(self) -> int:
         """The sum of the mutually-exclusive buckets — equals `files_seen` iff nothing skipped."""
         return (self.sessions_ingested + self.sessions_grown
                 + len(self.refused_sessions) + len(self.unchanged)
-                + len(self.empty) + len(self.unparseable)
+                + len(self.empty) + len(self.unparseable) + len(self.purged)
                 + (1 if self.skipped_active else 0))
 
     def is_fully_accounted(self) -> bool:
@@ -267,7 +270,8 @@ class ChatSyncReport:
                 f"retained={self.transcripts_retained} unchanged={len(self.unchanged)} "
                 f"refused={len(self.refused_sessions)} empty={len(self.empty)} "
                 f"unparseable={len(self.unparseable)} "
-                f"active_skipped={'yes' if self.skipped_active else 'no'} "
+                + (f"purged={len(self.purged)} " if self.purged else "")
+                + f"active_skipped={'yes' if self.skipped_active else 'no'} "
                 f"accounted={'ok' if self.is_fully_accounted() else 'BROKEN'}")
 
 
@@ -315,9 +319,10 @@ class ChatSensor:
         # bytes were retained before: an unchanged transcript hashes identically (skip, no churn);
         # a grown one hashes anew (its tail re-ingests). Retention is unconditional — even a
         # refused/unparseable session's raw is kept (the archive never depends on extraction
-        # succeeding). With the retention ledger, the ledger's row is the signal and is written
-        # here, before extraction, so a crash between the two leaves the transcript to extract on
-        # the next pass rather than skipped as unchanged.
+        # succeeding). With the retention ledger, the ledger's row is the signal, written here
+        # before extraction: a crash between the raw write and the row leaves the transcript to
+        # extract on the next pass, but an extraction cut short after the row is skipped as
+        # unchanged by the next sync, and only a reset's replay of the ledger recovers it.
         digest, is_new = self.rawstore.add_text(text)
         if is_new:
             report.transcripts_retained += 1
@@ -396,7 +401,12 @@ class ChatSensor:
         known = set(self.store.sessions())
         for row in self.retention.rows():
             report.files_seen += 1
-            text = self.rawstore.get(row.digest).decode("utf-8")
+            try:
+                data = self.rawstore.get(row.digest)
+            except FileNotFoundError:
+                report.purged.append(row.file)            # erased by a purge: nothing to replay
+                continue
+            text = data.decode("utf-8")
             try:
                 self._extract(row.file, text, report, known)
             except SecretInUtteranceError:
