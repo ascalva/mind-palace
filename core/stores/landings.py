@@ -60,14 +60,14 @@ KINDS = ("genesis", "store", "retire", "move", "leave", "horizon")
 
 DDL = """
 CREATE TABLE IF NOT EXISTS landing_chains (
-    chain     INTEGER PRIMARY KEY,  -- the chain's id: never reused, never changed
+    chain     INTEGER PRIMARY KEY,  -- the id: never changed, given once while the tables stand
     class     TEXT    NOT NULL,     -- the provenance class it holds now; a relabel rewrites this
     secret    BLOB    NOT NULL,     -- 32 random bytes: the chain's half of the key of path_key
     key_check BLOB    NOT NULL      -- hmac-sha256(the chain's key, 'key check')
 );
 CREATE TABLE IF NOT EXISTS landings (
     chain       INTEGER NOT NULL,   -- landing_chains.chain
-    seq         INTEGER NOT NULL,   -- the position in the chain, from 1, never given twice
+    seq         INTEGER NOT NULL,   -- the position, from 1, given once while the tables stand
     kind        TEXT    NOT NULL,   -- genesis | store | retire | move | leave | horizon
     path_key    BLOB,               -- hmac-sha256(the chain's key, source_path): kept by a hole
     source_path TEXT,               -- NULL once purged
