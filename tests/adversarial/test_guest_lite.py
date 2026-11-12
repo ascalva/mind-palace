@@ -135,14 +135,24 @@ def _lite(root: Path, canary: str, repo: Path, body: str) -> Fixture:
 @pytest.fixture
 def lite(tmp_path: Path, repo: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Fixture, Fixture]:
     """Two palaces that embed nothing, over one repository, whose notes differ in path, title,
-    words and length; the citation graph's cut and the query log fixed."""
+    words and length; the citation graph's cut and the query log fixed. Each lands the
+    repository, and its mark keeps the second the landing ended, which `overview` shows. The
+    two landings end a fraction of a second apart, now and then in two seconds, so the second
+    palace's mark is given the first's second: the palaces then differ in their notes alone."""
     import core.reference_view as rv
+    from core.ingest.readers import read_mark
+    from core.ingest.table import repository_mark
     from core.sentence import surface
 
     monkeypatch.setattr(rv, "_resolve_default_commit", lambda cfg: "c1")
     monkeypatch.setattr(surface, "default_log", lambda: QueryLog(tmp_path / "q.jsonl"))
-    return (_lite(tmp_path / "a", _canary("a"), repo, WORDY),
-            _lite(tmp_path / "b", _canary("b"), repo, TERSE))
+    a = _lite(tmp_path / "a", _canary("a"), repo, WORDY)
+    b = _lite(tmp_path / "b", _canary("b"), repo, TERSE)
+    first, second = (repository_mark(f.engine.config, REPO) for f in (a, b))
+    landed, other = read_mark(first), read_mark(second)
+    assert landed is not None and other is not None and landed["commit"] == other["commit"]
+    second.write_text(json.dumps({**other, "at": landed["at"]}))
+    return a, b
 
 
 def _lite_battery(f: Fixture) -> list[tuple[str, str]]:
