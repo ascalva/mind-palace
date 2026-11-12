@@ -53,9 +53,13 @@ GUEST_INSTRUCTIONS = (
     "over reference. A clause over the notes or the interpretations derived from them is "
     "refused. So are assume, the version chains (trace, reach D) and every do request. Verbs: "
     "near, diffuse S from, reach F|C from, walk from <ref> via <regex over S, F, C>, witness, "
-    "read \"<ref>\" (a repo path, transcript/<session>/<turn>, a dialogue ref, reference:<paper>). "
-    "overview counts what this grant reads and shows the grant."
+    "read \"<ref>\" (a repo path, code/<name>/<path> for a file of a repository the instance "
+    "lands, transcript/<session>/<turn>, a dialogue ref, reference:<paper>). overview counts "
+    "what this grant reads, shows the grant, and says when the instance embeds nothing: near "
+    "then ranks by the lexical index, and S has no edges."
 )
+# What `overview` says of an instance that embeds nothing (dn-palace-lite), on either surface.
+EMBEDDING_OFF = "off: this instance embeds nothing; near ranks by the lexical index"
 
 
 def _planes(grant: Any) -> list[dict[str, Any]]:
@@ -119,7 +123,7 @@ class Ambassador:
             "your_grant": _planes(AMBASSADOR),
         }
         if not cfg.embedding.enabled:     # the lite profile: say so, and what ranks instead
-            out["embedding"] = "off: this instance embeds nothing; near ranks by the lexical index"
+            out["embedding"] = EMBEDDING_OFF
         lexical = self.engine._get("lexical")
         if lexical is not None:
             out["lexical_units"] = lexical.count()
@@ -299,9 +303,10 @@ GUEST_RAN = {
     "lookup": (
         "a name in the sentence was not found in the strata this grant reads, or what it names "
         "cannot be read as text: spell a ref as an answer's `ref` is spelled (a repo path from "
-        "the repository's root such as `core/query.py`, `transcript/<session>/<turn>`, a dialogue "
-        "ref, `reference:<paper>`), name with `over` the strata a title is to be found in, and "
-        "ask `near \"<text>\" over dialogue reference curated observed` for refs to start from"
+        "the repository's root such as `core/query.py`, `code/<name>/<path>` for a file of a "
+        "repository the instance lands, `transcript/<session>/<turn>`, a dialogue ref, "
+        "`reference:<paper>`), name with `over` the strata a title is to be found in, and ask "
+        "`near \"<text>\" over dialogue reference curated observed` for refs to start from"
     ),
     "ambiguous": (
         "a name in the sentence fits more than one node of the strata this grant reads, or more "
@@ -407,8 +412,12 @@ class Guest:
 
     def overview(self) -> dict[str, Any]:
         """The catalog's active entries of the classes the grant's strata hold, the curated
-        store's chunks, and the grant. Nothing of the mirror or the interpreted stratum is
-        counted, not even in a total. A failure is a `GuestRefusal` of one fixed sentence."""
+        store's chunks, and the grant; then what the Ambassador's overview says of the lite
+        profile (dn-palace-lite), over the same classes: that the instance embeds nothing, when
+        it is so; the lexical index's current units of those classes; and each repository of a
+        lexical code source, with the commit it last landed and how far its ref has moved since.
+        Nothing of the mirror or the interpreted stratum is counted, not even in a total. A
+        failure is a `GuestRefusal` of one fixed sentence."""
         try:
             from collections import Counter
 
@@ -416,14 +425,25 @@ class Guest:
             from core.query import GUEST
             from core.stores.catalog import VaultCatalog
 
-            admitted = {str(p) for p in classes_of(GUEST.strata)}
-            entries = VaultCatalog(self.engine.config.paths.vault_catalog).active_entries()
+            cfg = self.engine.config
+            classes = classes_of(GUEST.strata)
+            admitted = {str(p) for p in classes}
+            entries = VaultCatalog(cfg.paths.vault_catalog).active_entries()
             catalog = Counter(str(e.provenance) for e in entries if str(e.provenance) in admitted)
-            return {
+            out: dict[str, Any] = {
                 "catalog_by_provenance": dict(catalog),
                 "literature_chunks": self.engine._get("curated").count(),
                 "your_grant": _planes(GUEST),
             }
+            if not cfg.embedding.enabled:
+                out["embedding"] = EMBEDDING_OFF
+            lexical = self.engine._get("lexical")
+            if lexical is not None:     # the units of the classes the grant reads, never a total
+                out["lexical_units"] = lexical.count(classes=classes)
+            code = code_sources(cfg)
+            if code:
+                out["code"] = code
+            return out
         except Exception:
             raise GuestRefusal("error", GUEST_OVERVIEW_FAILED) from None
 
