@@ -17,7 +17,8 @@ never the notes or their interpretations, and `overview`; no write tool, no requ
 
 Protocol: JSON-RPC 2.0, one message per line (MCP stdio transport). `initialize`, `ping`,
 `tools/list`, `tools/call`; a line that is no request is answered with JSON-RPC's error for it,
-and the server reads on (`_answer`). Stdout carries protocol messages only. The launcher writes
+a request whose reply cannot be written with an internal error, and the server reads on
+(`_answer`, `serve`). Stdout carries protocol messages only. The launcher writes
 the replies to a copy of file descriptor 1 and points the descriptor itself at stderr
 (`protocol_stream`), and a tool runs with `sys.stdout` pointed at stderr (`Server.handle`), so
 what an operation, a library under it or a child process writes joins the diagnostics on
@@ -641,7 +642,11 @@ class Server:
         """The reply to one message, `None` for a notification. A message that is not a request
         object (an array, which this protocol version has no batch for, a number, a string,
         null), an id that is no string or number, and params that are not an object are each
-        refused with JSON-RPC's invalid request, the id null when the request's cannot be used."""
+        refused with JSON-RPC's invalid request, the id null when the request's cannot be used.
+        `initialize` answers with the protocol version the client asks for when it is a string
+        and with the server's own otherwise, as MCP answers a version a server does not support:
+        a value of another type is not repeated, so no nesting a client sends there makes a reply
+        that `json.dumps` cannot write."""
         if not isinstance(msg, dict):
             return _err(None, -32600, "invalid request: a message is a JSON object")
         method, mid = msg.get("method"), msg.get("id")
@@ -652,11 +657,12 @@ class Server:
         if not isinstance(msg.get("params") or {}, dict):
             return _err(mid, -32600, "invalid request: params is a JSON object")
         if method == "initialize":
-            client = (msg.get("params") or {}).get("protocolVersion") or PROTOCOL_VERSION
+            asked = (msg.get("params") or {}).get("protocolVersion")
+            version = asked if isinstance(asked, str) and asked else PROTOCOL_VERSION
             return _ok(
                 mid,
                 {
-                    "protocolVersion": client,
+                    "protocolVersion": version,
                     "serverInfo": SERVER_INFO,
                     "capabilities": {"tools": {"listChanged": False}},
                     "instructions": self.instructions,
@@ -718,12 +724,20 @@ def _is_id(mid: Any) -> bool:
     return isinstance(mid, str) or (isinstance(mid, int) and not isinstance(mid, bool))
 
 
+def _diagnose() -> None:
+    """The traceback of the exception being handled, on stderr when the process has one."""
+    if sys.stderr is not None:      # `print` to a stderr that is None writes to stdout
+        with contextlib.suppress(Exception):
+            print(traceback.format_exc(), file=sys.stderr)
+
+
 def _answer(server: Server, line: str) -> dict[str, Any] | None:
     """The reply to one line of the stream, `None` for a notification. A line that is not JSON
     is a parse error; so is a number past Python's limit on the digits it converts, and nesting
     past the stack, which `json.loads` raises as `ValueError` and `RecursionError`. Whatever
     else fails while the message is handled is answered as an internal error, its traceback on
-    stderr when the process has one. Either way the server goes on to the next line."""
+    stderr when the process has one, and so is a reply `json.dumps` cannot write (`serve`).
+    Either way the server goes on to the next line."""
     try:
         msg = json.loads(line)
     except (ValueError, RecursionError):
@@ -731,9 +745,7 @@ def _answer(server: Server, line: str) -> dict[str, Any] | None:
     try:
         return server.handle(msg)
     except Exception:
-        if sys.stderr is not None:      # `print` to a stderr that is None writes to stdout
-            with contextlib.suppress(Exception):
-                print(traceback.format_exc(), file=sys.stderr)
+        _diagnose()
         mid = msg.get("id") if isinstance(msg, dict) else None
         return _err(mid if _is_id(mid) else None, -32603, "internal error")
 
@@ -771,7 +783,15 @@ def serve(stdin: Any = None, stdout: Any = None, server: Server | None = None) -
             continue
         reply = _answer(server, line)
         if reply is not None:
-            line = json.dumps(reply, ensure_ascii=False)
+            try:
+                line = json.dumps(reply, ensure_ascii=False)
+            except Exception:
+                # a reply `json.dumps` cannot write, a value nested past the stack among the
+                # causes (`RecursionError`): the request is answered as an internal error with
+                # its id, which a reply carries only as a string, a number or null
+                _diagnose()
+                reply = _err(reply.get("id"), -32603, "internal error")
+                line = json.dumps(reply, ensure_ascii=False)
             try:
                 # a lone surrogate, which UTF-8 does not encode: a sentence may hold one, and an
                 # answer repeats its sentence. Asked here, not left to the stream: one with
