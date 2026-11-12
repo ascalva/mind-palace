@@ -25,16 +25,18 @@ as §10 states them for this stage:
   rows are emptied, and no path has two rows alive.
 
 Then the stage's own cases: a record that changes nothing, and a store the UNCHANGED check skips,
-append nothing; the writer and the sync carry the version each landing is; a change of identity
-lands after a `move`, and a re-key carries the version; each of the six writes, killed or failed
-between the catalog's row and the log's, leaves neither, in a batch too when its caller goes on;
-the genesis is the catalog, tombstoned paths included, closes each tombstoned path's `store` and
-ends at a horizon; a relabel into a class that has rows changes no row of the log, closed rows and
-holes included, and every chain verifies; a history over two chains of a class follows a rule of
-the prefixes; a purge of an old version of a live path leaves a hole that all three reads return at
-a cut where it was the head, and a purge of every version of a deleted note leaves no row that
-names it; `verify` fails on an edited row and on a hole that keeps content; the secret is required
-by what appends or seeks a path by its key and by nothing else, and another one is refused.
+append nothing; the writer, its batched landing too, and the sync carry the version each landing
+is; a change of identity lands after a `move`, and a re-key carries the version; each of the six
+writes, killed or failed between the catalog's row and the log's, leaves neither, in a batch too
+when its caller goes on, and the batch's other writes commit; the genesis is the catalog,
+tombstoned paths included, closes each tombstoned path's `store` and ends at a horizon; a relabel
+into a class that has rows changes no row of the log, closed rows and holes included, and every
+chain verifies; a history over two chains of a class follows a rule of the prefixes; a purge of an
+old version of a live path leaves a hole that all three reads return at a cut where it was the
+head, and a purge of every version of a deleted note leaves no row that names it; `verify` fails
+on an edited row and on a hole that keeps any one column of its content; the secret is required
+by what appends or seeks a path by its key and by nothing else, and another one is refused; a
+statement by path seeks the key index, and a purge by digest walks the log twice.
 """
 
 from __future__ import annotations
@@ -75,6 +77,10 @@ Row = tuple[str, str, str, bool, str]          # digest, title, class, active, i
 
 # What a purge empties in a row, as §6.1 lists it (the code's own list is `landings._EMPTY`).
 EMPTY = "source_path = NULL, doc_id = NULL, digest = NULL, title = NULL, salt = NULL, at = NULL"
+# The columns it empties beside the salt, read off the list above and not off `Landing.content`,
+# which `verify` reads: a `content` that left one out would weaken the check and this oracle
+# together.
+CONTENT = [part.split(" = ")[0] for part in EMPTY.split(", ") if not part.startswith("salt ")]
 
 
 # --- the fold of the log, from its rows alone ---------------------------------------------------
@@ -175,8 +181,8 @@ def alive(row: Landing, c: int) -> bool:
 
 def emptied(row: Landing) -> bool:
     """A hole as a purge leaves it (§6.1): no salt, and none of the path, the identity, the
-    digest, the title or the bookmark."""
-    return row.hole and all(v is None for v in row.content().values())
+    digest, the title or the bookmark (`CONTENT`)."""
+    return row.salt is None and all(getattr(row, column) is None for column in CONTENT)
 
 
 def same_up_to_holes(now: Landing, then: Landing, c: int) -> bool:
@@ -512,6 +518,54 @@ def test_the_sync_carries_the_version_each_landing_is(tmp_path: Path) -> None:
     cat.close()
 
 
+def test_a_batched_landing_carries_the_version_each_landing_is(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The writer's other key write: a plan of fresh stores on distinct paths, each naming its own
+    identity, landed a stage at a time (`Writer.land_batch`), its keys written in one `deferred()`
+    batch. Two notes land, one is edited and the plan lands again; each `store` row of the log
+    carries the version the version chain gives that landing."""
+    from core.ingest import ingress
+    from core.ingest.readers import PalaceView
+    from core.ingest.table import build_table
+    from core.ingest.writer import Writer
+    from core.sentence import ast
+    from core.sentence.plan import compile_sentence
+
+    p = palace_at(tmp_path)
+    batches: list[int] = []
+    land_batch = Writer.land_batch
+
+    def counted(self: Writer, plan: Any) -> Any:
+        batches.append(len(plan))
+        return land_batch(self, plan)
+
+    monkeypatch.setattr(Writer, "land_batch", counted)
+    plan = compile_sentence('do { for n in files(source("vault")) '
+                            '{ store n.content in "mirror_authored" } }',
+                            ingress.grant_for("cli"), role="cli")
+    assert isinstance(plan.term, ast.Do)
+    term: ast.Do = plan.term
+
+    def land() -> dict[str, Any]:
+        view = PalaceView(build_table(p.cfg), "cli", p.stores.catalog, refresh=False)
+        return ingress.perform(term, p.cfg, "cli", stores=p.stores, view=view, batch=True)
+
+    a = write_file(p.vault, "a.md", "alpha\n")
+    b = write_file(p.vault, "b.md", "beta\n")
+    assert land()["effects"] == {"landed": 2}
+    a.write_text("alpha, edited\n", encoding="utf-8")
+    assert land()["effects"] == {"landed": 1, "unchanged": 1}
+    assert batches == [2, 2]                            # both plans took the batched path
+    cat, versions = p.stores.catalog, p.stores.versions
+    assert versions is not None
+    (chain,) = cat.chains(Provenance.AUTHORED_SOLO)
+    rows = cat.read_at(chain, cat.head(chain))
+    for note, numbers in ((str(a), [1, 2]), (str(b), [1])):
+        assert [r.version for r in rows if r.kind == "store" and r.source_path == note] == \
+            [v.version_seq for v in versions.history(cat.doc_id_for(note))] == numbers
+    assert_consistent(cat)
+
+
 def test_a_change_of_identity_moves_first_and_a_rekey_carries_the_version() -> None:
     """A `record` that gives an active path another identity writes a `move` of the one it held
     before the `store`; the owner's re-key writes a `move` and then the path's `store` under the
@@ -554,7 +608,8 @@ def test_each_write_killed_or_failed_between_its_two_rows_leaves_neither(
     """Each of the six writing methods, its process killed after the catalog's statement and
     before the log's, and then the same write failing there in process: the catalog's rows and the
     log's are what they were, both times. Inside a batch, a failed write whose caller catches the
-    error and goes on leaves neither row either, and the batch commits the rest."""
+    error and goes on leaves neither row either, and the batch commits the rest, the write made
+    before the failed one and the write made after it, each with its log row."""
     method, write = WRITES[name]
     db = tmp_path / "catalog.sqlite"
     cat = VaultCatalog(db)
@@ -580,17 +635,21 @@ def test_each_write_killed_or_failed_between_its_two_rows_leaves_neither(
     with pytest.raises(RuntimeError):
         write(cat)
     unchanged(cat)
+    monkeypatch.undo()
     with cat.deferred():
+        cat.record("e.md", "de", "E")                   # the batch's write before the failed one
+        monkeypatch.setattr(cat._log, method, boom)
         with pytest.raises(RuntimeError):
             write(cat)                                  # failed, and the caller goes on
         monkeypatch.undo()
         cat.record("c.md", "dc", "C")
-    assert {k: v for k, v in catalog_rows(cat).items() if k != "c.md"} == catalog
-    assert catalog_rows(cat)["c.md"][:2] == ("dc", "C")
+    rows = catalog_rows(cat)
+    assert {k: v for k, v in rows.items() if k not in ("c.md", "e.md")} == catalog
+    assert (rows["e.md"][:2], rows["c.md"][:2]) == (("de", "E"), ("dc", "C"))
     now = {(r[0], r[1]): r for r in all_rows(cat)}
     then = {(r[0], r[1]): r for r in log}
     assert {k: now[k] for k in then} == then
-    assert [now[k][4] for k in sorted(now.keys() - then.keys())] == ["c.md"]   # c.md's store
+    assert [now[k][4] for k in sorted(now.keys() - then.keys())] == ["e.md", "c.md"]  # the stores
     assert chain_rows(cat) == log_chains
     assert_consistent(cat)
     cat.close()
@@ -806,6 +865,13 @@ def test_verify_fails_on_an_edited_row() -> None:
         (f"UPDATE landings SET {EMPTY}, at = '2000-01-01T00:00:00' WHERE chain = ? AND seq = 5",
          5, "a hole keeps content"),
     ]
+    # a row emptied as a purge empties it but for one column of the content, which it keeps:
+    # each column alone is content a hole must not keep
+    assert CONTENT == ["source_path", "doc_id", "digest", "title", "at"]
+    for kept in CONTENT:
+        others = ", ".join(f"{column} = NULL" for column in CONTENT if column != kept)
+        edits.append((f"UPDATE landings SET salt = NULL, {others} WHERE chain = ? AND seq = 4",
+                      4, "a hole keeps content"))
     for edit, seq, why in edits:
         cat._conn.execute("SAVEPOINT edit")
         cat._conn.execute(edit, [chain])
