@@ -8,6 +8,14 @@ audit trail tamper-evident-by-construction even before signatures land (Step 3).
 Thread-safety mirrors the JobQueue fix (PROGRESS 2026-06-27): the vault watcher emits ingest
 attestations from a spawned thread, so the connection is opened `check_same_thread=False` and
 every method is guarded by a reentrant lock.
+
+The producer lookups (which attestations name a hash among their outputs) read a side table of
+the ledger, one row for each element of each record's `output_hashes` with the record's id and
+action, keyed by the hash: a lookup is an index seek, where it was a decode of every record. The
+table is written by a trigger on the ledger, so every append writes its rows in its own statement
+and transaction, whatever process appends, and a rolled-back append leaves none. A ledger written
+before the table existed gets it on its first open, filled from the records in one transaction.
+The table is derived from the records and changes no record: the ledger stays append-only.
 """
 
 from __future__ import annotations
@@ -35,6 +43,23 @@ CREATE TABLE IF NOT EXISTS attestations (
 );
 CREATE INDEX IF NOT EXISTS att_role_ts ON attestations(agent_role, timestamp);
 """
+
+# The output-hash side table: created, filled from the records and given its trigger in one
+# transaction (`AttestationStore._migrate`), so its presence means it is complete. `pos` is the
+# element's place in the record's `output_hashes`, so a record that names a hash twice has two
+# rows, as the records do.
+_OUTPUTS = (
+    "CREATE TABLE output_hashes (hash TEXT NOT NULL, att_id TEXT NOT NULL, action TEXT NOT NULL, "
+    "pos INTEGER NOT NULL, PRIMARY KEY (hash, att_id, pos)) WITHOUT ROWID",
+    "INSERT INTO output_hashes (hash, att_id, action, pos) "
+    "SELECT j.value, a.id, a.action, j.key FROM attestations a, "
+    "json_each(a.payload_json, '$.output_hashes') j",
+    "CREATE TRIGGER attestation_outputs AFTER INSERT ON attestations BEGIN "
+    "INSERT INTO output_hashes (hash, att_id, action, pos) "
+    "SELECT j.value, NEW.id, NEW.action, j.key FROM json_each(NEW.payload_json, "
+    "'$.output_hashes') j; END",
+)
+_BATCH = 400
 
 
 @dataclass(frozen=True)
@@ -86,6 +111,27 @@ class AttestationStore:
         with self._lock:
             self._conn.executescript(_DDL)
             self._conn.commit()
+            self._migrate()
+
+    def _has_outputs(self) -> bool:
+        return self._conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                                  "AND name = 'output_hashes'").fetchone() is not None
+
+    def _migrate(self) -> None:
+        """Give a ledger written before the output-hash side table its table, its rows and its
+        trigger, in one transaction (another process may have done it first: checked again
+        inside). A crash midway leaves the ledger as it was, to be migrated at the next open."""
+        if self._has_outputs():
+            return
+        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            if not self._has_outputs():
+                for statement in _OUTPUTS:
+                    self._conn.execute(statement)
+            self._conn.commit()
+        except BaseException:
+            self._conn.rollback()
+            raise
 
     def append(self, att: Attestation) -> Attestation:
         """Insert one attestation. Append-only: an id already present is left untouched
@@ -135,34 +181,32 @@ class AttestationStore:
         return [a for a in self.all() if a.agent_role == role]
 
     def producers_by_output(self, hashes: set[str]) -> dict[str, list[tuple[str, str]]]:
-        """Each hash's producers, (action, id), for many hashes in one pass the database makes
-        over the ledger (SQLite's JSON functions, no record decoded in Python): what a batch of
-        landings asks once instead of `producers_of` per landing."""
+        """Each hash's producers, (action, id), sorted, an attestation once for each time its
+        outputs name the hash: what a batch of landings asks once instead of `producers_of` per
+        landing, a seek of the output-hash table a hash."""
         out: dict[str, list[tuple[str, str]]] = {h: [] for h in hashes}
-        if not hashes:
-            return out
-        with self._lock:
-            self._conn.execute("CREATE TEMP TABLE IF NOT EXISTS wanted_hashes "
-                               "(h TEXT PRIMARY KEY)")
-            self._conn.execute("DELETE FROM wanted_hashes")
-            self._conn.executemany("INSERT OR IGNORE INTO wanted_hashes VALUES (?)",
-                                   [(h,) for h in hashes])
-            rows = self._conn.execute(
-                "SELECT j.value, a.action, a.id FROM attestations a, "
-                "json_each(a.payload_json, '$.output_hashes') j "
-                "WHERE j.value IN (SELECT h FROM wanted_hashes)").fetchall()
-            self._conn.execute("DELETE FROM wanted_hashes")
-        for h, action, att_id in rows:
+        for h, action, att_id in self._outputs(hashes, "hash, action, att_id"):
             out[str(h)].append((str(action), str(att_id)))
         return {h: sorted(ps) for h, ps in out.items()}
+
+    def _outputs(self, hashes: set[str], columns: str) -> list[sqlite3.Row]:
+        """The output-hash table's rows for the hashes, by seeks of its key, a statement a few
+        hundred hashes. Reads alone: no transaction is opened, so no lock outlives the call."""
+        wanted = sorted(hashes)
+        rows: list[sqlite3.Row] = []
+        with self._lock:
+            for i in range(0, len(wanted), _BATCH):
+                batch = wanted[i:i + _BATCH]
+                rows += self._conn.execute(
+                    f"SELECT {columns} FROM output_hashes WHERE hash IN "
+                    f"({', '.join('?' for _ in batch)})", batch).fetchall()
+        return rows
 
     def producers_of(self, hashes: set[str]) -> set[str]:
         """Ids of attestations whose `output_hashes` intersect `hashes` — the attestations that
         PRODUCED any of those outputs. This is the chain-linking lookup: an action consuming
         hash h derives from whatever attested producing h (attestation-layer.md §2)."""
-        if not hashes:
-            return set()
-        return {a.id for a in self.all() if hashes & set(a.output_hashes)}
+        return {str(r[0]) for r in self._outputs(hashes, "att_id")}
 
     def chain_for(self, att_id: str) -> AttestationChain:
         """Assemble the transitive closure following `derived_from_ids`. `complete` is False if
