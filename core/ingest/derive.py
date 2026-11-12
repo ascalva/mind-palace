@@ -60,6 +60,11 @@ HOLDS: dict[str, Clearance[Provenance]] = {
     Provenance.CURATED.value: CURATED_READ,
 }
 
+# The classes whose items the lexical index holds: the plane's, and the code's, which lands with
+# lexical units and no vector (dn-palace-lite), so it is in no plane class and the vector drain
+# never sees it. The lexical backfill re-derives all of them after a tokenizer change.
+LEXICAL_CLASSES: frozenset[str] = frozenset(HOLDS) | {Provenance.CODE.value}
+
 
 @dataclass(frozen=True)
 class DrainReport:
@@ -268,10 +273,11 @@ class LexicalReport:
 
 def lexical_missing(catalog: Any, lexical: Any, *,
                     classes: Iterable[Provenance] | None = None) -> list[CatalogEntry]:
-    """The active entries of the plane's classes (of `classes` when given) whose current version
-    the lexical index has no record of: items landed before the index was opened, by an earlier
-    writer or while the instance embedded synchronously."""
-    wanted = {p.value for p in classes} if classes is not None else set(HOLDS)
+    """The active entries of the classes the lexical index holds (`LEXICAL_CLASSES`; of `classes`
+    when given) whose current version the index has no record of: items landed before the index
+    was opened, by an earlier writer or while the instance embedded synchronously, and every item
+    after a tokenizer change reset the index, the code's included."""
+    wanted = {p.value for p in classes} if classes is not None else set(LEXICAL_CLASSES)
     have = lexical.landed_versions()
     return [e for e in catalog.active_entries()
             if str(e.provenance) in wanted and (e.source_path, e.digest) not in have]

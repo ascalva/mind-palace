@@ -1787,11 +1787,8 @@ class Launcher:
         daemon runs as its `embed` job under `[embedding] lazy`. A reset plane (`reembed`) leaves
         every item pending, so this is also the re-embedding after a model change. The lexical
         backfill runs first, so this is also the re-derivation of a lexical index whose tokenizer
-        changed."""
-        if not self.cfg.embedding.enabled:
-            print("embed: this instance embeds nothing ([embedding] enabled = false); there is "
-                  "nothing to derive")
-            return 0
+        changed; an instance that embeds nothing runs that backfill only, since the lexical index
+        is its one index."""
         if self._refuse_if_live("embed"):
             return 1
         from core.ingest import ingress
@@ -1801,6 +1798,10 @@ class Launcher:
         lexical = derive_lexical(stores)       # a changed tokenizer re-derives the index first
         if lexical.items or lexical.rederived:
             print(f"lexical: {lexical}")
+        if not cfg.embedding.enabled:
+            print("embed: this instance embeds nothing ([embedding] enabled = false); no vector "
+                  "to derive")
+            return 0
         report = drain(stores, batch=cfg.embedding.batch, streams=cfg.embedding.streams)
         print(f"embed: {report}")
         return 0

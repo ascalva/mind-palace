@@ -38,13 +38,15 @@ def embed_handler(cfg: Config, *, stores: Callable[[], Any] | None = None) -> Ha
         return opened["s"]
 
     def handle(_job: Job) -> str:
-        if not cfg.embedding.enabled:     # the lite profile: nothing has, or will have, a vector
-            return "embed: this instance embeds nothing; there is nothing to derive"
         # the derived layers in order: the lexical units of any item the index lacks (all of
-        # them after a tokenizer change, which resets the index first), then the vectors
+        # them after a tokenizer change, which resets the index first), then the vectors. An
+        # instance that embeds nothing keeps the lexical index as its only index, so the backfill
+        # runs whatever the embedding switch says, and only the vector drain is skipped.
         lexical = derive_lexical(the_stores())
-        report = drain(the_stores(), batch=cfg.embedding.batch, streams=cfg.embedding.streams)
         lexical_note = f"; lexical: {lexical}" if lexical.items or lexical.rederived else ""
+        if not cfg.embedding.enabled:     # the lite profile: nothing has, or will have, a vector
+            return f"embed: this instance embeds nothing{lexical_note}"
+        report = drain(the_stores(), batch=cfg.embedding.batch, streams=cfg.embedding.streams)
         return f"embed: {report}{lexical_note}"
 
     return handle

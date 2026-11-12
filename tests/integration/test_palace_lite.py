@@ -14,7 +14,7 @@ import json
 import subprocess
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -167,6 +167,34 @@ def test_notes_land_and_rank_lexically_in_an_instance_that_embeds_nothing(
     assert near["hits"][0]["ref"] == str(cfg.ingestion.vault.path / "drain.md")
     assert near["hits"][0]["detail"]["ranked_by"] == "lexical: the item keeps no vector"
     assert near["hits"][0]["detail"]["vector"] == "none: the instance embeds nothing"
+    assert no_vectors == []
+
+
+def test_an_instance_that_embeds_nothing_re_derives_a_stale_lexical_index(
+        tmp_path: Path, repo: Path, no_vectors: list[str]) -> None:
+    """The lexical index is this profile's one index, derived like any other: after a tokenizer
+    change it refuses to land or score until the embed job, which every landing here requests,
+    resets it and lands every item again under the new tokenizer, deriving no vector."""
+    from core.ingest.lexical import LEGACY, Tokenizer
+    from core.stores.lexical import LexicalStore
+    from scheduler.embed import embed_handler
+
+    cfg = lite_config(tmp_path / "lite", repo)
+    stores = ingress.build_stores(cfg)
+    assert stores.lexical is not None
+    path = stores.lexical.path
+    stores.lexical = LexicalStore(path, tokenizer=LEGACY)
+    assert _sync(cfg, stores)["effects"] == {"landed": 3}
+    assert stores.lexical.recorded_tokenizer() == LEGACY.identity
+    stores.lexical = LexicalStore(path, tokenizer=Tokenizer())
+    assert stores.lexical.stale
+    note = embed_handler(cfg, stores=lambda: stores)(cast(Any, None))   # the job is unread
+    assert note is not None and note.startswith("embed: this instance embeds nothing")
+    assert "lexical: re-derived" in note
+    assert stores.lexical.recorded_tokenizer() == Tokenizer().identity
+    assert not stores.lexical.stale
+    assert all(stores.lexical.holds_current(e.source_path, e.digest)
+               for e in stores.catalog.active_entries())
     assert no_vectors == []
 
 
