@@ -1,11 +1,11 @@
 {
- "note": "eval/landing_log_bench.py on two copy-on-write clones of the corpus instance's catalog, 2026-11-11; default arguments (--batch 10000 --rounds 5 --repeat 200 --seed 11)",
+ "note": "eval/landing_log_bench.py at 08d4d506, the code at 88ef0781, on two copy-on-write clones of the corpus instance's catalog, 2026-11-11; default arguments (--batch 10000 --rounds 5 --repeat 200 --seed 11) and --fresh 30000,100000. The writes are timed three ways: 'with' is record as built, 'without' the same with LandingLog.store patched out (the read of the row before, the explicit transaction and the savepoint kept), 'before' the upsert record ran at f969904e, alone.",
  "run1": {
   "catalog_copy": "vault_catalog.sqlite",
   "load_start": [
-   2.26123046875,
-   2.5947265625,
-   2.93701171875
+   3.86474609375,
+   3.90380859375,
+   3.43603515625
   ],
   "python": "3.15.2",
   "sqlite": "3.54.1",
@@ -30,212 +30,7 @@
    "vault_files_digest": 34033664,
    "vault_files_doc_id": 16924672
   },
-  "migration_s": 6.220551250036806,
-  "chains": {
-   "1": {
-    "class": "observed",
-    "rows": 400276
-   }
-  },
-  "log_rows": 400276,
-  "files_after": {
-   "vault_catalog.sqlite": 334131200,
-   "vault_catalog.sqlite-wal": 0,
-   "vault_catalog.sqlite-shm": 360448
-  },
-  "objects_after": {
-   "landing_chains": 4096,
-   "landings": 152621056,
-   "landings_closed": 4096,
-   "landings_doc": 4096,
-   "landings_path": 18845696,
-   "sqlite_autoindex_vault_files_1": 16924672,
-   "sqlite_schema": 4096,
-   "vault_files": 94765056,
-   "vault_files_digest": 34033664,
-   "vault_files_doc_id": 16924672
-  },
-  "growth_bytes": 171806720,
-  "growth_bytes_a_row": 429.22063775994565,
-  "bytes_a_row": {
-   "landings": 381.28955021035483,
-   "landings_path": 47.081753590022885,
-   "landings_doc": 0.010232939271902388,
-   "landings_closed": 0.010232939271902388,
-   "landing_chains": 0.010232939271902388
-  },
-  "verify": {
-   "1": {
-    "ok": true,
-    "rows": 400276,
-    "commitments": 400276,
-    "seconds": 3.0703140411060303
-   }
-  },
-  "fold_equals_catalog": true,
-  "fold_seconds": 2.8317980838473886,
-  "reads": {
-   "chain": 1,
-   "class": "observed",
-   "head": {
-    "median_us": 2.4170149117708206,
-    "low_us": 2.3329630494117737,
-    "high_us": 18.124934285879135,
-    "runs": 200
-   },
-   "path_key": {
-    "median_us": 1.5830155462026596,
-    "low_us": 1.4998950064182281,
-    "high_us": 26.665860787034035,
-    "runs": 200
-   },
-   "state_at_mid": {
-    "median_us": 14.25005029886961,
-    "low_us": 8.167000487446785,
-    "high_us": 160.33300198614597,
-    "runs": 200
-   },
-   "history_at_head": {
-    "median_us": 15.708035789430141,
-    "low_us": 13.417098671197891,
-    "high_us": 66.83287210762501,
-    "runs": 200
-   },
-   "read_between_1000": {
-    "median_us": 3442.95846298337,
-    "low_us": 3368.9169213175774,
-    "high_us": 3593.666944652796,
-    "runs": 200
-   },
-   "read_at_1000": {
-    "median_us": 3280.0829503685236,
-    "low_us": 3207.0830930024385,
-    "high_us": 3584.667108952999,
-    "runs": 200
-   },
-   "heads_at_tenth": {
-    "median_us": 151410.75011342764,
-    "low_us": 150872.8750050068,
-    "high_us": 169505.79197145998,
-    "runs": 5,
-    "rows": 40026
-   },
-   "heads_walk_tenth": {
-    "median_us": 5558.416014537215,
-    "low_us": 5286.04188002646,
-    "high_us": 6100.333062931895,
-    "runs": 5
-   },
-   "heads_at_mid": {
-    "median_us": 789987.4169379473,
-    "low_us": 759208.207949996,
-    "high_us": 810563.457896933,
-    "runs": 5,
-    "rows": 200137
-   },
-   "heads_walk_mid": {
-    "median_us": 26317.6248408854,
-    "low_us": 26199.499843642116,
-    "high_us": 27383.832959458232,
-    "runs": 5
-   },
-   "heads_at_head": {
-    "median_us": 1617782.6661150903,
-    "low_us": 1572967.833140865,
-    "high_us": 1625654.5409560204,
-    "runs": 5,
-    "rows": 400274
-   },
-   "heads_walk_head": {
-    "median_us": 56461.54098212719,
-    "low_us": 55988.00000734627,
-    "high_us": 60100.20803660154,
-    "runs": 5
-   }
-  },
-  "writes_us_a_record": {
-   "new": {
-    "with": [
-     48.001220799051225,
-     48.92591249663383,
-     48.21360409259796,
-     49.26652500871569,
-     50.32935000490397
-    ],
-    "without": [
-     6.799195799976587,
-     6.8319084122776985,
-     6.65885410271585,
-     6.896770792081952,
-     6.805129209533334
-    ],
-    "with_median_us": 48.92591249663383,
-    "without_median_us": 6.805129209533334,
-    "overhead_us": 42.120783287100494
-   },
-   "changed": {
-    "with": [
-     105.88544998317957,
-     109.1484708013013,
-     105.0655041821301,
-     106.46303340326995,
-     107.13723751250654
-    ],
-    "without": [
-     40.69942079950124,
-     40.631037508137524,
-     37.9464291036129,
-     37.86343338433653,
-     37.41974588483572
-    ],
-    "with_median_us": 106.46303340326995,
-    "without_median_us": 37.9464291036129,
-    "overhead_us": 68.51660429965705
-   }
-  },
-  "verify_after_writes": true,
-  "files_end": {
-   "vault_catalog.sqlite": 389640192,
-   "vault_catalog.sqlite-wal": 0,
-   "vault_catalog.sqlite-shm": 360448
-  },
-  "load_end": [
-   8.271484375,
-   4.3427734375,
-   3.572265625
-  ]
- },
- "run2": {
-  "catalog_copy": "vault_catalog.sqlite",
-  "load_start": [
-   8.271484375,
-   4.3427734375,
-   3.572265625
-  ],
-  "python": "3.15.2",
-  "sqlite": "3.54.1",
-  "machine": "arm64",
-  "batch": 10000,
-  "rounds": 5,
-  "repeat": 200,
-  "seed": 11,
-  "catalog_rows": {
-   "observed active": 400274
-  },
-  "has_log_before": false,
-  "files_before": {
-   "vault_catalog.sqlite": 162652160,
-   "vault_catalog.sqlite-wal": 0,
-   "vault_catalog.sqlite-shm": 32768
-  },
-  "objects_before": {
-   "sqlite_autoindex_vault_files_1": 16924672,
-   "sqlite_schema": 4096,
-   "vault_files": 94765056,
-   "vault_files_digest": 34033664,
-   "vault_files_doc_id": 16924672
-  },
-  "migration_s": 6.325798250036314,
+  "migration_s": 6.729614624986425,
   "chains": {
    "1": {
     "class": "observed",
@@ -274,140 +69,640 @@
     "ok": true,
     "rows": 400276,
     "commitments": 400276,
-    "seconds": 3.051000916864723
+    "seconds": 3.0797554578166455
    }
   },
   "fold_equals_catalog": true,
-  "fold_seconds": 2.848458959022537,
+  "fold_seconds": 2.901144874980673,
   "reads": {
    "chain": 1,
    "class": "observed",
    "head": {
-    "median_us": 2.459157258272171,
+    "median_us": 2.499902620911598,
     "low_us": 2.37487256526947,
-    "high_us": 24.124979972839355,
+    "high_us": 26.499852538108826,
     "runs": 200
    },
    "path_key": {
-    "median_us": 1.5830155462026596,
+    "median_us": 1.6249250620603561,
     "low_us": 1.4998950064182281,
-    "high_us": 22.999942302703857,
+    "high_us": 21.3750172406435,
     "runs": 200
    },
    "state_at_mid": {
-    "median_us": 14.832941815257072,
-    "low_us": 8.542090654373169,
-    "high_us": 133.2079991698265,
+    "median_us": 13.72897531837225,
+    "low_us": 8.58306884765625,
+    "high_us": 130.3341705352068,
     "runs": 200
    },
    "history_at_head": {
-    "median_us": 14.666467905044556,
-    "low_us": 13.249926269054413,
-    "high_us": 63.04099224507809,
+    "median_us": 15.457975678145885,
+    "low_us": 13.124896213412285,
+    "high_us": 69.29109804332256,
     "runs": 200
    },
    "read_between_1000": {
-    "median_us": 3424.0210661664605,
-    "low_us": 3286.0420178622007,
-    "high_us": 3612.959058955312,
+    "median_us": 3351.478953845799,
+    "low_us": 3183.4589317440987,
+    "high_us": 3686.541924253106,
     "runs": 200
    },
    "read_at_1000": {
-    "median_us": 3255.7500526309013,
-    "low_us": 3225.250169634819,
-    "high_us": 3565.666964277625,
+    "median_us": 3179.7916162759066,
+    "low_us": 3080.999944359064,
+    "high_us": 3473.334014415741,
     "runs": 200
    },
    "heads_at_tenth": {
-    "median_us": 151474.91707466543,
-    "low_us": 150040.70801660419,
-    "high_us": 160787.37494535744,
+    "median_us": 151287.6250781119,
+    "low_us": 148509.37481969595,
+    "high_us": 161804.45812642574,
     "runs": 5,
     "rows": 40026
    },
    "heads_walk_tenth": {
-    "median_us": 5932.959029451013,
-    "low_us": 5322.749959304929,
-    "high_us": 6092.166993767023,
+    "median_us": 5649.625090882182,
+    "low_us": 5616.624839603901,
+    "high_us": 6420.0409688055515,
     "runs": 5
    },
    "heads_at_mid": {
-    "median_us": 798841.6668958962,
-    "low_us": 764181.62509799,
-    "high_us": 805269.2501805723,
+    "median_us": 790489.915991202,
+    "low_us": 752933.2500416785,
+    "high_us": 809762.9579715431,
     "runs": 5,
     "rows": 200137
    },
    "heads_walk_mid": {
-    "median_us": 26318.04207339883,
-    "low_us": 25891.083059832454,
-    "high_us": 27076.20896399021,
+    "median_us": 28980.624862015247,
+    "low_us": 28823.250206187367,
+    "high_us": 30172.500060871243,
     "runs": 5
    },
    "heads_at_head": {
-    "median_us": 1613144.7500083596,
-    "low_us": 1580234.7920835018,
-    "high_us": 1634123.8748282194,
+    "median_us": 1619828.0828539282,
+    "low_us": 1561983.7080594152,
+    "high_us": 1626085.9169997275,
     "runs": 5,
     "rows": 400274
    },
    "heads_walk_head": {
-    "median_us": 54320.41618041694,
-    "low_us": 52884.4587970525,
-    "high_us": 57886.87500171363,
+    "median_us": 59528.332902118564,
+    "low_us": 58484.707958996296,
+    "high_us": 61096.3748767972,
     "runs": 5
    }
   },
   "writes_us_a_record": {
    "new": {
     "with": [
-     48.21380840148777,
-     48.990112519823015,
-     48.84648330044001,
-     49.588733399286866,
-     49.51973750721663
+     55.10822921060026,
+     55.28729159850627,
+     55.70070000831038,
+     56.571758282370865,
+     57.32883329037577
     ],
     "without": [
-     6.882070912979543,
-     6.796324998140335,
-     6.684429198503494,
-     6.795345805585384,
-     6.710762483999133
+     10.584408300928771,
+     10.540708410553634,
+     10.540254204533994,
+     10.614020796492696,
+     10.518579185009003
     ],
-    "with_median_us": 48.990112519823015,
-    "without_median_us": 6.795345805585384,
-    "overhead_us": 42.19476671423763
+    "before": [
+     4.659308400005102,
+     4.703449993394315,
+     4.651125008240342,
+     4.6134083066135645,
+     4.631524998694658
+    ],
+    "with_median_us": 55.70070000831038,
+    "without_median_us": 10.540708410553634,
+    "before_median_us": 4.651125008240342,
+    "sn1_adds_us": 51.049575000070035,
+    "log_rows_add_us": 45.15999159775674
    },
    "changed": {
     "with": [
-     110.63325421418995,
-     106.03663329966366,
-     104.65863330755383,
-     106.02083748672158,
-     105.65141250845045
+     119.69202079344541,
+     119.57683339715004,
+     122.25654169451444,
+     120.29862918425351,
+     120.3234083019197
     ],
     "without": [
-     43.35534158162773,
-     41.16715001873672,
-     41.45721250679344,
-     37.74790000170469,
-     39.11720409523696
+     47.33577910810709,
+     46.588333416730165,
+     46.02282920386642,
+     43.616541707888246,
+     44.30537910666317
     ],
-    "with_median_us": 106.02083748672158,
-    "without_median_us": 41.16715001873672,
-    "overhead_us": 64.85368746798486
+    "before": [
+     35.367579106241465,
+     36.521849990822375,
+     34.526974987238646,
+     33.05701659992337,
+     33.809708314947784
+    ],
+    "with_median_us": 120.29862918425351,
+    "without_median_us": 46.02282920386642,
+    "before_median_us": 34.526974987238646,
+    "sn1_adds_us": 85.77165419701487,
+    "log_rows_add_us": 74.27579998038709
    }
   },
   "verify_after_writes": true,
   "files_end": {
-   "vault_catalog.sqlite": 389656576,
+   "vault_catalog.sqlite": 404824064,
    "vault_catalog.sqlite-wal": 0,
    "vault_catalog.sqlite-shm": 360448
   },
   "load_end": [
-   7.1728515625,
-   4.68798828125,
-   3.74462890625
+   3.7021484375,
+   3.8291015625,
+   3.43212890625
+  ],
+  "fresh_chains": [
+   {
+    "paths": 30000,
+    "load_start": [
+     3.7021484375,
+     3.8291015625,
+     3.43212890625
+    ],
+    "chain_rows": 30002,
+    "heads_at": {
+     "median_us": 111838.91608379781,
+     "low_us": 109059.91704203188,
+     "high_us": 124618.75006556511,
+     "runs": 5,
+     "rows": 30000
+    },
+    "heads_walk": {
+     "median_us": 4092.208109796047,
+     "low_us": 3992.582904174924,
+     "high_us": 4969.167057424784,
+     "runs": 5
+    },
+    "us_a_head_past_the_walk": 3.5915569324667254,
+    "load_end": [
+     3.7021484375,
+     3.8291015625,
+     3.43212890625
+    ]
+   },
+   {
+    "paths": 100000,
+    "load_start": [
+     3.7021484375,
+     3.8291015625,
+     3.43212890625
+    ],
+    "chain_rows": 100002,
+    "heads_at": {
+     "median_us": 374241.6659370065,
+     "low_us": 372616.66590347886,
+     "high_us": 400077.1250575781,
+     "runs": 5,
+     "rows": 100000
+    },
+    "heads_walk": {
+     "median_us": 15067.29214452207,
+     "low_us": 14669.333817437291,
+     "high_us": 15617.999946698546,
+     "runs": 5
+    },
+    "us_a_head_past_the_walk": 3.591743737924844,
+    "load_end": [
+     3.5654296875,
+     3.79833984375,
+     3.42333984375
+    ]
+   }
   ]
+ },
+ "run2": {
+  "catalog_copy": "vault_catalog.sqlite",
+  "load_start": [
+   3.5654296875,
+   3.79833984375,
+   3.42333984375
+  ],
+  "python": "3.15.2",
+  "sqlite": "3.54.1",
+  "machine": "arm64",
+  "batch": 10000,
+  "rounds": 5,
+  "repeat": 200,
+  "seed": 11,
+  "catalog_rows": {
+   "observed active": 400274
+  },
+  "has_log_before": false,
+  "files_before": {
+   "vault_catalog.sqlite": 162652160,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 32768
+  },
+  "objects_before": {
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "migration_s": 6.70507474988699,
+  "chains": {
+   "1": {
+    "class": "observed",
+    "rows": 400276
+   }
+  },
+  "log_rows": 400276,
+  "files_after": {
+   "vault_catalog.sqlite": 334131200,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "objects_after": {
+   "landing_chains": 4096,
+   "landings": 152621056,
+   "landings_closed": 4096,
+   "landings_doc": 4096,
+   "landings_path": 18845696,
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "growth_bytes": 171806720,
+  "growth_bytes_a_row": 429.22063775994565,
+  "bytes_a_row": {
+   "landings": 381.28955021035483,
+   "landings_path": 47.081753590022885,
+   "landings_doc": 0.010232939271902388,
+   "landings_closed": 0.010232939271902388,
+   "landing_chains": 0.010232939271902388
+  },
+  "verify": {
+   "1": {
+    "ok": true,
+    "rows": 400276,
+    "commitments": 400276,
+    "seconds": 3.065702833002433
+   }
+  },
+  "fold_equals_catalog": true,
+  "fold_seconds": 2.934743707999587,
+  "reads": {
+   "chain": 1,
+   "class": "observed",
+   "head": {
+    "median_us": 2.499902620911598,
+    "low_us": 2.37487256526947,
+    "high_us": 21.0409052670002,
+    "runs": 200
+   },
+   "path_key": {
+    "median_us": 1.7499551177024841,
+    "low_us": 1.5830155462026596,
+    "high_us": 31.83400258421898,
+    "runs": 200
+   },
+   "state_at_mid": {
+    "median_us": 16.54098741710186,
+    "low_us": 8.457805961370468,
+    "high_us": 165.9998670220375,
+    "runs": 200
+   },
+   "history_at_head": {
+    "median_us": 18.895952962338924,
+    "low_us": 13.916054740548134,
+    "high_us": 102.91696526110172,
+    "runs": 200
+   },
+   "read_between_1000": {
+    "median_us": 3372.354549355805,
+    "low_us": 3172.1252016723156,
+    "high_us": 3723.874920979142,
+    "runs": 200
+   },
+   "read_at_1000": {
+    "median_us": 3192.270523868501,
+    "low_us": 3032.9590663313866,
+    "high_us": 3557.500196620822,
+    "runs": 200
+   },
+   "heads_at_tenth": {
+    "median_us": 149837.87504024804,
+    "low_us": 145627.5419332087,
+    "high_us": 159029.042115435,
+    "runs": 5,
+    "rows": 40026
+   },
+   "heads_walk_tenth": {
+    "median_us": 5779.791856184602,
+    "low_us": 5585.665814578533,
+    "high_us": 6089.084083214402,
+    "runs": 5
+   },
+   "heads_at_mid": {
+    "median_us": 789410.9999760985,
+    "low_us": 754632.7088493854,
+    "high_us": 811964.7921994328,
+    "runs": 5,
+    "rows": 200137
+   },
+   "heads_walk_mid": {
+    "median_us": 30065.417056903243,
+    "low_us": 28939.95912745595,
+    "high_us": 30304.33296225965,
+    "runs": 5
+   },
+   "heads_at_head": {
+    "median_us": 1617219.0001234412,
+    "low_us": 1563315.707957372,
+    "high_us": 1622686.7500226945,
+    "runs": 5,
+    "rows": 400274
+   },
+   "heads_walk_head": {
+    "median_us": 59110.08291877806,
+    "low_us": 58275.99996700883,
+    "high_us": 62306.66604824364,
+    "runs": 5
+   }
+  },
+  "writes_us_a_record": {
+   "new": {
+    "with": [
+     54.36905410606414,
+     55.64371659420431,
+     57.90479579009116,
+     57.44836248923093,
+     57.93580422177911
+    ],
+    "without": [
+     10.374437482096255,
+     10.359825007617474,
+     10.390820796601474,
+     10.337000014260411,
+     10.406262497417629
+    ],
+    "before": [
+     4.5640458120033145,
+     4.662716598249972,
+     4.525408404879272,
+     4.5750708086416125,
+     4.493379103951156
+    ],
+    "with_median_us": 57.44836248923093,
+    "without_median_us": 10.374437482096255,
+    "before_median_us": 4.5640458120033145,
+    "sn1_adds_us": 52.884316677227616,
+    "log_rows_add_us": 47.073925007134676
+   },
+   "changed": {
+    "with": [
+     122.07017501350492,
+     118.36712919175625,
+     120.04747919272631,
+     117.80861250590533,
+     119.09208749420941
+    ],
+    "without": [
+     51.869129203259945,
+     45.72556249331683,
+     42.81076251063496,
+     43.757937499322,
+     45.044100005179644
+    ],
+    "before": [
+     36.119758314453065,
+     36.37074159923941,
+     33.456237497739494,
+     33.571337489411235,
+     34.735108306631446
+    ],
+    "with_median_us": 119.09208749420941,
+    "without_median_us": 45.044100005179644,
+    "before_median_us": 34.735108306631446,
+    "sn1_adds_us": 84.35697918757796,
+    "log_rows_add_us": 74.04798748902977
+   }
+  },
+  "verify_after_writes": true,
+  "files_end": {
+   "vault_catalog.sqlite": 404795392,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "load_end": [
+   2.8154296875,
+   3.5634765625,
+   3.357421875
+  ],
+  "fresh_chains": [
+   {
+    "paths": 30000,
+    "load_start": [
+     2.8154296875,
+     3.5634765625,
+     3.357421875
+    ],
+    "chain_rows": 30002,
+    "heads_at": {
+     "median_us": 110653.37480977178,
+     "low_us": 109369.91707421839,
+     "high_us": 124239.5001463592,
+     "runs": 5,
+     "rows": 30000
+    },
+    "heads_walk": {
+     "median_us": 4666.124936193228,
+     "low_us": 3926.1248894035816,
+     "high_us": 5359.542090445757,
+     "runs": 5
+    },
+    "us_a_head_past_the_walk": 3.532908329119285,
+    "load_end": [
+     2.8154296875,
+     3.5634765625,
+     3.357421875
+    ]
+   },
+   {
+    "paths": 100000,
+    "load_start": [
+     2.8154296875,
+     3.5634765625,
+     3.357421875
+    ],
+    "chain_rows": 100002,
+    "heads_at": {
+     "median_us": 375836.709048599,
+     "low_us": 370909.4999358058,
+     "high_us": 406000.7082298398,
+     "runs": 5,
+     "rows": 100000
+    },
+    "heads_walk": {
+     "median_us": 15437.291003763676,
+     "low_us": 15316.500095650554,
+     "high_us": 17928.87505143881,
+     "runs": 5
+    },
+    "us_a_head_past_the_walk": 3.6039941804483533,
+    "load_end": [
+     2.68994140625,
+     3.51123046875,
+     3.3408203125
+    ]
+   }
+  ]
+ },
+ "savepoint_journal_in_a_file": {
+  "note": "the same harness on two earlier clones, at 2d106dd0, before the catalog's connection kept its temporary store in memory: each write in a batch took a savepoint whose journal SQLite kept in a temporary file; the writes only",
+  "run1": {
+   "load_start": [
+    3.88623046875,
+    3.7333984375,
+    3.216796875
+   ],
+   "load_end": [
+    3.830078125,
+    3.74853515625,
+    3.255859375
+   ],
+   "writes_us_a_record": {
+    "new": {
+     "with": [
+      104.19153750408441,
+      105.10614160448313,
+      105.80063331872225,
+      104.23267919104546,
+      107.40759999025613
+     ],
+     "without": [
+      35.8013833174482,
+      34.651629091240466,
+      36.060837493278086,
+      36.28457081504166,
+      38.067224994301796
+     ],
+     "before": [
+      4.716416588053107,
+      4.740945901721716,
+      4.919600021094084,
+      4.730145796202123,
+      4.913333291187882
+     ],
+     "with_median_us": 105.10614160448313,
+     "without_median_us": 36.060837493278086,
+     "before_median_us": 4.740945901721716,
+     "sn1_adds_us": 100.36519570276141,
+     "log_rows_add_us": 69.04530411120504
+    },
+    "changed": {
+     "with": [
+      213.28370838891715,
+      191.467983298935,
+      196.34440001100302,
+      197.77144158724695,
+      199.3030291981995
+     ],
+     "without": [
+      58.519500005058944,
+      52.49663342256099,
+      49.9285584082827,
+      57.20237500499934,
+      58.86454579886049
+     ],
+     "before": [
+      42.90297920815647,
+      41.671029198914766,
+      40.235729212872684,
+      41.73753750510514,
+      42.11257079150528
+     ],
+     "with_median_us": 197.77144158724695,
+     "without_median_us": 57.20237500499934,
+     "before_median_us": 41.73753750510514,
+     "sn1_adds_us": 156.03390408214182,
+     "log_rows_add_us": 140.56906658224761
+    }
+   }
+  },
+  "run2": {
+   "load_start": [
+    4.390625,
+    3.8876953125,
+    3.314453125
+   ],
+   "load_end": [
+    4.51171875,
+    3.98486328125,
+    3.38232421875
+   ],
+   "writes_us_a_record": {
+    "new": {
+     "with": [
+      98.89293750748038,
+      107.52870829310268,
+      109.82248748186976,
+      105.70167500991374,
+      111.048962501809
+     ],
+     "without": [
+      30.30264580156654,
+      31.740979081951085,
+      31.109712505713105,
+      33.568929112516344,
+      35.236116708256304
+     ],
+     "before": [
+      4.894129186868668,
+      4.725395794957876,
+      4.881912493146956,
+      4.704041685909033,
+      4.885404207743704
+     ],
+     "with_median_us": 107.52870829310268,
+     "without_median_us": 31.740979081951085,
+     "before_median_us": 4.881912493146956,
+     "sn1_adds_us": 102.64679579995573,
+     "log_rows_add_us": 75.7877292111516
+    },
+    "changed": {
+     "with": [
+      193.7144417082891,
+      192.2450999962166,
+      199.66615831945091,
+      193.41460408177227,
+      199.17669580318034
+     ],
+     "without": [
+      63.67000420577824,
+      52.5426333071664,
+      51.143874996341765,
+      54.282879200764,
+      57.24806669168174
+     ],
+     "before": [
+      41.37748330831528,
+      40.36920410580933,
+      39.85576250124723,
+      40.51143329124898,
+      40.28654999565333
+     ],
+     "with_median_us": 193.7144417082891,
+     "without_median_us": 54.282879200764,
+     "before_median_us": 40.36920410580933,
+     "sn1_adds_us": 153.34523760247976,
+     "log_rows_add_us": 139.4315625075251
+    }
+   }
+  }
  }
 }
