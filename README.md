@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 27 statement files; 25,700 lines of models and proofs, 3,846 of statements, 5,757 of attacks |
+| the library | 38 proof modules, 37 models, 27 statement files; 25,700 lines of models and proofs, 3,841 of statements, 5,757 of attacks |
 | theorems | 1,544 proved in `formal/Palace`; 380 statements in `formal/Spec` judged identical by the comparator |
 | the ledger | 106 rows in 16 families, 386 cited declarations, 93 law markers checked against the rows |
 | attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 56,231 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| the replay | 56,238 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field · the temporal snapshot |
 
 ## The mathematics
