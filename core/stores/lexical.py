@@ -29,7 +29,11 @@ regenerable: it can be rebuilt from the raw store and the catalog, and nothing b
 existed gets them on its first open, counted from its current units in one transaction (a store
 whose units another tokenizer made is re-derived first, and its statistics with it); from then on
 its units refuse a write that does not come through this class, since a writer that does not
-keep the statistics (an older process still running) would leave them wrong without a sign.
+keep the statistics (an older process still running) would leave them wrong without a sign. The
+count holds the file's write lock while it runs and does not wait for it: a process that opens
+the store while another process counts it, or holds a write, opens at once, and until the
+statistics are counted a query counts its own from the units, as every query did before they
+were kept (the same integers, so the same scores); a writer waits for the lock as for any write.
 
 The rows a query scores are read from the query terms' postings, or from the given paths' units
 when a caller passes paths (the palace's own call, `core/sentence/universe.py`), and the
@@ -75,6 +79,9 @@ _BATCH = 400
 _SUM_TERMS = 500
 _STATISTICS = "statistics"     # the meta key set once the statistics are counted
 _WRITER = "writer"             # the meta key this class's write transactions hold while they run
+_BUSY_MS = 30000               # how long a write waits for another connection's write lock
+# a write lock another connection holds, or a file this process cannot write
+_UNWRITABLE = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_READONLY)
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS units (
@@ -105,18 +112,16 @@ CREATE TABLE IF NOT EXISTS versions (
     PRIMARY KEY (source_path, digest)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS class_stats (
-    provenance TEXT    PRIMARY KEY,
-    units      INTEGER NOT NULL,
-    tokens     INTEGER NOT NULL
-) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS term_stats (
-    term       TEXT    NOT NULL,
-    provenance TEXT    NOT NULL,
-    df         INTEGER NOT NULL,
-    PRIMARY KEY (term, provenance)
-) WITHOUT ROWID;
 """
+
+# The statistics' tables, created by the transaction that first counts them (`_count_statistics`),
+# so an open of a store from before them writes nothing unless it counts them.
+_STATS_DDL = (
+    "CREATE TABLE IF NOT EXISTS class_stats (provenance TEXT PRIMARY KEY, "
+    "units INTEGER NOT NULL, tokens INTEGER NOT NULL) WITHOUT ROWID",
+    "CREATE TABLE IF NOT EXISTS term_stats (term TEXT NOT NULL, provenance TEXT NOT NULL, "
+    "df INTEGER NOT NULL, PRIMARY KEY (term, provenance)) WITHOUT ROWID",
+)
 
 # Installed with the statistics: a write to the units from outside this class's transactions (a
 # process that does not keep the statistics) is refused, whole, rather than left to make them
@@ -133,6 +138,12 @@ _GUARDS = tuple(
 
 def _now() -> str:
     return datetime.now(UTC).replace(tzinfo=None).isoformat(timespec="seconds")
+
+
+def _unwritable(exc: sqlite3.Error) -> bool:
+    """Whether a statement failed because another connection holds the write lock or the file
+    cannot be written by this process, rather than for a fault of its own."""
+    return (getattr(exc, "sqlite_errorcode", 0) & 0xFF) in _UNWRITABLE
 
 
 def _batches(items: Sequence[str]) -> Iterator[Sequence[str]]:
@@ -215,9 +226,10 @@ class LexicalStore:
     def __post_init__(self) -> None:
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.path), timeout=30.0, isolation_level=None)
+        self._conn = sqlite3.connect(str(self.path), timeout=_BUSY_MS / 1000,
+                                     isolation_level=None)
         self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=30000")
+        self._conn.execute(f"PRAGMA busy_timeout={_BUSY_MS}")
         self._conn.executescript(_DDL)
         self._migrate()
 
@@ -226,15 +238,36 @@ class LexicalStore:
 
     # ── transactions ─────────────────────────────────────────────────────────────────────────
 
-    def _begin(self) -> None:
-        """A write transaction of this class: it holds the writer's key, which the units' guards
-        read, and removes it before it commits, so no other transaction ever sees it."""
-        self._conn.execute("BEGIN IMMEDIATE")
-        self._conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')", [_WRITER])
+    def _begin(self, *, wait: bool = True) -> bool:
+        """Begin a write transaction of this class: it holds the writer's key, which the units'
+        guards read, and removes it before it commits, so no other transaction ever sees it.
+        Called inside the caller's `try`, whose `_rollback` ends the transaction if the key's
+        write fails. Without `wait`, when another connection holds the write lock nothing begins
+        and the answer is False."""
+        conn = self._conn
+        if not wait:
+            conn.execute("PRAGMA busy_timeout=0")
+        try:
+            conn.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as exc:
+            if wait or not _unwritable(exc):
+                raise
+            return False
+        finally:
+            if not wait:
+                conn.execute(f"PRAGMA busy_timeout={_BUSY_MS}")
+        conn.execute("INSERT OR REPLACE INTO meta (key, value) VALUES (?, '1')", [_WRITER])
+        return True
 
     def _commit(self) -> None:
         self._conn.execute("DELETE FROM meta WHERE key = ?", [_WRITER])
         self._conn.execute("COMMIT")
+
+    def _rollback(self) -> None:
+        """End the transaction a failed write left open, if one is: a `BEGIN` that itself failed
+        left none."""
+        if self._conn.in_transaction:
+            self._conn.execute("ROLLBACK")
 
     # ── the statistics ───────────────────────────────────────────────────────────────────────
 
@@ -242,27 +275,41 @@ class LexicalStore:
         return self._conn.execute("SELECT 1 FROM meta WHERE key = ?",
                                   [_STATISTICS]).fetchone() is not None
 
-    def _migrate(self) -> None:
+    def _migrate(self) -> bool:
         """Count the statistics of a store that has none yet (one written before they existed,
         or whose record of them was removed), from its current units, in one transaction, and
-        install the units' guards with them. A store whose units another tokenizer made is left
-        alone: it neither lands nor scores until it is re-derived, and its `reset` counts them."""
-        if self._counted() or self.stale:
-            return
-        conn = self._conn
-        self._begin()
+        install the units' guards with them; True once they are counted. The count does not wait
+        for the file's write lock: while another connection holds it (another process counting,
+        or writing) or the file cannot be written, nothing is counted, the answer is False, and
+        the store's queries count their statistics from the units (`statistics`) until a later
+        open or query counts them. A store whose units another tokenizer made is left alone: it
+        neither lands nor scores until it is re-derived, and its `reset` counts them."""
+        if self._counted():
+            return True
+        if self.stale or self._conn.in_transaction:
+            return False
         try:
+            if not self._begin(wait=False):
+                return False
             if not self._counted():
                 self._count_statistics()
             self._commit()
-        except BaseException:
-            conn.execute("ROLLBACK")
+        except sqlite3.OperationalError as exc:
+            self._rollback()
+            if _unwritable(exc):
+                return False
             raise
+        except BaseException:
+            self._rollback()
+            raise
+        return True
 
     def _count_statistics(self) -> None:
         """The statistics counted from the units, inside the caller's transaction: one pass over
         the postings a class, in term order, so the counts arrive in the table's order."""
         conn = self._conn
+        for table in _STATS_DDL:
+            conn.execute(table)
         conn.execute("DELETE FROM class_stats")
         conn.execute("DELETE FROM term_stats")
         conn.execute("INSERT INTO class_stats (provenance, units, tokens) "
@@ -318,16 +365,21 @@ class LexicalStore:
     def statistics(self, *, classes: Iterable[Provenance] | None = None,
                    terms: Iterable[str] = ()) -> LexicalStatistics:
         """A reader's statistics: the sums of its classes' rows (every class when None), over
-        the current units; a term no current unit of those classes holds has no entry."""
-        values = sorted({p.value for p in classes}) if classes is not None else None
+        the current units; a term no current unit of those classes holds has no entry. Until the
+        statistics are counted (`_migrate`) they are counted here, from the units of those
+        classes, as a query counted them before they were kept."""
+        cls = list(classes) if classes is not None else None
+        values = sorted({p.value for p in cls}) if cls is not None else None
         if values is not None and not values:
             return LexicalStatistics(0, 0, {})
+        wanted = sorted(set(terms))
+        if not self._counted():
+            return self._count_now(cls, wanted)
         where = f" WHERE provenance IN ({', '.join('?' for _ in values)})" if values else ""
         n, total = self._conn.execute(
             f"SELECT COALESCE(sum(units), 0), COALESCE(sum(tokens), 0) FROM class_stats{where}",
             values or []).fetchone()
         df: dict[str, int] = {}
-        wanted = sorted(set(terms))
         for batch in _batches(wanted):
             marks = ", ".join("?" for _ in batch)
             clause = f" AND provenance IN ({', '.join('?' for _ in values)})" if values else ""
@@ -336,6 +388,24 @@ class LexicalStore:
                     "GROUP BY term", [*batch, *(values or [])]):
                 if int(count):
                     df[str(term)] = int(count)
+        return LexicalStatistics(int(n), int(total), df)
+
+    def _count_now(self, classes: list[Provenance] | None,
+                   terms: list[str]) -> LexicalStatistics:
+        """`statistics` counted from the units, for a store whose statistics are not counted yet:
+        the current units of the classes (every class when None) and their lengths, and each
+        term's current units, its postings read first."""
+        where, params = self._class_clause(classes, "u.provenance")
+        n, total = self._conn.execute(
+            "SELECT count(*), COALESCE(sum(u.length), 0) FROM units u "
+            f"WHERE u.current = 1{where}", params).fetchone()
+        df: dict[str, int] = {}
+        for term in terms:
+            (count,) = self._conn.execute(
+                "SELECT count(*) FROM postings p CROSS JOIN units u ON u.unit_id = p.unit_id "
+                f"WHERE p.term = ? AND u.current = 1{where}", [term, *params]).fetchone()
+            if int(count):
+                df[term] = int(count)
         return LexicalStatistics(int(n), int(total), df)
 
     # ── the tokenizer's identity ─────────────────────────────────────────────────────────────
@@ -376,8 +446,8 @@ class LexicalStore:
         in one transaction: the index is derived, and the lexical backfill rebuilds it from the
         raw store (`derive.derive_lexical`). The empty store's statistics are counted (none)."""
         conn = self._conn
-        self._begin()
         try:
+            self._begin()
             conn.execute("DELETE FROM postings")
             conn.execute("DELETE FROM units")
             conn.execute("DELETE FROM versions")
@@ -385,7 +455,7 @@ class LexicalStore:
             self._count_statistics()
             self._commit()
         except BaseException:
-            conn.execute("ROLLBACK")
+            self._rollback()
             raise
 
     # ── landing and retiring ─────────────────────────────────────────────────────────────────
@@ -404,16 +474,15 @@ class LexicalStore:
         transaction, each as `land` lands it: a batched landing's lexical stage, or a backfill's.
         The statistics move with the currency in the same transaction, once for the whole batch.
         The transaction commits every version or none."""
-        conn = self._conn
-        self._begin()
         try:
+            self._begin()
             self._check_tokenizer(record=True)
             currency = _Currency()
             out = [self._land_one(*item, currency=currency) for item in items]
             self._keep(currency.net)
             self._commit()
         except BaseException:
-            conn.execute("ROLLBACK")
+            self._rollback()
             raise
         return out
 
@@ -468,15 +537,15 @@ class LexicalStore:
         version's rows, and leave the statistics in the same transaction. Returns the units
         retired."""
         conn = self._conn
-        self._begin()
         try:
+            self._begin()
             gone = [int(r[0]) for r in conn.execute(
                 "UPDATE units SET current = 0 WHERE source_path = ? AND current = 1 "
                 "RETURNING unit_id", [source_path]).fetchall()]
             self._keep({uid: -1 for uid in gone})
             self._commit()
         except BaseException:
-            conn.execute("ROLLBACK")
+            self._rollback()
             raise
         return len(gone)
 
@@ -545,7 +614,7 @@ class LexicalStore:
         come out of the statement in that order and are summed here."""
         self._check_tokenizer(record=False)
         if not self._counted():
-            self._migrate()
+            self._migrate()             # without waiting: else `statistics` counts them below
         terms = sorted(set(self.tokenizer(query)))
         cls = list(classes) if classes is not None else None
         stats = self.statistics(classes=cls, terms=terms)
