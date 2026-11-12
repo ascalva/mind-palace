@@ -460,6 +460,35 @@ def test_a_refusal_says_the_compilers_reason_or_its_classs_one_sentence(
     assert a.canary not in capsys.readouterr().err
 
 
+def test_a_sentence_the_compiler_refuses_under_the_trace_alone_reads_its_reason(
+        palaces: tuple[Fixture, Fixture], monkeypatch: pytest.MonkeyPatch) -> None:
+    """The trace renders the parse while a sentence compiles, so a sentence nested deep enough
+    compiles without the trace and fails with it, its rendering past the recursion limit. The
+    surface compiles a refused sentence again with the trace the call asked for, so that refusal
+    is the compiler's: the guest reads the compiler's reason, as for any sentence the compiler
+    refuses, and not the fixed sentence of a refusal raised in the run. Asked without the trace,
+    the sentence is answered. The rendering's failure is made here for a plain sentence."""
+    from agents.ambassador import mcp
+    from core.sentence.trace import Trace
+
+    a, _ = palaces
+    guest = _server(a, "guest")
+    note = Trace.note
+
+    def deep(self: Trace, stage: str, what: str, law: str = "") -> None:
+        if stage == "parse":                    # as rendering a parse past the limit fails
+            raise RecursionError("maximum recursion depth exceeded")
+        note(self, stage, what, law)
+
+    monkeypatch.setattr(Trace, "note", deep)
+    sentence = f'reach F from "{CODE}"'
+    error, text = _call(guest, "query", sentence=sentence)
+    assert not error and json.loads(text)["hits"]
+    told = _call(guest, "query", sentence=sentence, trace=True)
+    assert told == (True, "GuestRefusal: error: maximum recursion depth exceeded")
+    assert told[1] != "GuestRefusal: error: " + mcp.GUEST_RAN["error"]
+
+
 def test_the_guests_engine_is_built_inside_the_call_that_needs_it(
         base: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """Making the guest's tools opens nothing, and a tool's body raises `GuestRefusal` and

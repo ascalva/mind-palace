@@ -352,22 +352,28 @@ class GuestRefusal(PermissionError):
         super().__init__(f"{kind}: {said}" + (GUEST_SCOPE_HINT if kind == "scope" else ""))
 
 
-def _refused(sentence: Any, e: BaseException) -> GuestRefusal:
+def _refused(sentence: Any, e: BaseException, trace: Any = False) -> GuestRefusal:
     """The refusal the guest reads for `e`, which asking `sentence` raised. The sentence is
-    compiled again, alone: that reads the sentence and the grant and no store. If the compiler
-    refuses it, the refusal is the compiler's, and the guest reads its class and its reason,
-    redacted. If it compiles, `e` came from running it against the stores, and the guest reads
-    `e`'s class and that class's fixed sentence; `e`'s own words are never shown. Whatever fails
-    in here is an `error`, said in the fixed sentence."""
+    compiled again, alone, with a trace when the call asked for one, as it was compiled the
+    first time: that reads the sentence and the grant and no store. If the compiler refuses it,
+    the refusal is the compiler's, and the guest reads its class and its reason, redacted. If it
+    compiles, `e` came from running it against the stores, and the guest reads `e`'s class and
+    that class's fixed sentence; `e`'s own words are never shown. Whatever fails in here is an
+    `error`, said in the fixed sentence."""
     kind = "error"
     try:
         from core.query import GUEST
         from core.sentence.plan import compile_sentence
         from core.sentence.surface import is_command, redact_reason, refusal_class
+        from core.sentence.trace import Trace
 
         kind = refusal_class(e) or "error"
+        # the trace renders the parse while it compiles, so a sentence can fail to compile with
+        # it alone: compiled again without it, that sentence would read as refused in the run
+        t = Trace() if bool(trace) else None
         try:
-            compile_sentence(sentence, GUEST, role="guest" if is_command(sentence) else None)
+            compile_sentence(sentence, GUEST, role="guest" if is_command(sentence) else None,
+                             trace=t)
         except Exception as c:
             return GuestRefusal(refusal_class(c) or "error", redact_reason(str(c)))
     except Exception:
@@ -408,7 +414,7 @@ class Guest:
             return ask_logged(sentence, GUEST, surface="mcp", role="guest", engine=self.engine,
                               trace=bool(trace)).to_dict()
         except Exception as e:
-            raise _refused(sentence, e) from None
+            raise _refused(sentence, e, trace) from None
 
     def overview(self) -> dict[str, Any]:
         """The catalog's active entries of the classes the grant's strata hold, the curated
