@@ -153,6 +153,36 @@ def test_quote_is_the_tokenizers_inverse(text: str) -> None:
         "text": text, "conversation": "tea"}
 
 
+def test_a_long_string_literal_is_read_in_memory_its_text_bounds() -> None:
+    """A sentence may be a guest's, of any length. Reading a string literal takes memory in
+    proportion to its text, a few bytes a character: plain, its escapes plain, quotes escaped,
+    backslashes escaped, characters outside the BMP, the literal closed or never closed. The
+    pattern's earlier form kept a backtracking point for each character, some 80 to 160 bytes,
+    and a regular expression's unescape some 20 more for a literal of escapes."""
+    import tracemalloc
+
+    from core.sentence.grammar import tokenize
+
+    n = 200_000
+    for body in ("a" * n, "\\a" * (n // 2), 'x\\"' * (n // 3), "\\\\" * (n // 2),
+                 "\U0001f600" * n):
+        for closed in (True, False):
+            text = 'near "' + body + ('" over dialogue' if closed else "")
+            tracemalloc.start()
+            try:
+                if closed:
+                    assert len(tokenize(text)) == 5
+                else:
+                    with pytest.raises(ParseError, match="unexpected character"):
+                        tokenize(text)
+                peak = tracemalloc.get_traced_memory()[1]
+            finally:
+                tracemalloc.stop()
+            assert peak < 16 * len(text), (body[:4], closed, peak / len(text))
+    # an escaped quote and an escaped backslash are read, any other escape kept as written
+    assert tokenize('near "x\\"y\\\\z\\a\\\\\\""')[1].text == 'x"y\\z\\a\\"'
+
+
 def test_the_command_words_are_not_keywords_elsewhere() -> None:
     # `dialogue` and `code` keep working as a stratum and as a bare atom
     assert parse('near "x" over dialogue') == ast.Over(ast.Near("x"), ("dialogue",))

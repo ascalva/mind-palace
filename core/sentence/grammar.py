@@ -83,9 +83,14 @@ class Token:
     pos: int
 
 
+# A string's body is written unrolled and possessive: a run of plain characters, then each escape
+# with the run after it, none given back. It matches what `(?:[^"\\]|\\.)*` matches, since an
+# escape is the one way past a quote or a backslash and the body can end only at its closing
+# quote; that form kept a backtracking point for each character, some 150 bytes of memory for
+# each character of a literal, and this one keeps none.
 _TOKEN = re.compile(
     r"""\s*(?:
-        "(?P<string>(?:[^"\\]|\\.)*)"          # a quoted string, with \" escapes
+        "(?P<string>[^"\\]*+(?:\\.[^"\\]*+)*+)" # a quoted string, with \" escapes
       | (?P<number>\d+(?:\.\d+)?(?![A-Za-z0-9_])) # an unsigned number, never the head of a word
       | (?P<word>[A-Za-z0-9_][A-Za-z0-9_./:#@\-]*) # a word: a keyword, a letter, an atom, an id
       | (?P<sym>[(){}|*+?,\-])                  # a symbol of a path or a signed weight
@@ -106,7 +111,16 @@ _STOP_PATH = frozenset({"depth", "and", "or", "then", "within", "over", "as", "i
 _STOP_STRATA = KEYWORDS | {")"}
 
 
-_UNESCAPE = re.compile(r'\\(["\\])')
+def _unescape(body: str) -> str:
+    """A string literal's text from its body: `\\"` read as `"` and `\\\\` as `\\`, any other
+    escape kept as written. The body is plain characters and escape pairs (`_TOKEN`), each
+    backslash the head of a pair, so splitting it at each `\\\\` from the left finds the escaped
+    backslashes, and between them a backslash before a quote is an escaped quote. A regular
+    expression's substitution would make objects for each escape, some 20 bytes of memory for
+    each character of a literal of them; this makes few."""
+    if "\\" not in body:
+        return body
+    return "\\".join(part.replace('\\"', '"') for part in body.split("\\\\"))
 
 
 def quote(s: str) -> str:
@@ -125,7 +139,7 @@ def tokenize(text: str) -> list[Token]:
                 break
             raise ParseError(f"tokens: unexpected character {text[pos]!r} at {pos}")
         if m.group("string") is not None:
-            tokens.append(Token("STRING", _UNESCAPE.sub(r"\1", m.group("string")), m.start()))
+            tokens.append(Token("STRING", _unescape(m.group("string")), m.start()))
         elif m.group("number") is not None:
             tokens.append(Token("NUMBER", m.group("number"), m.start()))
         elif m.group("word") is not None:
