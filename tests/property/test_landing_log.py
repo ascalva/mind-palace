@@ -590,3 +590,27 @@ def test_another_secret_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPat
         cat.record("a.md", "d2", "A")
     kept = cat.get("a.md")
     assert heads(cat) == head and kept is not None and kept.digest == "d1"
+
+
+def test_every_statement_by_path_seeks_the_key_index() -> None:
+    """A write or a read of one path touches that path's rows through `landings_path`, never by
+    walking the chain: on the corpus's 400,274 rows the planner took the primary key for the
+    closing stamp's update, and a landing took 40 ms where it takes tens of microseconds."""
+    cat = VaultCatalog(Path(":memory:"))
+    for i in range(50):
+        cat.record(f"p{i}.md", f"d{i}", "t")
+    (chain,) = cat.chains(Provenance.AUTHORED_SOLO)
+    seen: list[str] = []
+    cat._conn.set_trace_callback(seen.append)
+    cat.record("p1.md", "new", "t")
+    cat.tombstone("p2.md")
+    cat.record("p4.md", "d4", "t", doc_id="another")
+    cat.state_at(Provenance.AUTHORED_SOLO, "p1.md", {chain: 30})
+    cat.history_at(Provenance.AUTHORED_SOLO, "p1.md", {chain: cat.head(chain)})
+    cat.remove("p3.md")
+    cat._conn.set_trace_callback(None)
+    by_path = [q for q in seen if "path_key = " in q]
+    assert len(by_path) >= 6
+    for q in by_path:
+        plan = " ".join(str(tuple(r)[-1]) for r in cat._conn.execute("EXPLAIN QUERY PLAN " + q))
+        assert "landings_path" in plan, (q, plan)

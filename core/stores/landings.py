@@ -383,10 +383,11 @@ class LandingLog:
         path_key = None
         if path is not None:
             path_key = self.path_key(chain, path)
-            # the path's previous event in the chain is closed at this one (§3.2)
+            # the path's previous event in the chain is closed at this one (§3.2); the statement
+            # names the key index, since the planner takes the primary key and walks the chain
             self._conn.execute(
-                "UPDATE landings SET closed_at = ? WHERE chain = ? AND path_key = ? "
-                "AND closed_at IS NULL", [seq, chain, path_key])
+                "UPDATE landings INDEXED BY landings_path SET closed_at = ? "
+                "WHERE chain = ? AND path_key = ? AND closed_at IS NULL", [seq, chain, path_key])
         self._conn.execute(_INSERT, [chain, seq, kind, path_key, path, doc_id, version, digest,
                                      title, None, horizon, salt, commit,
                                      chain_hash(previous, commit), None, at])
@@ -470,8 +471,9 @@ class LandingLog:
         n = 0
         for chain in self.all_chains():
             n += self._conn.execute(
-                f"UPDATE landings SET {_EMPTY} WHERE chain = ? AND path_key = ? "
-                "AND salt IS NOT NULL", [chain, self.path_key(chain, path)]).rowcount
+                f"UPDATE landings INDEXED BY landings_path SET {_EMPTY} "
+                "WHERE chain = ? AND path_key = ? AND salt IS NOT NULL",
+                [chain, self.path_key(chain, path)]).rowcount
         return n
 
     def empty_digest(self, digest: str) -> int:
