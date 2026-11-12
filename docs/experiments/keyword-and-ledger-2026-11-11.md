@@ -224,8 +224,10 @@ After the change the second process opened at once while the first held the writ
 its query's statistics from the units (the store had none counted yet), and answered as the code
 before did: the same answer as the keyword part's, in 1.37 s, while the first process's count was
 reading the file. Before the change the same query met a file nobody was reading and took 16.7 s.
-A writer that opens the store during the count waits for the write lock, as any write does, up
-to the store's 30 s timeout, and fails after it (not measured here).
+The first open or query that finds the lock free and the statistics not counted counts them, in
+that call, which on the corpus takes the two minutes above. A writer that opens the store during
+the count waits for the write lock, as any write does, up to the store's 30 s timeout, and fails
+after it (not measured here).
 
 ### The filtered aggregate against `CASE`
 
