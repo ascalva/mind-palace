@@ -44,7 +44,7 @@ from core.kernel.provenance import Provenance
 from core.kernel.scope import Privilege, Stratum, StratumScope, WorldReach
 from core.query import AMBASSADOR, GUEST, OPERATOR, QueryEngine
 from core.sentence import compile_sentence
-from core.sentence.surface import SENTENCE_MAX, QueryLog, run_query
+from core.sentence.surface import SENTENCE_BYTES, SENTENCE_MAX, QueryLog, run_query
 from core.sentence.types import IllScopedSentence
 from core.sentence.universe import _doc_path
 from core.stores.causal_edges import CausalEdge, open_causal_edge_store
@@ -648,8 +648,10 @@ def test_a_guests_sentence_cannot_break_the_log_or_write_into_its_reader(
     """dn-guest-principal §8. A guest's sentences enter the instance's query log, and
     `palace query --log` prints the failed ones on the owner's terminal. A sentence with a line
     separator, with an escape sequence and a forged line, with a bidi override, with a lone
-    surrogate and one of 300,000 characters each take one ASCII line of the log, the long one
-    cut; the log reads back whole, and both renderings print every such character escaped."""
+    surrogate, one of 300,000 characters and one of 50,000 characters the line writes as
+    twelve-byte escapes each take one ASCII line of the log, the long ones cut, neither line
+    longer than the cut allows; the log reads back whole, and both renderings print every such
+    character escaped."""
     a, _ = palaces
     guest = _server(a, "guest")
     esc = "\x1b"
@@ -657,17 +659,20 @@ def test_a_guests_sentence_cannot_break_the_log_or_write_into_its_reader(
                f'near "x" over dialogue\n{esc}[2J{esc}[31mFAKE: the owner approved{esc}[0m',
                'nearby "walnut" \u202eeugolaid revo',
                'near "\ud800" over dialogue',
-               'near "' + "A" * 300_000 + '" over mirror']
+               'near "' + "A" * 300_000 + '" over mirror',
+               'nearby "' + "\U0001f600" * 50_000 + '"']
     for sentence in hostile:
         _call(guest, "query", sentence=sentence)
     raw = (base / "q.jsonl").read_text(encoding="utf-8")
     assert raw.isascii() and len(raw.splitlines()) == len(hostile) == raw.count("\n")
     assert len(raw) < len(hostile) * (SENTENCE_MAX + 1000)
+    assert max(map(len, raw.splitlines())) < SENTENCE_BYTES + 1000
     log = QueryLog(base / "q.jsonl")
     entries = log.entries()
     assert [e.role for e in entries] == ["guest"] * len(hostile)
     assert [e.sentence for e in entries][:4] == hostile[:4]
     assert entries[4].sentence.endswith(f"<300019 characters, cut at {SENTENCE_MAX}>")
+    assert entries[5].sentence.endswith("<50009 characters, cut at 689>")
     for flags in ([], ["--json"]):
         out = io.StringIO()
         assert run_query(["--log", *flags], out=out, log=log) == 0
