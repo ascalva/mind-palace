@@ -30,17 +30,19 @@ warrant: null
 
 > Composed on the snapshot session (Fable 5.2, 2026-11-10 and 2026-11-11), on the standing
 > direction that the design and its proofs come first and the build follows a licence given at
-> the merge. Agent-drafted, filed `draft` on a branch; the merge is ratification. Nothing is
-> built: `core/` is untouched and no store of any instance was read. Every nontrivial claim
-> carries a grade: `[THEOREM]` is machine-checked in `formal/Palace/Snapshot.lean` and names its
-> declaration; `[ESTABLISHED]` is a ratified note's, a fact of the code read at the line cited,
-> or a figure of the repository's own experiment records, cited by file and line; `[DERIVED]` is
-> argued here from those; `[MEASURED]` is a figure taken for this note on a synthetic fixture, by
-> a probe that is not in the repository (§11 says how, and which stage commits its harness);
-> `[INFERENCE]` is a design call with a named falsifier; `[HYPOTHESIS]` is a claim nothing here
-> checks, with what would check it named. Code claims were read on
-> `origin/main` at `e3e3ee47`. The article `papers/2026-11-10-temporal-snapshot/paper.tex`
-> states the same theorems with proof sketches and the references.
+> the merge. Agent-drafted, filed `draft` on a branch; the merge is ratification. When the design
+> was merged nothing was built: `core/` was untouched and no store of any instance was read.
+> Every nontrivial claim carries a grade: `[THEOREM]` is machine-checked in
+> `formal/Palace/Snapshot.lean` and names its declaration; `[ESTABLISHED]` is a ratified note's, a
+> fact of the code read at the line cited, or a figure of the repository's own experiment records,
+> cited by file and line; `[DERIVED]` is argued here from those; `[MEASURED]` is a figure taken
+> for this note, for the design on a synthetic fixture by a probe that is not in the repository
+> (§11 says how, and which stage commits its harness), and from SN-1 on by a stage's committed
+> harness, on a copy of an instance's store where its record says so; `[INFERENCE]` is a design
+> call with a named falsifier; `[HYPOTHESIS]` is a claim nothing here checks, with what would
+> check it named. Code claims were read on `origin/main` at `e3e3ee47`. The article
+> `papers/2026-11-10-temporal-snapshot/paper.tex` states the same theorems with proof sketches
+> and the references.
 >
 > Two things were added on 2026-11-11, after the design was merged, and each is marked where it
 > stands. The owner decided what a retire does to the past (D3, §6.2), against the
@@ -53,7 +55,11 @@ warrant: null
 > instance's catalog (§11, `docs/experiments/landing-log-2026-11-11.md`). Where the build
 > departed from §3.2 the section says so where it stands: the key of a path takes half of its
 > key from the instance's secret, outside the file; a path that changes class leaves its chain
-> by a sixth kind, `leave`; and the genesis writes a renamed path's tombstone as a `move`.
+> by a sixth kind, `leave`; and the genesis writes a renamed path's tombstone as a `move`. The
+> review of the build added three things, each marked where it stands: a purge by digest empties
+> the tombstones of a path none of whose versions keeps its content (§6.1); the first open writes
+> the genesis for a reader too, which is open for the owner (§12, SN-1); and every head costs
+> what building the answer costs, which meets SNF-6 (§4.2, §11).
 
 ## 1. Purpose and scope
 
@@ -387,7 +393,9 @@ into another that already has rows (`scripts/migrate_provenance_split.py:58-61`)
 chain has an integer id that is never reused or changed, and a row of a `landing_chains` table
 gives the class it holds now. A relabel rewrites that label and no row of the log; after a merge
 a class has two chains, and the read of a class is the union of its chains' reads. `[THEOREM
-for the control; INFERENCE for the id]`
+for the control; INFERENCE for the id]` As built at SN-1 the ids are given once while the log's
+tables stand: the rollback drops them, and the genesis after it numbers its chains from 1 again
+(§12, SN-1), which SN-3's fresh identity must not rest on (§6.2).
 
 **A position is a number the store keeps, never the row numbering it happens to have.** The chat
 log and the attestation ledger are keyed by text, and SQLite numbers their rows as the largest
@@ -485,10 +493,15 @@ and it is the one name a purged row keeps, so a hole still shadows the path's ea
 landing-log secret, which is never in the file. The design had the chain's bytes alone; SN-1 takes
 the secret as the repository takes every instance's secret, from the environment through
 `get_secret`, Keychain-backed in the owner's setup and the instance's own item under a named
-instance (`landing-log-key`, `<id>.landing-log-key`), so the file alone cannot test a guess of a
-purged path. Without the secret the genesis and every write refuse, loudly, and write nothing; a
-secret that is not the one a chain was written with is refused by the chain's `key_check`; a read
-needs it only to seek by path. `version` and `att_head` are the two fields a caller supplies:
+instance (`landing-log-key`, `<id>.landing-log-key`), so the key a hole keeps cannot be tested
+against a guess of the path without the secret. Whatever appends a row or seeks a path's rows by
+their key needs it: without it the genesis, a `record` or a `tombstone` that changes the map, the
+re-key and `remove` refuse, loudly, and write nothing, and so do the two reads by path,
+`state_at` and `history_at`. A relabel and a purge by digest need none, since they append no row
+and find their rows by the label, the digest, the names they carry and the keys the emptied rows
+keep; nor does a write that changes nothing, or a read of positions. A secret that is not the one
+a chain was written with is refused by the chain's `key_check`. `version` and `att_head` are the
+two fields a caller supplies:
 `record` gains a `version` argument, passed by the writer's last step from the version it just
 appended or found (`writer.py:408-419`, `:433`; `sync.py:201`) and left out where the place keeps no
 chain; `att_head` is the attestation ledger's head read inside the key's transaction, after the
@@ -503,7 +516,10 @@ is the one `tombstone` would write: a `move` where another active path holds the
 `retire` otherwise (the design said `retire` for every one, which would count a renamed path among
 the identities that run across a retire, §6.2). The order inside the block is not history, so the
 positions before the `horizon` are under it (§8). A class that first appears later opens its chain
-at its first landing, with a `genesis` and a `horizon` and nothing between.
+at its first landing, with a `genesis` and a `horizon` and nothing between. As built, the genesis
+is written by whichever process opens the catalog first, a reader's included, so that open needs
+the secret and holds the write lock while it writes (§12, SN-1, where what this changes is
+stated and left to the owner).
 
 The catalog is then the fold of the log: each path's last event (`stateOf`) in the chain that holds
 its present, the one where its last event is not a `leave`; an active row for a `store`; a
@@ -913,6 +929,15 @@ corpus instance has one from the start: ten million items are ten million events
 An instance of a few thousand notes never needs it. `[THEOREM for the journal; INFERENCE for the
 threshold, falsifier SNF-6]`
 
+As built at SN-1 the cost is the other way round (§11). `heads_at` builds a row in Python for
+each head it returns, 3.5 to 3.9 µs a head, against a walk of 0.14 to 0.15 µs an event, so the
+size of the answer and not the part of the log walked is the cost, and the read from the log
+alone passes a tenth of a second near 27,000 heads: a chain of 30,002 events takes 0.11 s. That
+meets SNF-6's first condition. Kept heads at a recorded cut shorten the walk and leave the
+building, so they do not answer it. Before SN-4 builds the universe's nodes on this read, either
+the threshold moves or the read changes so that it builds less than a row a head, and which is
+open (SN-c). `[MEASURED §11; the decision open]`
+
 ### 4.3 What the reads cost in bytes
 
 On the fixture a landing is 434 bytes in the log with its indexes when the identity is the path
@@ -1186,10 +1211,21 @@ content. `[THEOREM: SNP-9 for the chain; DERIVED for the salt]` What stays, and 
   the rows that keep their keys, so nulling it would hide nothing.
 - `att_head`: a position on another chain.
 
-The hole is thus still tied to its path while another row of the path keeps the name, which is
-the intent: the purge is of a digest, and the path with its other versions is not erased. When
-every row of a path is emptied no row names the path. The bookmark goes because nothing looks a
-landing up by its date, and a date on a hole says when the erased content arrived.
+The hole is thus still tied to its path while another version of the path keeps its content, which
+is the intent: the purge is of a digest, and the path with its other versions is not erased. When
+no version of the path keeps its content, its other rows, its `retire`, its `move` and its `leave`,
+name nothing that is not erased, so they are emptied with the last version, and no row names the
+path, its identity or the date of its delete (D14). As built at SN-1, after review: `remove`
+empties every row of the path; `remove_digest` empties the rows of the digest and then, for each
+path they named, the path's other rows in every chain when none of its `store` rows keeps its
+content, finding them by the names they carry and the keys the emptied rows keep, so a purge needs
+no secret. That is `purge_raw`'s usual case, a note deleted and then purged, whose `retire` had
+kept its path, its identity and its date before. The bookmark goes because nothing looks a
+landing up by its date, and a date on a hole says when the erased content arrived. The bytes
+SQLite frees when a row is emptied stay in the file until it is vacuumed, as the catalog's deleted
+row's do (§11); a file copied before then holds them, and clearing them is SN-3's reach.
+`[MEASURED for the bytes, by a probe of the build: the purged path in the freed pages after the
+purge and a checkpoint, and in none after a vacuum, which the stage's test checks]`
 
 That is a rule the record already has: no tombstone keeps a content hash of purged private text,
 and for prose privacy outranks lineage (`docs/design-notes/vector-membership-store.md:810-813`).
@@ -1287,7 +1323,13 @@ the hole that closed it. A position is given once, so the name is new. It is a f
 rows already written, so a landing repeated after a crash before its key takes the identity
 the first attempt took and appends no second version (ING-7). It differs from its path, so
 `landings_doc` indexes it (§3.2), and R6's refusal of an identity that another active path
-holds applies to it as to a declared one.
+holds applies to it as to a declared one. As built at SN-1, a position is given once only while
+the log's tables stand: the rollback drops them and the next genesis numbers chains and positions
+from 1 again (§12, SN-1), while the version chains, in their own file, keep their rows. A name
+made after a rollback could then be one made before it, and its version chain would already hold
+the earlier note's versions. SN-3 decides, before it names any identity, what closes that: a
+high-water mark of chain ids kept outside the tables a rollback drops, or a name a rollback cannot
+repeat.
 
 On the model a chain of landings and retires at paths is keyed again by identity (`lives`): the
 path with the number of the path's retires before the event. `[THEOREM: SNP-1, SNP-7]`
@@ -1302,8 +1344,10 @@ path with the number of the path's retires before the event. `[THEOREM: SNP-1, S
   (`landingsAt_lives_of_retire`), and at a cut inside the chain it is unchanged by any growth
   (`landingsAt_lives_append`). Under the stricter seal the same retire emptied it.
 
-What the model leaves to the code: the name of an identity, an identity a note declares, and a
-rename, which moves an identity between paths. The retire is by identity and not by path, so a
+What the model leaves to the code: the name of an identity, an identity a note declares, a
+rename, which moves an identity between paths, and a life closed by a hole: the rule above takes a
+path whose rows a purge emptied as closed (§6.1), and `lives` counts retires only, so that case is
+an obligation of SN-3's tests and no theorem. The retire is by identity and not by path, so a
 rename retires nothing: the old path's tombstone is a `move` (§3.2). A new note written at a
 path a rename left is a first bind like any other, which closes the second case of §2.3's item
 8, where today it takes the identity that moved.
@@ -1320,7 +1364,11 @@ path a rename left is a first bind like any other, which closes the second case 
   `trace` of a returned note starts at its return. Under the stricter seal the same event
   sealed every note's past until the owner lifted it. A note that declares its identity is the
   exception by its own statement: it binds that identity again when it returns, and its
-  history at a cut is all its landings inside the cut, on both sides of the retire. Joining
+  history at a cut is all its landings inside the cut, on both sides of the retire. The
+  decision as the owner stated it names no exception; this one is the design's reading of it,
+  for the owner to confirm, and it holds for any note that declares the retired identity, since
+  R6 binds a declared identity that no active path holds (`core/ingest/writer.py:448-462`).
+  `[INFERENCE, falsifier SNF-17]` Joining
   two identities of one path is not designed here: the owner-gated re-key
   (`catalog.py:210-241`, `core/stores/versions.py:132`) refuses to merge two chains. It is
   parked as SN-l, with SNF-10 as its re-entry.
@@ -1331,8 +1379,15 @@ path a rename left is a first bind like any other, which closes the second case 
   the ones it inherited included: the log's commitments cover the identity of every row, and
   the versions store has no write that splits a chain. From the stage that builds the rule on,
   no chain continues across a retire unless the note declares it. The stage's migration counts
-  the identities that have a `store` after a `retire` in the log, so the owner knows how many
-  histories at the head still run across a delete.
+  the identities that have a `store` at a path after that path's `retire` in the log, which is
+  what the log has recorded since its genesis, and no more. The genesis writes a path's present
+  as one `store`, so an identity that inherited before the log is not counted; where such an
+  inheritance could be found, if anywhere, is the version chains read against the catalog's rows,
+  and this note has not established that any store marks a delete before the log. Nor does the
+  count see §2.3's second case: a note landed at a path a rename left is a `store` after a
+  `move`, and the identity it inherits is then held by two active paths, which the catalog shows
+  at the head. So the count tells the owner how many histories run across a delete the log
+  recorded, not how many inherit.
 
 **At the head.** `trace` of a note written at a path with a past starts at that note's first
 landing, where today it runs back through the deleted note's versions. This is the one change
@@ -1387,8 +1442,10 @@ Two consequences for the surface. An answer names the cut it read on the chains 
 names and on no other, and the bounds a row records (§3.5) are never shown: `att` mixes every
 class, so its positions count other classes' landings. And a class is a row's class now: a
 whole-class relabel changes the label of a chain, and a row moves between chains only by a
-`move` and a `store` (§3.2), after which its earlier events stay under the class they had
-(ING-17). `[DERIVED]`
+`leave` and a `store` (§3.2; the design had a `move`, and SN-1 made it a kind of its own), after
+which its earlier events stay under the class they had (ING-17). A relabel itself moves a whole
+chain to another class, so a read by class at a past cut follows the chain's class now, while a
+read by chain is unchanged (§10, SNP-1's test). `[DERIVED]`
 
 ### 6.4 A reader that is shown only named endpoints
 
@@ -1782,16 +1839,23 @@ passes to the code only as an obligation of the stage that transcribes it.
   the cut (`Witness.present_not_appendInvariant`); a read at a cut past the head (431, 487, 488);
   the history a seal serves, which a later retire empties (`Witness.seal_empties_history`, 522).
   Attacks 430, 432, 446, 521, 527. The test, at SN-1: over random sequences of catalog writes,
-  `read_at(chain, c)` and `state_at` of every path at `c`, taken after every further write, equal
-  the ones taken when `c` was the head.
+  `read_at(chain, c)` and each path's last event in each chain at `c`, taken after every further
+  write, equal the ones taken when `c` was the head, up to the holes a later purge leaves; so does
+  `state_at` of every path over a class while the class's chains are the ones it had. A relabel is
+  not in the model (below): it moves a whole chain to another class, so a read by class at a past
+  cut follows the chain's class now (§6.3), and across one the test compares chain by chain.
 - **SNP-2 monotonicity.** The read at an earlier cut is a prefix, chain by chain, of the read at a
   later one, and a cut of a cut is the meet (`readAt_mono`, `mem_readAt_of_le`, `readAt_readAt`,
   `head_readAt`, `visible_mono`), the history of an identity at an earlier cut is a prefix of its
   history at a later one (`landingsAt_mono`), and the filtered read of SNP-8 grows with the cut
   (`Kept.mono`).
   Controls: the read at one cut taken for a prefix of the read at any other (434); a cut of a cut
-  taken for the join (500). Attacks 433, 435, 515. The test, at SN-1: for `a ≤ b`,
-  `read_at(chain, a)` is a prefix of `read_at(chain, b)`.
+  taken for the join (500). Attacks 433, 435, 515, and 523, whose second half is
+  `landingsAt_mono`'s (its first is SNP-7's). The test, at SN-1: for `a ≤ b`,
+  `read_at(chain, a)` is a prefix of `read_at(chain, b)`, and a path's history, chain by chain.
+  Across two chains of one class, which only a change of class and a relabel make, `history_at`
+  orders the chains by a rule of the prefixes, the ones the path left first, and the read at an
+  earlier cut need not be a prefix of the later one; the stage's test pins that rule.
 - **SNP-3 composition.** The read at `a` followed by the read between `a` and `b` is the read at
   `b`, and two adjacent reads-between compose (`readAt_append_readBetween`, `readBetween_append`);
   a fold continued from a checkpoint over the delta is the fold of the prefix
@@ -1868,10 +1932,12 @@ passes to the code only as an obligation of the stage that transcribes it.
   instance's files finds the purged words; after a purge of an old version of a live path, the read
   of the path at a cut where that version was the head is a hole, by all three reads; after a retire
   every read at a cut before it, of the identity's value and of its history, returns what it
-  returned before the retire; a new note landed at the path has an identity no earlier row carries,
-  no read of its history, at the head or at any cut, returns a version from before the retire, and
-  the retired identity's history at every cut is what it was; a landing at a retired path repeated
-  after a crash before its key takes the identity the first attempt took.
+  returned before the retire; a new note that declares no identity, landed at the path, has an
+  identity no earlier row carries, no read of its history, at the head or at any cut, returns a
+  version from before the retire, and the retired identity's history at every cut is what it was
+  (a note that declares the retired identity takes it back, §6.2, SNF-17); a landing at a path a
+  purge emptied takes a fresh identity as well, which `lives` does not model; a landing at a
+  retired path repeated after a crash before its key takes the identity the first attempt took.
 - **SNP-8 resolution.** Every frontier resolves to exactly one greatest consistent cut under
   it, monotonically; a consistent cut stays consistent as the store grows; a cut consistent for
   a recorded bound on the references is consistent for the true ones (`exists_resolves`,
@@ -1948,8 +2014,9 @@ does not change (§3.1). The hash's collision freedom and the commitment's bindi
 SNP-9 (`CollisionFree`, an injective `commit`), not theorems about SHA-256. The `horizon` event is
 not in the model of a keyed chain, and the owner's gate on a history window is the code's. The fresh
 identity is in the model as a count of a path's retires (`lives`); the name the code gives it, an
-identity a note declares and a rename are not (§6.2). There is no single reader in the model that
-applies the cut's resolution, the grant, the erasure and the history of an identity together:
+identity a note declares, a rename and a life closed by a purge's hole are not (§6.2). There is no
+single reader in the model that applies the cut's resolution, the grant, the erasure and the
+history of an identity together:
 `shown` composes the grant and the erasure over one read, the history is stated on a keyed chain,
 and the resolution on cuts; the sentence's reader applies the resolution first, then `shown`, and no
 seal (§6.2), and that order is the code's to transcribe. The row filter of §3.5 is in the model as
@@ -1961,17 +2028,19 @@ descent and its alternation with the floor, is attacked, not proved.
 
 ## 11. Measurements
 
-Every figure measured for this note is from a synthetic fixture: a temporary directory or
-in-memory stores built by the probe, the test suite's throwaway palace for the purge, and
-nothing of any instance. The other figures the note uses are the repository's own records of an
-instance, cited where they stand and graded `[ESTABLISHED]`: the attestation ledger's bytes a
-row, the job rate, the citation store's rows and bytes, the plane's bytes an occupancy and the
-curated table's bytes an atom (`docs/experiments/corpus-measurements-2026-11-07.md:94-107`,
+Every figure measured for the design, before SN-1 was built, is from a synthetic fixture: a
+temporary directory or in-memory stores built by the probe, the test suite's throwaway palace for
+the purge, and nothing of any instance; SN-1's figures, below the table, are of the build on a
+copy of the corpus instance's catalog. The other figures the note uses are the repository's own
+records of an instance, cited where they stand and graded `[ESTABLISHED]`: the attestation
+ledger's bytes a row, the job rate, the citation store's rows and bytes, the plane's bytes an
+occupancy and the curated table's bytes an atom
+(`docs/experiments/corpus-measurements-2026-11-07.md:94-107`,
 `docs/experiments/corpus-stage1-2026-11-07.md:416`, `core/reference_view.py:15-16`). Figures
 given as arithmetic are marked so where they stand.
 
-The probes are short scripts and are not in the repository: this pull request changes no
-Python, and the newest notes keep a harness under `eval/` with a record under
+The probes are short scripts and are not in the repository: the design's pull request changed
+no Python, and the newest notes keep a harness under `eval/` with a record under
 `docs/experiments/`. So these figures cannot be repeated from the tree as it stands. Each stage
 of §12 commits the harness of what it builds with its record: SN-1 the log's size and reads
 (done: `eval/landing_log_bench.py`, measured on the corpus's catalog, below the table), SN-3 the
@@ -1999,12 +2068,13 @@ the runs is given where they differed. `[MEASURED]`
 | row numbering | a table keyed by text, five rows, in a temporary file | after the last row was deleted the next insert was numbered 5 again; a vacuum after a delete in the middle kept the numbers |
 | an identity after a rename | an in-memory `VaultCatalog` at `f969904e`: a path recorded, a second path recorded with the first one's identity, the first tombstoned, then the first recorded again with no identity given, as the writer records a path that has a row (`core/ingest/writer.py:372`, `:409`) | the identity then has two active paths, the old one and the new one; added on 2026-11-11 for §2.3's item 8 |
 
-Not measured: anything on an instance's own stores; the size of a recorded cut, of a chain table's
-row and of a row of the log that a window emptied, which are arithmetic; how often a row of model
-output is replaced; the lexical statistics computed from a mask at a corpus's size; the causal fiber
-recomputed over a real instance's sessions, cold or warm; a vector search with superseded rows
-joined to the heads at a cut; the reads of the chat log and the attestation ledger through their
-chain tables; a retention pass. Each is the measurement of the stage that builds it.
+Not measured for the design: anything on an instance's own stores, which SN-1 measured for the
+log alone (below); the size of a recorded cut, of a chain table's row and of a row of the log that
+a window emptied, which are arithmetic; how often a row of model output is replaced; the lexical
+statistics computed from a mask at a corpus's size; the causal fiber recomputed over a real
+instance's sessions, cold or warm; a vector search with superseded rows joined to the heads at a
+cut; the reads of the chat log and the attestation ledger through their chain tables; a retention
+pass. Each is the measurement of the stage that builds it.
 
 **Measured at SN-1, on a copy of the corpus instance's catalog (added 2026-11-11).** The log as
 built, by its committed harness (`eval/landing_log_bench.py`), on two copy-on-write clones of the
@@ -2014,16 +2084,24 @@ Python 3.15.2 and SQLite 3.54.1 and other work running. `[MEASURED]`
 
 | probe | result |
 |---|---|
-| the migration: the tables, their indexes and the genesis, one chain of 400,276 rows | 6.22 to 6.33 s; the file 162.7 MB before and 334.1 MB after, 429 bytes a row (the table 381, the key index 47, the other two empty); the fold of the log equal to the catalog row by row |
-| `verify`, every commitment and hash from the first row | 3.05 to 3.07 s |
-| the reads | `state_at` of one path at the middle cut 14.3 to 14.8 µs, 1.6 of them the keyed hash; `history_at` at the head 14.7 to 15.7 µs; `read_at` and `read_between` of 1,000 positions 3.3 to 3.4 ms, the rows built in Python; `heads_at` 0.15 s at a tenth, 0.79 to 0.80 s at the middle and 1.6 s at the head, of which the walk in SQL is 6 ms, 26 ms and 54 to 57 ms |
-| a key's write in a batch of 10,000, with the log and without | a new path 48.9 to 49.0 µs against 6.8; a new version of a held path 106.0 to 106.5 against 37.9 to 41.2: 42 and 65 to 69 µs added, 0.1 to 0.2 percent of a lazy landing's 31 ms (`docs/experiments/two-phase-ingestion-2026-11-07.md`) |
+| the migration: the tables, their indexes and the genesis, one chain of 400,276 rows | 6.71 to 6.73 s; the file 162.7 MB before and 334.1 MB after, 429 bytes a row (the table 381, the key index 47, the other two empty); the fold of the log equal to the catalog row by row |
+| `verify`, every commitment and hash from the first row | 3.07 to 3.08 s |
+| the reads | `state_at` of one path at the middle cut 13.7 to 16.5 µs, 1.6 to 1.7 of them the keyed hash; `history_at` at the head 15.5 to 18.9 µs; `read_at` and `read_between` of 1,000 positions 3.2 to 3.4 ms, the rows built in Python; `heads_at` 0.15 s at a tenth, 0.79 s at the middle and 1.62 s at the head, of which the walk in SQL is 6 ms, 29 to 30 ms and 59 to 60 ms |
+| every head of a smaller chain, one class, landed through `record` | 30,000 paths 111 to 112 ms (the walk 4 to 5 ms); 100,000 paths 374 to 376 ms (the walk 15 ms): 3.5 to 3.6 µs a head returned beyond the walk |
+| a key's write in a batch of 10,000: as built, with the log's rows switched off, and as `record` made it before SN-1 | a new path 55.7 to 57.4 µs, 10.4 to 10.5 and 4.6 to 4.7; a new version of a held path 119.1 to 120.3, 45.0 to 46.0 and 34.5 to 34.7: SN-1 adds 51 to 53 and 84 to 86 µs, the log's rows 45 to 47 and 74 of them, 0.16 to 0.28 percent of a lazy landing's 31 ms (`docs/experiments/two-phase-ingestion-2026-11-07.md`) |
 
-Two findings came out of it. The update that writes a row's closing stamp took the primary key and
-walked the chain, about 40 ms a landing at this size, until it named the key index as the seeks do
-(§4.1); a test now asks the plan of every statement by path to name it. And every head at the head
-of a chain of 400,274 events is 1.6 s, past §4.2's tenth of a second, the walk itself at 0.14 µs an
-event: the corpus's chain is the one §4.2 says keeps heads at recorded cuts from SN-4 on (SN-c).
+The load average was between 2.7 and 3.9. Three findings came out of it. The update that writes a
+row's closing stamp took the primary key and walked the chain, about 40 ms a landing at this size,
+until it named the key index as the seeks do (§4.1); a test now asks the plan of every statement
+by path to name it. The savepoint each write in a batch takes, added after review so that a failed
+write leaves neither of its rows (§12, SN-1), kept its journal in a temporary file and doubled a
+key's write, 105 to 108 µs for a new path in two runs; the catalog's connection now keeps its
+temporary store in memory, where the savepoint costs about 6 µs. And every head costs what
+building the answer costs: the walk is 0.14 to 0.15 µs an event, against §4.2's quarter of a
+microsecond on the fixture, but each head returned costs 3.5 to 3.9 µs more, in Python, so the read
+from the log alone passes a tenth of a second near 27,000 heads, a chain of 30,002 events taking
+0.11 s. That is SNF-6's first condition, met at SN-1, and kept heads do not remove it: a kept head
+at a recorded cut shortens the walk, not the building of the answer (§4.2).
 
 ## 12. The build order
 
@@ -2047,17 +2125,41 @@ property-testing the transcription against the Lean statements; the laws a stage
     `writer.py:419`, `:433` and `sync.py:201`. `att_head` is `NULL` at this stage.
     `relabel_provenance` rewrites the label in `landing_chains` and no row of `landings`.
     `remove` and `remove_digest` empty the log's rows of the path or of the digest as §6.1
-    says, the key kept, so the purge's effect on the log is this stage's and not SN-3's.
+    says, the key kept, so the purge's effect on the log is this stage's and not SN-3's. As
+    built, after review: `remove_digest` also empties the other rows of a path none of whose
+    versions keeps its content (§6.1), and each write in a batch is a savepoint, so a write that
+    fails leaves neither of its rows when the batch's caller catches the error and goes on.
   - The reads, on `VaultCatalog`: `chains(class)`; `head(chain)`; `read_at(chain, c)`, the rows
     with `seq ≤ c` in order; `state_at(class, path, c)`, the path's last event at or under the
-    cut over the class's chains, which is a `store`, a `retire` or `move`, a hole, or nothing;
+    cut over the class's chains, which is a `store`, a `retire` or `move`, a hole, or nothing (as
+    built, a `leave` too, when the path's present is in a chain of another class at the cut);
     `history_at(class, path, c)`, its `store` rows at or under the cut; `heads_at(class, c)`,
     the `store` rows alive at the cut over the class's chains, a hole returned as a hole with
     its position and no name; `read_between(chain, a, b)`; and `verify(chain)`, which recomputes
-    the hashes from the first row and the commitment of every row that still has its salt. The
+    the hashes from the first row and the commitment of every row that still has its salt (as
+    built, it also fails a row without its salt that keeps any content a purge empties). The
     statements of `state_at` and `history_at` name `landings_path`. Here `c` is a position of a
     chain, or for a class one position a chain.
   - Nothing reads them yet, and no reader's behaviour changes.
+
+  As built, that last line holds once the log has its genesis and not before it. The genesis is
+  written by the migration, at the first open of a catalog that has rows and no log, and every
+  process that opens the catalog runs the migration, a reader's included (the MCP server, the
+  sentence's executor, the spine, the query modes and the launcher open it:
+  `agents/ambassador/mcp.py:74`, `core/sentence/execute.py:342`, `core/temporal/spine.py:373`,
+  `core/query.py:428`, `ops/lifecycle/launcher.py:1625`). So the first process to open the catalog
+  after the deploy writes the genesis: it needs the secret, raising `LandingLogKeyMissing` without
+  it, and it holds the write lock for the genesis, about six seconds on the corpus's catalog, while
+  any other opener waits up to two minutes. After the genesis a reader needs no secret and opens
+  as fast as before; a writer needs it for every write that appends a row (§3.2). So §3.2's rule,
+  that the genesis refuses loudly without the secret, and the line above, that no reader's
+  behaviour changes, cannot both hold while every open runs the migration, and which gives way is
+  the owner's to decide before SN-1 is deployed:
+  the genesis written by a writer's first write, or by an owner-run migration, with an open that
+  lacks the secret skipping it; or SN-1 stated as changing what the first open needs, with every
+  process, the daemon's plists included (`ops/lifecycle/com.mind-palace.palace.plist`, its daemon
+  twin), run with the secret in its environment. Until then the runbook's §0 makes the secret a
+  precondition of the deploy.
 
   Tests, in `tests/property/test_landing_log.py`: SNP-1 to SNP-5 as §10 states them, over
   random sequences of catalog writes that include retires, renames, relabels and purges; the
@@ -2078,7 +2180,10 @@ property-testing the transcription against the Lean statements; the laws a stage
   that stops writing them and resumes later appends a `horizon`. As built, the resumption is a
   new genesis on the dropped tables, which ends at its `horizon`: a build without the log that
   wrote the catalog while the tables stayed would leave the log behind the catalog, and nothing
-  detects that yet, so the rollback drops them (`docs/runbook.md` §0).
+  detects that yet, so the rollback drops them (`docs/runbook.md` §0). The new genesis numbers
+  its chains and positions from 1 again, so a chain id and a position are given once only while
+  the tables stand; nothing at SN-1 relies on more, and SN-3's fresh identity, which is named by
+  a position, must (§6.2).
 - **SN-2 cuts.** The chain tables, each with its running hash and its genesis followed by a horizon,
   for `chat`, `att`, `staging` and `runs`; `att_head` filled from then on; on the chain-table row of
   a pass attestation and of a run, the landing chains that held its inputs and the head of each, and
@@ -2110,7 +2215,9 @@ property-testing the transcription against the Lean statements; the laws a stage
 
   The fresh identity is this stage's for three reasons. It changes what the writer admits and
   what `trace` returns at the head, and D12 licenses a change of behaviour with its own pull
-  request, where SN-1 adds tables and changes no behaviour. It needs the log: the name is the
+  request, where SN-1 adds tables and changes no answer any read gives (what it does change,
+  what a process needs at the first open and to write, is SN-1's item as built). It needs the
+  log: the name is the
   position of the path's last event, which exists from SN-1. And it has to be in force before
   any history is read at a cut, which is SN-4, so that no reader of a history is built on
   identities that inherit; SN-3 is the stage already ordered before SN-4 for removal, and with
@@ -2290,7 +2397,9 @@ give, and what each alternative costs is the answers it changes, which the entry
     past cut a file that was tracked then and is not now, which the head withholds, and makes the
     grant a function of the cut.
 12. **D12, what the merge licenses.** Recommended: SN-1 and SN-2. SN-1 adds tables and changes no
-    reader. SN-2 adds tables, columns and names; the one behaviour it changes is that a name which
+    reader's answer; as built it changes what a process needs at the first open of a catalog and
+    to write it, the secret, which §12 states and leaves to the owner. SN-2 adds tables, columns
+    and names; the one behaviour it changes is that a name which
     resolves to nothing is refused on an instance whose reference store is empty, where today it is
     answered (§2.1). SN-3 to SN-8 change an erasure, the identity a landing takes, the universe and
     what an instance keeps, and each is licensed with its own pull request. The alternative, all
@@ -2307,7 +2416,9 @@ give, and what each alternative costs is the answers it changes, which the entry
     its position (§6.1), 47 bytes a row of index on the fixture. The alternatives: keep the
     path, which saves the hash and leaves a purged note's name readable in the log when every
     version of it is purged; or keep no key, after which a read by path at a cut returns the
-    version before the purged one (`Witness.keyless_hole`).
+    version before the purged one (`Witness.keyless_hole`). As built at SN-1, the purge empties
+    a path's tombstones with its last version, which the recommendation needs: a `retire` that
+    kept its path would leave the name readable as the first alternative does (§6.1).
 
 ## Parked decisions
 
@@ -2315,7 +2426,7 @@ give, and what each alternative costs is the answers it changes, which the entry
 |---|---|---|---|
 | SN-a | the cadence of recorded cuts | a trough that moved, the owner's command | a date that resolves to a cut farther from it than a declared tolerance |
 | SN-b | the citation readings as rows valid over a range of commits | append-only rows a commit, stamped with their projection | the store's size on an instance |
-| SN-c | the heads kept at some recorded cuts | none for a chain under 250,000 events; kept, from SN-4, for a chain over it (§4.2) | `heads_at` past a tenth of a second on a chain under the threshold, or under it by a wide margin on one over |
+| SN-c | the heads kept at some recorded cuts | none for a chain under 250,000 events; kept, from SN-4, for a chain over it (§4.2) | `heads_at` past a tenth of a second on a chain under the threshold, or under it by a wide margin on one over; met at SN-1, 0.11 s on a chain of 30,002 events, the cost the building of the answer (§4.2, §11), so this re-enters before SN-4 |
 | SN-d | a second embedder identity's vectors kept beside the first | none: the present's identity | dn-two-phase-ingestion's open question 4 |
 | SN-e | lexical statistics stored per class and per recorded cut | computed from the mask | a lexical query at a past cut over its budget |
 | SN-f | `repo` as a graph of commits, and a chain a repository | the line of the branch the sensor reads, one repository | an instance whose history has merges or that reads several repositories |
@@ -2345,7 +2456,10 @@ give, and what each alternative costs is the answers it changes, which the entry
 - **SNF-6 (the threshold for kept heads is wrong):** `heads_at` past a tenth of a second on a
   chain under 250,000 events, or the kept heads costing more than the read they save on one
   over. Then the threshold moves; on the fixture the read from the log alone passes a tenth of
-  a second between 100,000 and 500,000 events (§4.2).
+  a second between 100,000 and 500,000 events (§4.2). Met at SN-1: as built every head costs 3.5
+  to 3.9 µs a head returned, and a chain of 30,002 events reads them in 0.11 s (§4.2, §11). Since
+  kept heads leave that cost, moving the threshold alone does not answer it; the read's shape is
+  open with SN-c.
 - **SNF-7 (the mask is too slow for the lexical statistics):** a lexical query at a past cut over
   its budget at the instance's size. Then SN-e; the rule that the statistics are the mask's does
   not change.
@@ -2381,6 +2495,10 @@ give, and what each alternative costs is the answers it changes, which the entry
   missed, is outside the cut or withheld. Then the list of §3.5 is
   incomplete or a reader goes around the filter, and the stage that reads that store at a cut
   does not land until it is closed.
+- **SNF-17 (a declared identity is taken back by another note):** after a retire, a note that is
+  not the retired one declares the retired identity, as a copied front matter would, and its
+  history at the head holds the retired note's versions. Then the exception of §6.2 for a note
+  that declares its identity is reopened with the owner (D3); the retire stays unsealed.
 
 ## Open questions
 
