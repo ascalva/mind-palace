@@ -103,6 +103,47 @@ def test_the_statements_rank_as_the_old_ones_to_the_bit(tok: Tokenizer, steps: l
         store.close()
 
 
+@SETTINGS
+@given(tok=st.sampled_from(TOKENIZERS), steps=ops, asked=asks)
+def test_a_query_past_the_written_sums_length_ranks_as_the_old_ones_too(
+        tok: Tokenizer, steps: list[Any], asked: list[Any]) -> None:
+    """A query of more terms than one written-out sum takes (`_SUM_TERMS`, here lowered to one so
+    generated queries reach it) has its weights summed outside the statement, in the same order:
+    the same law."""
+    import core.stores.lexical as module
+
+    limit = module._SUM_TERMS
+    module._SUM_TERMS = 1
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            store = LexicalStore(Path(d) / "lex.sqlite", tokenizer=tok)
+            apply(store, steps, {})
+            for q, cls, ps, k in asked:
+                assert new_search(store, q, k=k, classes=cls, paths=ps) == \
+                    old_search(store, q, k=k, classes=cls, paths=ps)
+                assert store.scores(q, classes=cls, paths=ps) == \
+                    old_scores(store, q, classes=cls, paths=ps)
+            store.close()
+    finally:
+        module._SUM_TERMS = limit
+
+
+def test_a_query_of_more_terms_than_sqlite_parses_in_one_sum(tmp_path: Path) -> None:
+    store = LexicalStore(tmp_path / "lex.sqlite")
+    words = [f"w{i}" for i in range(1200)]
+    store.land(source_path="a", digest="v", provenance=Provenance.OBSERVED.value, title="a",
+               chunks=_chunks([" ".join(words[:700]), " ".join(words[500:])]))
+    store.land(source_path="b", digest="v", provenance=Provenance.CURATED.value, title="b",
+               chunks=_chunks([" ".join(words[::3])]))
+    for n in (499, 500, 501, 1200):
+        q = " ".join(words[:n])
+        for cls in (None, [Provenance.OBSERVED]):
+            assert new_search(store, q, k=3, classes=cls) == old_search(store, q, k=3,
+                                                                       classes=cls)
+            assert store.scores(q, classes=cls, paths=["a", "b"]) == \
+                old_scores(store, q, classes=cls, paths=["a", "b"])
+
+
 def test_ties_are_broken_by_unit_id_and_scores_are_equal_bit_for_bit(tmp_path: Path) -> None:
     store = LexicalStore(tmp_path / "lex.sqlite")
     for i in range(12):                    # identical units: every score ties
@@ -134,7 +175,7 @@ def test_sqlites_own_sum_is_not_the_reference_sum_the_control() -> None:
     conn.executemany("INSERT INTO r VALUES (?, ?)", list(enumerate(values)))
     (compensated,) = conn.execute("SELECT sum(c) FROM (SELECT c FROM r ORDER BY i)").fetchone()
     (written,) = conn.execute(
-        "SELECT " + " + ".join(f"COALESCE(max(CASE WHEN i = {i} THEN c END), 0.0)"
+        "SELECT " + " + ".join(f"COALESCE(max(c) FILTER (WHERE i = {i}), 0.0)"
                                for i in range(len(values))) + " FROM r").fetchone()
     assert compensated != reference and written == reference
 
