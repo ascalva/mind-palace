@@ -112,3 +112,22 @@ class SupervisorLock:
 
     def __exit__(self, *exc: object) -> None:
         self.release()
+
+
+def held_elsewhere(path: Path) -> bool:
+    """Whether some open file description holds the lock at `path`, probed without creating the
+    file or writing it: a lock file that does not exist is held by nobody, and an existing one is
+    opened read only and tried. For a dry run, which must write nothing; a confirmed act takes
+    the lock with `SupervisorLock.acquire`."""
+    if not path.exists():
+        return False
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return True
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(fd)

@@ -485,11 +485,85 @@ def test_p11_destroy_refuses_an_installed_agent(named: Built, home: Path) -> Non
     _unchanged(named, lambda: lau.destroy(confirm=True))
 
 
+def _files(root: Path) -> dict[str, tuple[int, int, bool]]:
+    """Every entry under `root`, directories included: its size, its mtime and whether it is a
+    directory, so a dry run that creates, removes or touches anything is seen."""
+    out: dict[str, tuple[int, int, bool]] = {}
+    for p in [root, *sorted(root.rglob("*"))]:
+        st = p.lstat()
+        out[str(p.relative_to(root))] = (st.st_size if p.is_file() else 0, st.st_mtime_ns,
+                                          p.is_dir())
+    return out
+
+
 def test_p11_the_destroy_dry_run_writes_nothing(named: Built, home: Path) -> None:
     lau, _ = launcher_for(named, cache=home / ".mind-palace" / "cache")
-    before = dump(named.cfg)
+    before, before_files = dump(named.cfg), _files(home)
     assert lau.destroy(confirm=False) == 0
+    # the tree first: a read of a WAL database (the dump's own) touches its -shm index
+    assert _files(home) == before_files                 # no file added, removed or touched
     assert dump(named.cfg) == before and not (home / ".mind-palace" / "cache").exists()
+    assert not (Path(named.cfg.paths.data_dir) / "supervisor.lock").exists()
+
+
+def test_p11_destroy_refuses_a_root_that_holds_a_checkout_or_foreign_files(
+        tmp_path: Path, repo: Path, home: Path) -> None:
+    """A root may hold only the instance's own state: a git repository below it, or a file no
+    namespace of the instance names, refuses, and nothing under the root is removed."""
+    from tests.fixtures.lifecycle import git
+
+    b = build_palace(home / "work", repo, named="w")
+    lau, _ = launcher_for(b, cache=home / ".mind-palace" / "cache")
+    (b.root / "notes-of-mine.txt").write_text("not the instance's")
+    _unchanged(b, lambda: lau.destroy(confirm=True))
+    (b.root / "notes-of-mine.txt").unlink()
+    project = b.root / "data" / "logs" / "someproject"
+    project.mkdir(parents=True)
+    git(project, "init", "-q")
+    _unchanged(b, lambda: lau.destroy(confirm=True))
+    assert (project / ".git").exists()
+    import shutil
+
+    shutil.rmtree(project)
+    assert lau.destroy(confirm=False) == 0              # its own state alone: a dry run proceeds
+
+
+def test_p11_destroy_refuses_a_root_around_another_instance(
+        tmp_path: Path, repo: Path, home: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A root that holds other instances' roots, whether they are declared on the host or are
+    only directories it does not own, refuses."""
+    from core.stores.cache import Cache
+    from ops.lifecycle import destroy as d
+
+    b = build_palace(home / ".mind-palace" / "instances" / "t", repo, named="t")
+    around = instance_config(home / ".mind-palace" / "instances", None, named="u",
+                             sources=tmp_path / "u-read")
+    why = d.refusals(around, Cache(home / ".mind-palace" / "cache"), installed=False)
+    assert any("not the instance's own state" in w and "t/" in w for w in why), why
+    monkeypatch.setattr(d, "other_roots", lambda cfg: [
+        ("'corpus'", home / ".mind-palace" / "instances" / "corpus", True)])
+    why = d.refusals(around, Cache(home / ".mind-palace" / "cache"), installed=False)
+    assert any("'corpus'" in w for w in why), why
+    assert d.refusals(b.cfg, Cache(home / ".mind-palace" / "cache"), installed=False) == []
+
+
+def test_p11_destroy_and_fill_refuse_a_changed_embedder_geometry(
+        named: Built, home: Path) -> None:
+    """After a change of model in the overlay and before a re-embed, the plane holds the old
+    model's vectors: filing them under the new model's key would mix two geometries."""
+    from core.stores.cache import Cache
+    from core.stores.plane import GeometryMismatch
+    from ops.lifecycle import destroy as d
+
+    cache_root = home / ".mind-palace" / "cache"
+    lau, _ = launcher_for(named, cache=cache_root)
+    lau.cfg = replace(named.cfg, embedding=replace(named.cfg.embedding, model="another-model"))
+    _unchanged(named, lambda: lau.destroy(confirm=True))
+    _unchanged(named, lambda: lau.destroy(confirm=False))
+    _unchanged(named, lambda: lau.cache_fill(confirm=True))
+    with pytest.raises(GeometryMismatch):
+        d.plan_fill(lau.cfg, Cache(cache_root))
+    assert not cache_root.exists()
 
 
 def _catalog(b: Built) -> list[tuple[str, str, str]]:
@@ -513,35 +587,93 @@ def _occupancies(b: Built) -> list[tuple[str, str]]:
         con.close()
 
 
+def _land_by_hand(b: Built, rows: list[tuple[str, Any, bytes]]) -> dict[str, str]:
+    """Raw objects and catalog rows the fixture's lanes do not write: {path: digest}."""
+    out: dict[str, str] = {}
+    for path, provenance, text in rows:
+        digest, _ = b.stores.raw.add(text)
+        b.stores.catalog.record(path, digest, path, provenance=provenance)
+        out[path] = digest
+    return out
+
+
 def test_p12_destroy_keeps_exactly_the_cache_classes(named: Built, home: Path) -> None:
+    """The expectations are written from the fixture's own lanes, by path and class, not by the
+    selection the code makes: the corpus stream's items, the repository's files and one curated
+    item enter; the notes, a dialogue turn, a model's reply in the dialogue, an inbox item and the
+    transcripts do not."""
+    from core.kernel.provenance import Provenance
     from core.stores.cache import Cache, key_of
+    from ops.lifecycle import destroy as d
 
     b = named
+    private_rows = _land_by_hand(b, [
+        ("dialogue/openwebui/c1/m1", Provenance.AUTHORED_DIALOGUE, b"a dialogue turn, private"),
+        ("dialogue/openwebui/c1/m2", Provenance.OBSERVED, b"the model's reply, private"),
+        ("dialogue/inbox/c/1/owner", Provenance.AUTHORED_DIALOGUE, b"an inbox item, private")])
+    curated = _land_by_hand(b, [("curated/ref-1", Provenance.CURATED, b"a curated reference")])
     catalog, occ = _catalog(b), _occupancies(b)
+    notes = {d_ for p, d_, c in catalog if c == Provenance.AUTHORED_SOLO.value}
+    corpus = {d_ for p, d_, c in catalog if p.startswith(f"corpus/{CORPUS_SOURCE}/")
+              and c == Provenance.OBSERVED.value}
+    code = {d_ for p, d_, c in catalog if p.startswith(f"code/{REPO}/")}
+    assert notes and corpus and code
     retained = sqlite3.connect(Path(b.cfg.paths.data_dir) / "chat_retention.sqlite")
     transcripts = {str(r[0]) for r in retained.execute("SELECT digest FROM retained")}
     retained.close()
     stream = b.cfg.ingestion.corpus.root / CORPUS_SOURCE
+    downloaded = set(d._source_files(stream))
+    assert any(f.startswith("stream/") and f != "stream/manifest.json" for f in downloaded)
     cache_root = home / ".mind-palace" / "cache"
     lau, _ = launcher_for(b, cache=cache_root)
     assert lau.destroy(confirm=True) == 0
     assert not b.root.exists()
     cache = Cache(cache_root)
-    open_digests = {d for p, d, _ in catalog if p.startswith(("corpus/", "code/"))}
-    private = {d for p, d, c in catalog if not p.startswith(("corpus/", "code/"))}
-    assert cache.raw_digests() == open_digests
-    assert not cache.raw_digests() & (private | transcripts)
-    open_paths = {p for p, _, _ in catalog if p.startswith(("corpus/", "code/"))}
+    assert cache.raw_digests() == corpus | code | set(curated.values())
+    assert not cache.raw_digests() & (notes | set(private_rows.values()) | transcripts)
+    open_paths = {p for p, _, _ in catalog
+                  if p.startswith((f"corpus/{CORPUS_SOURCE}/", f"code/{REPO}/"))}
     want = {a for p, a in occ if p in open_paths}
     only_private = {a for p, a in occ if p not in open_paths} - want
     key = key_of(b.cfg)[0]
     assert cache.vector_ids(key) == want and want
     assert not cache.vector_ids(key) & only_private
-    assert {m["file"] for m in cache.source_manifest(CORPUS_SOURCE)} >= {
-        "stream/manifest.json", "meta/items.jsonl"}
+    assert {m["file"] for m in cache.source_manifest(CORPUS_SOURCE)} == downloaded
     assert not any("cursor" in m["file"] or "state" in m["file"]
                    for m in cache.source_manifest(CORPUS_SOURCE))
     assert not stream.exists()
+
+
+def test_a_fill_streams_its_vectors_in_batches(
+        palace: Built, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The plan counts the atoms and holds no vector; the fill reads them a batch at a time."""
+    from core.stores.cache import Cache, key_of
+    from ops.lifecycle import destroy as d
+
+    monkeypatch.setattr(d, "FILL_BATCH", 2)
+    cache = Cache(tmp_path / "cache")
+    plan = d.plan_fill(palace.cfg, cache)
+    assert len(plan.atoms) > 2 and not hasattr(plan, "vectors")
+    report = d.fill(palace.cfg, cache, plan)
+    assert report.vectors == len(plan.atoms)
+    assert cache.vector_ids(key_of(palace.cfg)[0]) == set(plan.atoms)
+
+
+def test_the_cache_records_its_uses_to_the_day(tmp_path: Path) -> None:
+    import hashlib
+
+    from core.stores.cache import Cache
+
+    cache = Cache(tmp_path / "cache")
+    data = b"an open object"
+    cache.put_raw(hashlib.sha256(data).hexdigest(), data)
+    cache.forget("0" * 64, [])
+    for name, table in (("uses.sqlite", "SELECT last FROM uses"),
+                        ("purged.sqlite", "SELECT at FROM purged")):
+        con = sqlite3.connect(tmp_path / "cache" / name)
+        times = [float(r[0]) for r in con.execute(table)]
+        con.close()
+        assert times and all(t % 86400 == 0 for t in times), name
 
 
 # ── P13, P14: reuse ─────────────────────────────────────────────────────────────────────────
@@ -648,7 +780,7 @@ def test_p15_a_purge_reaches_the_cache_and_no_fill_puts_it_back(
         palace: Built, tmp_path: Path, repo: Path) -> None:
     from core.ingest.purge import purge_raw
     from core.kernel.ingest.pipeline import derive_chunks
-    from core.stores.cache import key_of
+    from core.stores.cache import key_of, vector_key
     from core.stores.plane import atom_id
     from ops.lifecycle import destroy as d
 
@@ -660,11 +792,15 @@ def test_p15_a_purge_reaches_the_cache_and_no_fill_puts_it_back(
     atoms = {atom_id(c.text) for c in derive_chunks(b.stores.raw.get(entry.digest))}
     key = key_of(b.cfg)[0]
     assert atoms & cache.vector_ids(key)
+    # the same atoms under a second embedder's key: a purge reaches every key
+    other_key, other_fields = vector_key("another-model", "t", 3, "another-backend")
+    assert cache.put_vectors(other_key, other_fields, {a: [0.1, 0.2, 0.3] for a in atoms})
     b.stores.catalog.tombstone(path)
     result = purge_raw(entry.digest, raw=b.stores.raw, store=b.stores.plane,
                        catalog=b.stores.catalog, confirm=True, cache=cache)
-    assert result.cache_raw_removed and result.cache_vectors_removed > 0
+    assert result.cache_raw_removed and result.cache_vectors_removed > len(atoms)
     assert not cache.has_raw(entry.digest) and not atoms & cache.vector_ids(key)
+    assert not atoms & cache.vector_ids(other_key)
     assert entry.digest in cache.purged()
     other = build_palace(tmp_path / "other", repo)          # an instance still holding it
     assert other.stores.catalog.get(path) is not None
@@ -677,6 +813,37 @@ def _shared_atoms(b: Built, purged_path: str) -> set[str]:
     """Atoms of the purged item another open item of `b` also holds: those may stay."""
     occ = _occupancies(b)
     return {a for p, a in occ if p != purged_path and p.startswith("corpus/")}
+
+
+def test_a_cached_source_is_taken_only_inside_its_directories(tmp_path: Path) -> None:
+    """Every instance of the user can write the cache, so a manifest row that names a path out of
+    the source's directory, or an absolute one, is refused: nothing is read or written for it."""
+    import json
+
+    from core.stores.cache import Cache
+
+    cache = Cache(tmp_path / "cache")
+    base = tmp_path / "src"
+    (base / "stream").mkdir(parents=True)
+    (base / "stream" / "manifest.json").write_text("{}")
+    assert cache.put_source_files("alpha", base, ["stream/manifest.json"]) == 1
+    with pytest.raises(ValueError):
+        cache.put_source_files("alpha", base, ["../outside"])
+    secret = tmp_path / "secret.txt"
+    secret.write_text("outside the cache")
+    manifest = tmp_path / "cache" / "sources" / "alpha" / "MANIFEST"
+    rows = json.loads(manifest.read_text())
+    import hashlib
+
+    sha = hashlib.sha256(secret.read_bytes()).hexdigest()
+    rows += [{"file": "../../../secret.txt", "size": secret.stat().st_size, "sha256": sha},
+             {"file": str(secret), "size": secret.stat().st_size, "sha256": sha}]
+    manifest.write_text(json.dumps(rows))
+    dest = tmp_path / "dest" / "alpha"
+    assert cache.take_source("alpha", dest) == 1
+    assert sorted(str(p.relative_to(tmp_path / "dest")) for p in (tmp_path / "dest").rglob("*")
+                  if p.is_file()) == ["alpha/stream/manifest.json"]
+    assert secret.read_text() == "outside the cache"
 
 
 def test_the_cache_prunes_what_was_not_taken_for_the_retention(tmp_path: Path) -> None:

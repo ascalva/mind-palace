@@ -85,13 +85,17 @@ def make_repo(at: Path) -> Path:
 
 
 def instance_config(root: Path, repo: Path | None = None, *, named: str | None = None,
-                    lazy: bool = False, embedding: bool = True, model: str | None = None) -> Any:
+                    lazy: bool = False, embedding: bool = True, model: str | None = None,
+                    sources: Path | None = None) -> Any:
     """A palace whose every written path is under `root` (its data under `root/data`), reading
-    its vault, transcripts and corpus streams from under `root` and `repo` as its code."""
+    its vault and transcripts from under `sources` (`root` when not given), its corpus streams
+    from `root/sources`, and `repo` as its code. A named instance's destroy refuses a root that
+    holds what is not its own state, so a named fixture reads its vault from outside its root."""
     data = root / "data"
     data.mkdir(parents=True, exist_ok=True)
-    (root / "vault").mkdir(exist_ok=True)
-    (root / "transcripts").mkdir(exist_ok=True)
+    read = sources if sources is not None else root
+    (read / "vault").mkdir(parents=True, exist_ok=True)
+    (read / "transcripts").mkdir(exist_ok=True)
     base = get_config()
     paths = replace(base.paths, data_dir=data, raw_store=data / "raw",
                     vector_store=data / "vectors.lance",
@@ -104,9 +108,9 @@ def instance_config(root: Path, repo: Path | None = None, *, named: str | None =
     corpus = replace(base.ingestion.corpus, enabled=True, root=root / "sources",
                      sources=(CORPUS_SOURCE,))
     ingestion = replace(base.ingestion, code=code, corpus=corpus,
-                        vault=replace(base.ingestion.vault, path=root / "vault", enabled=True),
+                        vault=replace(base.ingestion.vault, path=read / "vault", enabled=True),
                         transcripts=replace(base.ingestion.transcripts, enabled=True,
-                                            transcripts_dir=root / "transcripts"))
+                                            transcripts_dir=read / "transcripts"))
     emb = replace(base.embedding, enabled=embedding, lazy=lazy, dim=DIM)
     if model:
         emb = replace(emb, model=model)
@@ -202,7 +206,8 @@ def build_palace(root: Path, repo: Path, *, named: str | None = None) -> Built:
     from ops.code_snapshot import open_snapshot_db
     from ops.self_sensor import SelfSensor
 
-    cfg = instance_config(root, repo, named=named)
+    cfg = instance_config(root, repo, named=named,
+                          sources=root.parent / f"{named}-read" if named else None)
     emb = CountingEmbedder()
     stores = stores_for(cfg, emb)
     b = Built(cfg, root, repo, emb, stores)

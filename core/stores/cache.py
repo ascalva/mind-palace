@@ -9,8 +9,9 @@ root and outside every instance's root and every checkout:
     vectors/<key>/atoms.sqlite   atom id -> the vector as the plane returns it; <key> names the
                                  embedder, its fields in vectors/<key>/key.json
     sources/<source>/<file>      a downloaded source file, with sources/<source>/MANIFEST
-    purged.sqlite                the digests a purge erased; nothing enters under one again
-    uses.sqlite                  when each entry was last put or taken, for retention
+    purged.sqlite                the digests a purge erased, with the day; nothing enters
+                                 under one of them again
+    uses.sqlite                  the day each entry was last put or taken, for retention
 
 An entry holds no path, no title and no class: a raw object is named by its digest, a vector by
 its atom id, the hash of its text, and the text is not stored with the vector. The address is the
@@ -63,6 +64,20 @@ def key_of(cfg: Any) -> tuple[str, dict[str, Any]]:
     """An instance's vector key: its configured geometry and embedding backend."""
     e = cfg.embedding
     return vector_key(e.model, e.document_template, e.dim, cfg.runtime.embedding_backend)
+
+
+def _day(t: float) -> float:
+    """A time, to the start of its UTC day."""
+    return float(int(t // 86400) * 86400)
+
+
+def _relative(name: str) -> Path:
+    """A manifest's file name as a path relative to its source; refused when absolute or when it
+    climbs out (`..`)."""
+    rel = Path(name)
+    if not name or rel.is_absolute() or ".." in rel.parts:
+        raise ValueError(f"a source file is relative to its source: {name!r}")
+    return rel
 
 
 def _sha256(data: bytes) -> str:
@@ -131,10 +146,12 @@ class Cache:
                         "id TEXT NOT NULL, last REAL NOT NULL, PRIMARY KEY (kind, id));")
 
     def _touch(self, kind: str, ids: Iterable[str], *, now: float | None = None) -> None:
+        """Record that these entries were put or taken, to the day: retention needs no finer
+        clock, and a finer one would say when some instance read an open entry (§6.4)."""
         ids = list(ids)
         if not ids or not self.exists:
             return
-        at = time.time() if now is None else now
+        at = _day(time.time() if now is None else now)
         conn = self._uses()
         try:
             with conn:
@@ -300,8 +317,7 @@ class Cache:
         manifest = {m["file"]: m for m in self.source_manifest(source)}
         added = 0
         for rel in files:
-            if rel.startswith("/") or ".." in Path(rel).parts:
-                raise ValueError(f"a source file is relative to its source: {rel!r}")
+            _relative(rel)
             src = base / rel
             sha = _file_sha256(src)
             if rel in manifest and manifest[rel]["sha256"] == sha:
@@ -323,12 +339,20 @@ class Cache:
 
     def take_source(self, source: str, dest: Path) -> int:
         """Copy the source's cached files into `dest`, each one whose size and SHA-256 match its
-        manifest row; a file that does not match is refused and its entry deleted. Returns the
-        files copied. Files `dest` already holds are left as they are."""
+        manifest row; a file that does not match is refused and its entry deleted. A row whose
+        name is absolute or climbs out of its directory is refused, and nothing is read or written
+        for it: every instance of the user can write the cache. Returns the files copied. Files
+        `dest` already holds are left as they are."""
         d = self._source_dir(source)
         copied = 0
         for m in self.source_manifest(source):
-            src, out = d / m["file"], dest / m["file"]
+            try:
+                rel = _relative(str(m.get("file", "")))
+            except ValueError:
+                continue
+            src, out = d / rel, dest / rel
+            if not (_under(src, d) and _under(out, dest)):
+                continue
             if out.exists() or not src.is_file():
                 continue
             if src.stat().st_size != int(m["size"]) or _file_sha256(src) != m["sha256"]:
@@ -374,7 +398,7 @@ class Cache:
         try:
             with conn:
                 conn.execute("INSERT OR IGNORE INTO purged (digest, at) VALUES (?, ?)",
-                             [digest, time.time()])
+                             [digest, _day(time.time())])
         finally:
             conn.close()
         return ForgetReport(raw_removed=raw_removed, vectors_removed=removed)
@@ -474,6 +498,12 @@ def with_cache(stores: Any, cfg: Any, cache: Cache | None = None) -> Any:
     if cfg.embedding.enabled and getattr(stores, "cache", None) is None:
         stores.cache = shared.view(key_of(cfg)[0])
     return stores
+
+
+def _under(path: Path, root: Path) -> bool:
+    """Whether `path` resolves inside `root` (a link in the cache cannot carry a name out)."""
+    real_root = Path(os.path.realpath(root))
+    return real_root in Path(os.path.realpath(path)).parents
 
 
 def same_volume_free(path: Path) -> int:

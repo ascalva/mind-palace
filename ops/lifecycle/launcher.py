@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from config.loader import InstanceConfig, namespaces_of
-from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
+from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld, held_elsewhere
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
@@ -1893,9 +1893,11 @@ class Launcher:
         (raw objects by digest, vectors by embedder and atom, downloaded source files). A dry run
         unless confirmed. Refuses the default instance, a live run, the supervisor lock held, an
         installed LaunchAgent, a root inside a git working tree or holding or inside the cache or
-        the home root itself, a symbolic link out of the root, and a cache volume without room;
-        each refusal writes nothing. Leaves the sources the instance read, its overlay, and its
-        Keychain items, which it names for the owner."""
+        the home root itself, a root at, inside or around another declared instance's, a root
+        that holds a git repository or anything that is not the instance's own state, a symbolic
+        link out of the root, a configured embedder that is not the plane's geometry, and a cache
+        volume without room; each refusal writes nothing, the dry run included. Leaves the sources
+        the instance read, its overlay, and its Keychain items, which it names for the owner."""
         from ops.lifecycle import destroy as d
 
         cfg = self.cfg
@@ -1911,6 +1913,16 @@ class Launcher:
             return 1
         root = cfg.instance.root
         lock = SupervisorLock(namespaces_of(cfg).supervisor_lock)
+        if not confirm:
+            # the dry run writes nothing, so it probes the lock without taking it (or creating it)
+            if held_elsewhere(lock.path):
+                print(f"refusing destroy — another writer holds the supervisor lock ({lock.path}).")
+                return 1
+            plan = d.plan_fill(cfg, cache)
+            if self._print_destroy(cache, plan) is None:
+                return 1
+            print("\nDRY RUN — nothing written. Re-run with --confirm.")
+            return 0
         if root.exists():
             try:
                 lock.acquire()
@@ -1919,18 +1931,8 @@ class Launcher:
                 return 1
         try:
             plan = d.plan_fill(cfg, cache)
-            short = d.room(cache, plan)
-            if short is not None:
-                print(f"refusing destroy — {short}.")
+            if self._print_destroy(cache, plan) is None:
                 return 1
-            print(f"destroy instance {cfg.instance.id!r} at {root}:")
-            print(f"  the cache ({cache.root}) takes: {plan}")
-            print(f"  removed: {root}")
-            print("  left: its sources, its overlay in config/instances/, and its Keychain items: "
-                  + (", ".join(d.keychain_items(cfg)) or "(none)"))
-            if not confirm:
-                print("\nDRY RUN — nothing written. Re-run with --confirm.")
-                return 0
             report = d.fill(cfg, cache, plan)
             if root.exists():
                 d.remove_root(root)
@@ -1938,6 +1940,24 @@ class Launcher:
             lock.release()
         print(f"\ndestroyed {cfg.instance.id!r}: the cache took {report}.")
         return 0
+
+    def _print_destroy(self, cache: Any, plan: Any) -> Any:
+        """Print what a destroy would do; None (with the refusal printed) when the cache's volume
+        cannot take the fill."""
+        from ops.lifecycle import destroy as d
+
+        cfg = self.cfg
+        short = d.room(cache, plan)
+        if short is not None:
+            print(f"refusing destroy — {short}.")
+            return None
+        root = cfg.instance.root
+        print(f"destroy instance {cfg.instance.id!r} at {root}:")
+        print(f"  the cache ({cache.root}) takes: {plan}")
+        print(f"  removed: {root}, holding " + (", ".join(d.top_entries(root)) or "nothing"))
+        print("  left: its sources, its overlay in config/instances/, and its Keychain items: "
+              + (", ".join(d.keychain_items(cfg)) or "(none)"))
+        return plan
 
     # --- the shared cache (§6.3 to §6.5) ------------------------------------------------------
     def cache_report(self) -> int:
@@ -1960,6 +1980,10 @@ class Launcher:
         if self._refuse_if_live("cache fill"):
             return 1
         cache = self._cache()
+        why = d.geometry_refusal(self.cfg)
+        if why is not None:
+            print(f"refusing cache fill — {why}.")
+            return 1
         plan = d.plan_fill(self.cfg, cache)
         print(f"cache fill from {self.cfg.instance.id!r} into {cache.root}: {plan}")
         short = d.room(cache, plan)
