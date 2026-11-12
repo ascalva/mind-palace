@@ -3,7 +3,7 @@ type: design-note
 id: dn-instance-lifecycle
 track: deployed-instances
 status: draft                  # provenance description, never a gate; the merge is ratification
-implementation: built          # part B built §4 to §8; §10 records where the build departs
+implementation: built          # part B built §3 to §8; §10 records where the build departs
 created: 2026-11-12
 updated: 2026-11-12
 links:
@@ -26,8 +26,9 @@ warrant: null
 
 > Drafted on the branch `feat/instance-lifecycle`, cut from `origin/main` at `0a5fba27`. Every
 > claim about code was read there, at the lines cited; the landing log was read on the branch of
-> pull request #92 at `245f938d` (`git show`, no checkout). Nothing is built by this part: part B
-> builds §4 to §8. Grades: `[ESTABLISHED]` is a fact of the code at the lines cited or of a
+> pull request #92 at `245f938d` (`git show`, no checkout). The note is as built: part B built §3
+> to §8, and §10 records where the build departs from the design, the changes an audit of the
+> build asked for among them. Grades: `[ESTABLISHED]` is a fact of the code at the lines cited or of a
 > ratified note; `[DERIVED]` is argued here from those; `[INFERENCE]` is a design call with a
 > named falsifier; `[PROPOSED]` is a choice this note makes and leaves to the owner (§9).
 
@@ -61,14 +62,14 @@ These five bind this note. They are recorded here in this note's words.
 2. **A reset clears the derived stores and rebuilds them in a fixed order, in its own process,
    under the instance's supervisor lock, and keeps everything else (§4).** The raw store, the
    catalog, the attestations, the version chains, the verdicts and the queue, which the reset
-   removes today, are kept. The lexical index and the authored relation edges, which it leaves
-   today, are rebuilt. `[DERIVED from decision 1 and §3]`
+   removes today, are kept. `[DERIVED from decision 1 and §3]` The lexical index and the
+   authored relation edges, which it leaves today, are rebuilt. `[PROPOSED, D11]`
 3. **The chat log is rebuilt from the raw store through a new ledger of retained transcripts
    (§3.4).** Today a kept raw store makes the chat sensor skip every transcript it has seen, so
    nothing would rebuild the chat log. `[ESTABLISHED for the gap; INFERENCE for the ledger,
    falsifier LCF-3]`
 4. **Every landing re-derives a stale lexical index before it lands, in the one writer (§5).**
-   `[INFERENCE, falsifier LCF-4]`
+   `[PROPOSED, D12; falsifier LCF-4]`
 5. **Destroy applies to a named instance only, is a dry run unless confirmed, and leaves a shared
    cache of raw objects, vectors and downloaded sources at `~/.mind-palace/cache` (§6).** Only the
    open sources' content enters the cache, never a private stratum's, and a purge reaches it.
@@ -189,7 +190,7 @@ runs in this order; each step reads only ledgers and the steps before it.
 | 2 | the plane's occupancies and supersession log (`vectors.lance/plane.sqlite`, `core/stores/plane.py`) | catalog, raw, the atom table (§4.2), the cache (§6.5) | a reset of the plane's relations that keeps the atoms, then the drain (`derive.py:183-200`) over every plane class |
 | 3 | `code_observations.sqlite` | commit ledger | `CodeSensor.backfill_observations` (`ops/code_sensor.py:827-844`), the attestor off; the reference edges it mints again are already held and are ignored (`reference_edges.py:290`) |
 | 4 | `agent_observations.sqlite` | git's first-parent history of the build plans | `SelfSensor.sync` (`ops/self_sensor.py:248-270`), the attestor off |
-| 5 | `memberships.sqlite` and the code atoms' occupancy (`core/stores/memberships.py`) | commit ledger, git | the code lane's `backfill` over `ledger_versions` (`scheduler/code_sync.py:59-76`), without the job's `capture_commit_diffs`, which appends to the commit ledger |
+| 5 | `memberships.sqlite` and the code atoms' occupancy (`core/stores/memberships.py`): replaced by §10 item 1, which keeps it (D14) | commit ledger, git | the code lane's `backfill` over `ledger_versions` (`scheduler/code_sync.py:59-76`), without the job's `capture_commit_diffs`, which appends to the commit ledger |
 | 6 | the authored rows of `edges.sqlite` (provenance `authored-solo`) | catalog, raw | `RelationDetector.authored`, changed to parse each active note's raw bytes by its catalog digest instead of its vault file |
 | 7 | `chatlog.sqlite` | the retention ledger, raw | a replay of the retention ledger (§3.4) |
 | 8 | `chat_events.sqlite` | chat log, raw | `ChatEventProjector.project` (`core/chat_events.py:199-215`) |
@@ -197,9 +198,11 @@ runs in this order; each step reads only ledgers and the steps before it.
 | 10 | `verdict_dispositions.sqlite` | verdicts | `apply_verdict` over every verdict in sequence order (`core/verdict/apply.py:68-77`) |
 
 Then the atoms that no occupancy and no membership holds are dropped, so the atom table holds
-exactly what the rebuilt relations name. Steps 2 and 5 are skipped by an instance that embeds
+exactly what the rebuilt relations name (as built, the plane's occupancies alone, since the
+membership store is kept: §10 item 1). Steps 2 and 5 are skipped by an instance that embeds
 nothing; steps 3 to 5 by one whose code sensor and code lane are off; steps 7 to 9 by one that
-reads no transcripts. A step with nothing to rebuild costs a read of its inputs.
+reads no transcripts. A step with nothing to rebuild costs a read of its inputs. As built there is
+no step 5 (§10 item 1).
 
 The interpreted rows of `edges.sqlite` stay: they are model output (§3.5). So the reset of that
 store deletes the rows of provenance `authored-solo` and keeps the rest, the one derived store
@@ -318,7 +321,10 @@ The atom table is a memo of one function: the embedder's vector of a text, keyed
 hash (`plane.py:113-115`) under the geometry the plane records (`plane.py:154-166`). Keeping it
 through a reset loses no derived state and keeps the rebuild from calling the embedder. So the
 plane's reset for a lifecycle reset forgets the occupancies and the supersession log and keeps the
-atoms and the recorded geometry; the drain then finds every atom held (`embed_missing`,
+atoms and the recorded geometry. The rebuild re-occupies exactly the (path, digest) pairs the plane
+held current before the clearing, read once and kept in the marker (§4.3), and nothing more: an
+item a lazy instance landed without its vector stays waiting for the embed job, so the plane comes
+back to its state before. The drain over those items finds every atom held (`embed_missing`,
 `derive.py:146-180`) and embeds nothing; the atoms no rebuilt row holds are dropped last. The
 `held` and `current` cache columns of the atom table are repaired from the rebuilt relations by the
 plane's existing repair ratchet. A configured embedder that differs from the recorded geometry is
@@ -335,6 +341,15 @@ naming the reset, so nothing lands into a half-rebuilt instance. Every step is i
 `palace reset --confirm` run again after an interruption clears the derived stores again and
 finishes. `[INFERENCE, falsifier LCF-5]`
 
+A rerun finishes only if no step fails the same way every time, so a step's inputs are either
+checked before anything is cleared or tolerated by the step. As built: a commit the commit ledger
+holds that the repository no longer has (a rewrite and a garbage collection) would fail the code
+observations' re-projection, so the reset checks every ledgered commit first and refuses, with
+nothing written, naming them (§4.5); and a retained transcript whose raw object a purge erased is
+skipped by the chat log's replay and counted as purged in its report, so the erasure stands and
+the reset finishes (§6.6). An instance whose commits are gone for good can be reset only once the
+loss is accepted, which this note does not design (open question 4). `[DERIVED; P7, P9]`
+
 ### 4.4 Its guarantees
 
 - **Nothing is lost.** Every store of §3.1, §3.2, §3.5 and §3.7 is byte for byte what it was:
@@ -345,7 +360,9 @@ finishes. `[INFERENCE, falsifier LCF-5]`
   the chat log, the chat events, the dispositions, the code and agent observations' current
   readings and the authored relation edges; the current units and their postings, and the
   version records of the current versions, in the lexical index; the current occupancies of each
-  plane class with their atoms' vectors; the current memberships. `[DERIVED; P3]`
+  plane class with their atoms' vectors; the current memberships (as built, kept and not
+  rebuilt: §10 item 1). A transcript a purge erased since the last rebuild is the one exception:
+  the chat log and the chat events come back without it. `[DERIVED; P3]`
 - **Before #92, the head only.** The lexical units and plane occupancies of superseded versions,
   and the plane's supersession log, are rebuilt for the current versions only, since no ledger
   names a superseded version's path outside the version chains. No reader at main reads a
@@ -361,14 +378,16 @@ finishes. `[INFERENCE, falsifier LCF-5]`
 
 A live daemon (the last run active and its process the supervisor, `_supervisor_alive`,
 `launcher.py:193-244`); the supervisor lock held by another writer; a configured embedder whose
-geometry is not the one the plane records. Each refusal says what to do, and writes nothing.
+geometry is not the one the plane records; a commit the commit ledger holds that the repository no
+longer has (§4.3). Each refusal says what to do, and writes nothing.
 
 ### 4.6 Its dry run
 
 As today: without `--confirm` nothing is written. The dry run prints, by class, every store it
 would clear with its row count, the rebuild's steps with the count of items each would read, the
-stores it keeps, and the count of atoms the cache or the atom table holds against the count the
-rebuild needs, so the operator sees whether the embedder would be called.
+stores it keeps, and for the plane the items it re-occupies, the distinct atoms they need and how
+many of those the atom table lacks (the embedder is called for those alone), and the items of the
+plane's classes that hold no vector, which the reset leaves to the embed job.
 
 ## 5. A sync heals a stale lexical index
 
@@ -403,6 +422,15 @@ real path lies inside a git working tree, is the home root `~/.mind-palace` itse
 cache; or the free space on the cache's volume is less than what the cache would gain plus a
 margin. `[PROPOSED, D1]`
 
+As built, a root is removed only when it holds nothing but the instance's own state, since the
+removal takes the whole root: it also refuses a root with a top-level entry no path of the
+instance's namespaces lies at or under (`namespaces_of(cfg).paths`), an entry of the data
+directory the class table does not name, a `.git` anywhere below it, a root at, inside or around
+another declared instance's root (a derived root inside the checkout excepted, §10 item 5), and a
+configured embedder that is not the plane's geometry (§6.5). The dry run lists the root's
+top-level entries, and it takes no lock: it probes the supervisor lock read only, so it creates
+no file. The loader accepts such a root for a named instance; only destroy refuses it.
+
 ### 6.2 What it removes, and what it leaves
 
 It fills the cache from the instance (§6.4), then removes the instance's root, the declared one or
@@ -424,8 +452,8 @@ root and outside every instance's root and every checkout. Its layout:
                               embedder (§6.5), its fields in vectors/<key>/key.json
   sources/<source>/<file>     downloaded source files, with sources/<source>/MANIFEST
                               (file, size, SHA-256, when fetched)
-  purged.sqlite               the digests a purge erased (§6.6)
-  uses.sqlite                 the last time each entry was taken, for retention
+  purged.sqlite               the digests a purge erased, with the day (§6.6)
+  uses.sqlite                 the day each entry was last put or taken, for retention
 ```
 
 An entry holds no path, no title and no class: a raw object is named by its digest, a vector by
@@ -445,7 +473,7 @@ open-corpus source (`corpus/<name>/`, `core/ingest/table.py:454-455`) or a repos
 - a raw object enters when some catalog row, active or tombstoned, names its digest at an open
   item's path;
 - a vector enters when its atom is held, current or not, by an open item's occupancy or by a code
-  membership;
+  membership (as built, by an open item's occupancy only: §10 item 2);
 - a source file enters when it is a downloaded file of an open-corpus source (the edge readers'
   dumps under the corpus root's `<name>/`), not a stream cursor or a checkpoint.
 
@@ -461,7 +489,13 @@ a note and a corpus document. What would break it is an entry whose existence sa
 open sources do not, which the allow-list excludes by taking open items alone. `[DERIVED]`
 
 Reading the cache is not restricted by class: a lookup by hash of bytes the reading instance
-already holds tells it only that some open item held them, and writes nothing. `[DERIVED]`
+already holds tells it only that some open item held them. A lookup that finds an entry does
+write: it records the day the entry was taken, in `uses.sqlite`, which the prune reads. So when a
+private note's chunk has the text of an open chunk, the cache records the day some instance took
+that open atom, and nothing of the note: no path, no instance, no time finer than the day.
+`purged.sqlite` holds the digest of every object a purge erased, a private note's among them, with
+the day; a digest names content only to someone who holds the content, and it must be kept, or a
+later fill would put the object back. `[DERIVED]`
 
 ### 6.5 How an instance reuses the cache
 
@@ -470,7 +504,11 @@ already holds tells it only that some open item held them, and writes nothing. `
   (`[runtime] embedding_backend`), hashed. `embed_missing` (`derive.py:146-180`) looks up the
   atoms the plane lacks in the cache under the instance's key before it calls the embedder, and
   lands a found vector as if embedded; `DrainReport` counts it as `cached`. A vector is reused only
-  under the same key, so a geometry never mixes. `[PROPOSED; falsifier LCF-6]`
+  under the same key, so a geometry never mixes, provided a vector is filed under the key of the
+  embedder that made it: a fill and a destroy refuse unless the configured geometry is the one the
+  plane recorded, as a reset does. The plane does not record the backend, so a change of backend
+  alone between embedding and a fill files the vectors under the new backend's key; whether to
+  record it is open question 1. `[PROPOSED; falsifier LCF-6]`
 - **A raw object, by digest.** `RawStore.get` on a miss reads the cache's object, checks that its
   SHA-256 is the digest asked for, and copies it in; a mismatch is refused and the entry deleted.
   The address is the whole trust decision. This is how an instance takes a raw object it has a
@@ -491,7 +529,9 @@ object and the vector of every atom of those chunks, under every key; then recor
 `purged.sqlite`. Every fill and every destroy refuses a digest recorded there, so no later
 instance puts it back. The atoms are deleted and not recorded, since an atom's text may be held by
 an open item whose content is public; the cost of deleting one an open item also holds is one
-embedding. So the cache is no way around erasure. `[PROPOSED, D10]`
+embedding. So the cache is no way around erasure. A transcript can be purged too: it has no
+catalog row, so the gate passes, and a later reset's replay of the retention ledger skips its
+digest and says so (§4.3). `[PROPOSED, D10]`
 
 ## 7. The corpus at its own root
 
@@ -507,7 +547,8 @@ CIF-5 falsifier), the runbook's corpus section, `config/defaults.toml`'s comment
 one line under its header saying where the data lives now.
 
 **A shared dataset.** Other instances draw on it in two ways, both read only: in place, through a
-read-only open of its stores (SQLite `mode=ro`, Lance read-only) for the regression reads; and
+read-only open of its stores (SQLite with `immutable=1`, since a `mode=ro` connection to a WAL
+database creates its `-wal` and `-shm` files; Lance read-only) for the regression reads; and
 through the cache, once the corpus has filled it (`palace cache fill` under the corpus's overlay),
 for a stress instance that lands corpus items and takes their vectors by atom and their raw
 objects by digest instead of embedding again. Nothing but the corpus's one writer,
@@ -519,9 +560,14 @@ reports the first two in the pull request, from a read-only check that the confi
 the corpus to its root and that its stores open.
 
 **Reset and destroy of the corpus.** The corpus is a named instance, so both apply. A reset keeps
-its 19 GB of raw and its catalog and rebuilds its lexical index and plane relations from them,
-with every atom held, so the embedder is not called. A destroy would fill the cache with all of
-it, since every corpus item is open. Neither is run by this pull request.
+its 19 GB of raw and its catalog and rebuilds its lexical index and plane relations from them; it
+re-occupies only what the plane held, every atom of which the atom table holds, so the embedder
+is not called, and the items still waiting for a vector stay with the embed job. A destroy, or a
+`palace cache fill`, would fill the cache with all of it, since every corpus item is open: the
+fill reads the vectors in batches, so its memory does not grow with the plane, but the cache would
+take a copy of the raw store and 1,338,585 vectors stored as float64, about 8.2 GB, and neither its
+time nor its disk use at that size is measured. Neither is run by this pull request, and the
+runbook does not offer the corpus's fill until it is measured.
 
 ## 8. What the build tests
 
@@ -545,8 +591,8 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   sync, a reset gives back the chat log and the chat events as they were; a fixture with a grown
   session and one held by the guard included.
 - **P6, the dry run writes nothing** and names every store it would clear.
-- **P7, the refusals.** A live run, the lock held, a changed embedder geometry: each refuses and
-  every byte is unchanged.
+- **P7, the refusals.** A live run, the lock held, a changed embedder geometry, a ledgered commit
+  the repository no longer has: each refuses and every byte is unchanged.
 - **P8, no embedder call.** A reset of an instance whose atoms are held calls the embedder zero
   times.
 - **P9, an interrupted reset finishes.** A failure injected at each rebuild step leaves the
@@ -556,12 +602,14 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   then opened under the current one: `repo_sync_now` lands where it raised `TokenizerMismatch`
   before, and the index is no longer stale; the same through `Writer.land` for a vault plan.
 - **P11, destroy's refusals.** The default instance, a live run, the lock held, a root in a working
-  tree, a root that is or holds the cache, a symbolic link out of the root: each refuses and writes
-  nothing; the dry run writes nothing.
+  tree, a root that is or holds the cache, a symbolic link out of the root, a root holding a git
+  repository or a file not the instance's own, a root around another instance's, a changed embedder
+  geometry: each refuses and writes nothing; the dry run creates, removes and touches no file.
 - **P12, destroy keeps exactly the cache's classes.** After a confirmed destroy of a fixture with
   notes, dialogue, a transcript, corpus items and a repository, the root is gone; the cache's raw
   objects are exactly the digests open items named, its vectors exactly the atoms open items or
-  code memberships held, its sources exactly the open sources' downloaded files; no raw object of a
+  code memberships held (as built, open items only: §10 item 2), its sources exactly the open
+  sources' downloaded files; no raw object of a
   note, a dialogue turn or a transcript, and no vector only a private item held, is in it.
 - **P13, a cached vector is reused without the embedder.** A new instance under the same key
   drains an item whose atoms are cached with zero embedder calls, and its vectors equal the cached
@@ -613,6 +661,11 @@ Each is proposed, with the recommendation first.
   command that lands.
 - **D13, the corpus's configuration** declares `[instance] root = "~/.mind-palace/instances/corpus"`
   in `config/instances/corpus.toml`.
+- **D14, the membership store is kept by the reset**, found in the build (§10 item 1). Recommended:
+  keep it, since it holds the code atoms' embedder ledger beside their occupancy and deleting it
+  would make the code lane embed every code atom again; `palace code-rebuild` stays what derives
+  it. The alternative is the design's step 5, a rebuild through the code lane's backfill, which
+  first needs that ledger moved out of the store.
 
 ## 10. As built
 
@@ -646,6 +699,30 @@ Part B built §3 to §8 with these departures, each found in the code:
    no `meta` table: by the store's own rule its units are the legacy tokenizer's, so the next
    landing into the corpus re-derives its 1,369,944 units before it lands (§5).
 
+An audit of the build found these, and the build was changed to match the design's guarantees:
+
+9. **The plane step re-occupies what the plane held, not every pending item (§4.2).** Draining every
+   pending item embedded a lazy instance's backlog inside the reset. The (path, digest) pairs the
+   plane held current are read before the clearing and kept in the marker.
+10. **A step's inputs are checked before the clearing, or tolerated (§4.3).** A pruned ledgered
+    commit refuses the reset before anything is written; a purged transcript is skipped by the
+    replay.
+11. **Destroy removes only the instance's own state (§6.1).** A root holding anything else, a git
+    repository below it, or another instance's root refuses; the dry run probes the lock without
+    creating it.
+12. **A fill files vectors only under the plane's own geometry, and streams them (§6.5, §7).** The
+    plan counts atoms; the fill reads and writes 2,048 vectors at a time.
+13. **The cache records its uses and purges to the day (§6.4)**, and `take_source` refuses a
+    manifest name that is absolute or climbs out of its directory.
+14. **`clear` checks that every store it clears lies under the data directory (§4.1)**, the check
+    `reset_targets` made before it was replaced.
+15. **The corpus is read with `immutable=1` (§7).** The first read-only check opened its SQLite files
+    with `mode=ro`, and on a WAL database that creates the `-wal` and `-shm` files: on 2026-11-12 it
+    created an empty `lexical.sqlite-wal` and a `lexical.sqlite-shm` under the corpus root and
+    touched `vault_catalog.sqlite-shm`, with no row changed. The check was run again with
+    `immutable=1`; a snapshot of the data directory and the Lance tree before and after showed no
+    entry created, removed or touched.
+
 ## Falsifiers
 
 - **LCF-1 (the inventory is not total):** a store written by a lane the fixtures exercise that the
@@ -667,8 +744,11 @@ Part B built §3 to §8 with these departures, each found in the code:
    whether to put its digest in the key is open until a measurement says the geometry moves.
 2. The default instance has no destroy. Whether it needs a command that empties it to a fresh start
    (the reset at main's old purpose) is open; this note gives none, by decision 4.
-3. A reset of the corpus rebuilds 1.3 million chunks a gigabyte of lexical units from raw; its cost
-   at the corpus's size is not measured here.
+3. A reset of the corpus re-derives its 1,369,944 lexical units from raw and re-occupies the plane
+   over its 1,338,585 stored vectors; its time at that size is not measured here.
+4. A commit the commit ledger holds and the repository has lost refuses every reset of the instance
+   (§4.3). Whether a reset may then drop that commit's code observations, and on what
+   confirmation, is a decision this note leaves open.
 
 ## Cross-references
 

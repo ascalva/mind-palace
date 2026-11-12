@@ -3,18 +3,18 @@
 One table, the same for every instance, says what each store under an instance's data directory
 is and so what a reset does to it:
 
-* **ledger** — a source of truth: the raw objects, the catalog, the version chains, the
+* **ledger**: a source of truth: the raw objects, the catalog, the version chains, the
   attestations, the chat sensor's retention ledger, the commit ledger, the observation history,
   the reference edges, the query log, the run and self-modification ledgers, the effects. Kept.
-* **declaration** — what the owner declared and no code computes: the authored supersessions and
+* **declaration**: what the owner declared and no code computes: the authored supersessions and
   the signed verdicts. Kept.
-* **derived** — a function of the ledgers, computed again without a model: cleared by a reset and
+* **derived**: a function of the ledgers, computed again without a model: cleared by a reset and
   rebuilt, in the order of `step`, each step reading only ledgers and the steps before it.
-* **kept** — model output, and what else no rebuild computes again exactly: the interpreted
+* **kept**: model output, and what else no rebuild computes again exactly: the interpreted
   artifacts, the dream claims, the claim operations, the staged hypotheses, the structural
   snapshots, the curated store, the measurements, and the code lane's membership store, which
   holds the code atoms' embedder ledger beside their occupancy. Kept.
-* **operational** — the queue, the locks, the spools and their marks, the logs, the backups and
+* **operational**: the queue, the locks, the spools and their marks, the logs, the backups and
   the HashiCorp Vault storage. Kept: not content.
 
 `reset_targets` and `_RESET_GUARD` were two lists that disagreed with the chat sensor's design;
