@@ -97,6 +97,11 @@ class VaultCatalog:
         self._defer = False
         self._conn = sqlite3.connect(str(self.path))
         self._conn.row_factory = sqlite3.Row
+        # Each write in a batch is a savepoint (`_writing`), and SQLite keeps a savepoint's
+        # journal in a temporary file unless told otherwise: 46 to 50 µs a write, against 6 in
+        # memory, on a catalog of 100,000 rows. No query of the catalog's sorts or groups more
+        # than a few rows in the temporary store, so nothing else of size is held there.
+        self._conn.execute("PRAGMA temp_store = MEMORY")
         self._log = LandingLog(self._conn, self._landing_key)
         try:
             # Until the log's genesis is written another process may be writing it, six seconds
