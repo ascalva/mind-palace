@@ -314,9 +314,10 @@ def part_ledger(a: argparse.Namespace, scratch: Path, answers: dict[str, Any]) -
                           [rowid]).fetchone()
         outs = json.loads(row[0]).get("output_hashes") or []
         return str(outs[0]) if outs else None
-    singles = [h for h in (first_output(r) for r in rng.sample(rowids, 5)) if h]
+    singles = [h for h in (first_output(r) for r in rng.sample(rowids, min(5, len(rowids)))) if h]
     singles += ["0" * 64, "f" * 64]
-    batch = {h for h in (first_output(r) for r in rng.sample(rowids, ITEMS)) if h}
+    batch = {h for h in (first_output(r) for r in rng.sample(rowids, min(ITEMS, len(rowids))))
+             if h}
     batch |= {f"{i:064x}" for i in range(1, ABSENT + 1)}
     records = len(rowids)
     raw.close()
@@ -578,6 +579,13 @@ def main(argv: list[str] | None = None) -> None:
         res = child_keyword(c) if c.kind == "keyword" else child_landing(c)
         print(json.dumps(res))
         return
+    a = parse(argv)
+    guard(a.max_rss_gb)
+    run(a)
+
+
+def parse(argv: list[str]) -> argparse.Namespace:
+    """The battery's arguments."""
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", type=Path, required=True,
@@ -598,9 +606,7 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--dim", type=int, default=768)
     ap.add_argument("--seed", type=int, default=20261111)
     ap.add_argument("--max-rss-gb", type=float, default=3.8)
-    a = ap.parse_args(argv)
-    guard(a.max_rss_gb)
-    run(a)
+    return ap.parse_args(argv)
 
 
 if __name__ == "__main__":
