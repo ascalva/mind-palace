@@ -30,13 +30,11 @@ arrive). `references_out` is carried as a typed JSON column but is emitted EMPTY
 the deterministic reference extractor (Lane 1, V4-seeded patterns) is B-c / bp-013.
 
 Engine: SQLite (plan Q2) — an identity-keyed append-style ledger, the runs/versions/
-snapshots convention, not the DuckDB telemetry lane. Reset semantics (plan Q4): this store
-is CORPUS-side (the observed stratum) and joins `reset_targets()` — wiped with the corpus,
-unlike the snapshot LEDGER (build history, reset-guarded). [cross-ref: extension, bp-018]
-That corpus-side call covers the current READINGS only, which rebuild by re-projection
-from git; the worldview HISTORY — generations superseded when a bumped interpreter
-re-projects — lives in the ledger-class, reset-guarded sidecar
-(`core/stores/observation_history.py`; dn-self-sensing §2.5 ruling).
+snapshots convention, not the DuckDB telemetry lane. Reset semantics: this store is derived,
+step 3 of the class table in `ops/lifecycle/inventory.py`. A reset clears the current readings
+and re-projects them from the commit ledger, which it keeps, without the attestor. The worldview
+history, the generations superseded when a bumped interpreter re-projects, is a ledger the reset
+keeps (`core/stores/observation_history.py`; dn-self-sensing §2.5 ruling).
 """
 
 from __future__ import annotations
@@ -327,8 +325,8 @@ class CodeObservationStore:
 
 def open_code_observation_store(config: Config | None = None) -> CodeObservationStore:
     """The `open_*` helper: `data/code_observations.sqlite` (plan Q2 — the sibling-store
-    convention beside `derived_store`, no dedicated cfg path; registered in
-    `reset_targets()` as a corpus-side wipe target, plan Q4)."""
+    convention beside `derived_store`, no dedicated cfg path). Derived in the class table of
+    `ops/lifecycle/inventory.py`: a reset clears it and re-projects the commit ledger."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

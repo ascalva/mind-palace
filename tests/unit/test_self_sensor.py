@@ -7,8 +7,9 @@ second projection of the same commit changes NOTHING (row count, projections, at
 all unchanged) — and the sensor reads ONLY `git` subprocess output + config paths, never
 the working tree, never transcripts (§2.6's statelessness).
 
-Also covers Item 8's wiring surface (`scripts/sense_self.py`, the hook line, the
-`reset_targets()` entry): those tests live here per the plan's file list (§7 Item 8).
+Also covers Item 8's wiring surface (`scripts/sense_self.py`, the hook line, and the
+store's class in `ops/lifecycle/inventory.py`): those tests live here per the plan's file list
+(§7 Item 8).
 """
 
 from __future__ import annotations
@@ -395,7 +396,7 @@ def test_post_commit_hook_contains_both_sensor_lines_and_the_branch_guard() -> N
     assert guard_idx < code_idx and guard_idx < self_idx   # the guard is upstream of both
 
 
-def test_reset_targets_lists_agent_observations_but_refuses_the_history_sidecar(
+def test_the_class_table_rebuilds_agent_observations_and_keeps_the_history_sidecar(
     tmp_path: Path,
 ) -> None:
     """Pins §6(h), now in the class table (dn-instance-lifecycle §3): the readings store is a

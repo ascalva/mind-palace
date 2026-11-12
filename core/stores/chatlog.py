@@ -38,11 +38,10 @@ immutable rawstore (`core/stores/rawstore.py`) BEFORE any extraction; every row 
 over those bytes — the same two-layer shape as ingest (raw → derived), no new pattern.
 
 Engine: SQLite — an identity-keyed append-style ledger, the sibling-store convention
-(`code_observations.py`), not the DuckDB telemetry lane. Reset semantics (Q6): this store
-is CORPUS-side (the observed stratum) and joins `reset_targets()` (`ops/lifecycle/
-launcher.py`) as a wipe target — wiped with the corpus, rebuilt by re-ingest from the
-IMMUTABLE rawstore (which is NOT a reset target — raw is sacred). [cross-ref: extension,
-dn-chat-sensor; the launcher registration is the orchestrator's post-merge step.]
+(`code_observations.py`), not the DuckDB telemetry lane. Reset semantics: this store is
+derived, step 7 of the class table in `ops/lifecycle/inventory.py` (dn-instance-lifecycle §3.3,
+§3.4). A reset clears it and rebuilds it by replaying the chat sensor's retention ledger, reading
+each transcript's bytes from the raw store, which a reset keeps.
 
 Spine-invisible in v1 (dn-chat-sensor §3): this plan writes NO chain and registers NO
 stratum. bp-064 (clock wiring, CS-4) joins the store to the spine as a g1-chained store
@@ -222,8 +221,8 @@ class ChatlogStore:
 
 def open_chatlog_store(config: Config | None = None) -> ChatlogStore:
     """The `open_*` helper: `data/chatlog.sqlite` (the sibling-store convention beside
-    `code_observations`, no dedicated cfg path; registered in `reset_targets()` as a
-    corpus-side wipe target — the orchestrator's post-merge step, Q6)."""
+    `code_observations`, no dedicated cfg path). Derived in the class table of
+    `ops/lifecycle/inventory.py`: a reset clears it and replays the retention ledger."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

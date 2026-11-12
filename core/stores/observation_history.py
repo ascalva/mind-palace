@@ -5,9 +5,8 @@
 # INVARIANT: append-only. No delete/update method EXISTS on this class — ledger-class is
 #            structural, the same move as the no-provenance-parameter mint discipline.
 # ENFORCED:  structurally (absent API) + INSERT OR IGNORE on the identity PK, and by the
-#            reset guard: `observation_history.sqlite` is in `_RESET_GUARD`
-#            (ops/lifecycle/launcher.py), never a reset target — history does not rebuild
-#            (the old interpreters no longer exist at HEAD).
+#            class table (ops/lifecycle/inventory.py), which names it a ledger a reset keeps:
+#            history does not rebuild, since the old interpreters no longer exist at HEAD.
 """The history sidecar for the observation-store family (bp-018, dn-self-sensing §2.4/§2.5).
 
 ONE store for the FAMILY, discriminated by member name (`store`: 'code' today; 'agent'
@@ -135,8 +134,9 @@ class ObservationHistoryStore:
 
 def open_observation_history_store(config: Config | None = None) -> ObservationHistoryStore:
     """The `open_*` helper: `data/observation_history.sqlite` (the sibling-store
-    convention, no dedicated cfg path). GUARDED (bp-018 Item 4): named in `_RESET_GUARD`,
-    never a reset target — dn-self-sensing §2.5, history does not rebuild."""
+    convention, no dedicated cfg path). A ledger in the class table of
+    `ops/lifecycle/inventory.py`, kept by a reset: history does not rebuild (dn-self-sensing
+    §2.5)."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()
