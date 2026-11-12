@@ -651,6 +651,15 @@ def test_a_store_that_cannot_take_the_count_opens_and_answers_from_its_units(
     recount(again)
 
 
+# docs/runbook.md, "Reverting the kept lexical statistics": the step, and the check that the
+# triggers stay dropped (it finds none)
+_REVERT_STEP = ("DROP TRIGGER IF EXISTS units_kept_insert; "
+                "DROP TRIGGER IF EXISTS units_kept_update; "
+                "DROP TRIGGER IF EXISTS units_kept_delete; "
+                "DELETE FROM meta WHERE key = 'statistics';")
+_REVERT_CHECK = "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name GLOB 'units_kept_*'"
+
+
 def test_the_runbooks_revert_step_lets_the_old_code_write_and_the_change_count_again(
         tmp_path: Path):
     """docs/runbook.md, reverting the kept statistics: once the triggers and the record are
@@ -668,13 +677,37 @@ def test_the_runbooks_revert_step_lets_the_old_code_write_and_the_change_count_a
     raw = sqlite3.connect(str(path), isolation_level=None)
     with pytest.raises(sqlite3.IntegrityError):
         old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
-    raw.executescript("DROP TRIGGER IF EXISTS units_kept_insert; "
-                      "DROP TRIGGER IF EXISTS units_kept_update; "
-                      "DROP TRIGGER IF EXISTS units_kept_delete; "
-                      "DELETE FROM meta WHERE key = 'statistics';")
+    raw.executescript(_REVERT_STEP)
+    assert raw.execute(_REVERT_CHECK).fetchall() == []
     old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
     old_land(raw, TOKENIZER, "a.md", "v2", AUTHORED, "A", _chunks("delta"))
     raw.close()
     again = LexicalStore(path)                                # the change, landed again
     assert again._counted()
     assert recount(again)[0] == {(AUTHORED, 1, 1), (OBSERVED, 1, 1)}
+
+
+def test_a_process_of_the_change_left_running_undoes_the_revert_step(tmp_path: Path):
+    """docs/runbook.md, reverting the kept statistics: a store of the change still open when the
+    step runs counts the statistics again at its next query, from the units as they are then,
+    and installs the triggers with them, after which the code before the change cannot write the
+    units. So the step waits until no process of the change is left, and its check finds the
+    triggers back when one was."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    live = LexicalStore(path)                         # a process of the change, still running
+    live.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+              chunks=_chunks("alpha beta", "gamma"))
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.executescript(_REVERT_STEP)
+    old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))   # the reverted code
+    assert raw.execute(_REVERT_CHECK).fetchall() == [] and not live._counted()
+    assert [h.source_path for h in live.search("alpha", k=3)] == ["a.md"]    # its next query
+    assert len(raw.execute(_REVERT_CHECK).fetchall()) == 3 and live._counted()
+    assert recount(live)[0] == {(AUTHORED, 2, 3), (OBSERVED, 1, 1)}         # b.md counted too
+    with pytest.raises(sqlite3.IntegrityError, match="keeps statistics"):
+        old_land(raw, TOKENIZER, "c.md", "v1", OBSERVED, "C", _chunks("gamma"))
+    raw.close()

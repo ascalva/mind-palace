@@ -924,9 +924,9 @@ commit, so "what was live when" is always answerable.
 A revert does not take back what that change wrote into an instance's stores. Once a lexical
 index's statistics are counted, three triggers on its units (`units_kept_insert`,
 `units_kept_update`, `units_kept_delete`) refuse every write from code that does not keep the
-statistics, so the reverted code's landings, retires and resets raise. After the revert is
-deployed, drop them, and the record that the statistics are counted, in each instance's
-`lexical.sqlite` (beside its other stores):
+statistics, so the reverted code's landings, retires and resets raise. Drop them, and the record
+that the statistics are counted, in each instance's `lexical.sqlite` (beside its other stores),
+once the revert is deployed and no process of the code being reverted is left:
 
 ```sh
 sqlite3 <data dir>/lexical.sqlite "DROP TRIGGER IF EXISTS units_kept_insert;
@@ -934,8 +934,25 @@ sqlite3 <data dir>/lexical.sqlite "DROP TRIGGER IF EXISTS units_kept_insert;
   DELETE FROM meta WHERE key = 'statistics';"
 ```
 
-Not before: the code being reverted counts the statistics again, and installs the triggers with
-them, whenever an open or a query finds the record gone. The reverted code reads neither
+The code being reverted counts the statistics again, and installs the triggers with them,
+whenever an open or a query finds the record gone, and a process keeps the code it started with.
+The deploy restarts the daemon on the reverted code and no other process, so before the step end
+every process that opens an instance's stores and started before the deploy, or runs from a
+checkout or worktree that still holds the change: the Ambassador's MCP server
+(`scripts/palace_mcp.py`, spawned and kept running by its harness), the Open WebUI bridge's
+responder, a `mind-palace query`, `mind-palace embed`, the corpus runner.
+`lsof <data dir>/lexical.sqlite` lists the processes that hold the file open, and
+`ps -o lstart= -p <pid>` when each started; a process that has not opened the file yet is not
+listed. After the step, and again a while later, this prints nothing while the triggers stay
+dropped:
+
+```sh
+sqlite3 <data dir>/lexical.sqlite \
+  "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name GLOB 'units_kept_*'"
+```
+
+If it prints them, a process of the change opened or queried the store after the step and counted
+the statistics again: end it, and run the step again. The reverted code reads neither
 `class_stats` nor `term_stats`; deleting the record makes the change, if it lands again, count
 them anew rather than trust tables the reverted code did not keep. The ledger needs nothing: its
 `output_hashes` table and the trigger that fills it stay, and the trigger keeps the table on every
