@@ -50,7 +50,10 @@ the universe a sentence reads now shows a causal edge only when it ends at a com
 the repository tracks, and withholds every other edge whole; a refusal raised while a sentence
 runs reaches the guest as one fixed sentence for its class. After the change no output of the
 battery, with or without its trace, carries a canary token placed in a note's path, title and
-body, and the guest's outputs over two stores that differ only in the notes are identical.
+body, and the guest's outputs over two stores that differ only in the notes are identical. The
+same holds over a store that embeds nothing and ranks by one lexical index holding the notes'
+units beside the code's, the case of an external coding agent reading the repository: the guest's
+rankings read the statistics of the classes its grant reads.
 \end{abstract}
 
 \section{Introduction}
@@ -77,7 +80,7 @@ grant. The contributions are:
   \item a leak found by an adversarial battery, an overt reference from an admitted stratum to an
         excluded one, and its repair in the universe builder, an allow list that fails closed;
   \item a noninterference test: the guest cannot tell two stores apart that differ only in what
-        its grant excludes.
+        its grant excludes, whether the store embeds its items or ranks them lexically.
 \end{itemize}
 
 \section{Background and related work}
@@ -230,7 +233,10 @@ refused when it is compiled and could not be spooled. The surface is the store's
 \texttt{--role guest}: it seals the core against network egress, as the local model's server
 does, and serves \texttt{query} and \texttt{overview}. The overview counts catalog entries of the
 classes the grant's strata hold and the curated chunks; the local model's totals of vector rows,
-relation edges and versions each count the notes and are not shown. The \texttt{status} tool is not
+relation edges and versions each count the notes and are not shown. On a store that embeds
+nothing it also says so, counts the lexical index's units of the same classes, and names each
+repository it lands with the commit it landed and how far the repository has moved since; the
+local model's count of every lexical unit counts the notes' too. The \texttt{status} tool is not
 served, since it lists the owner's open tasks and running jobs.
 
 A refusal reaches the guest with its class and a text chosen by where it was raised. The surface
@@ -315,9 +321,31 @@ outputs are those before, byte for byte, no output of the battery carries the ca
 store's error whose reason quotes a path holding an apostrophe, which the redaction leaves in
 clear, reaches the guest as its class and that class's sentence, and the path is on neither the
 stream nor standard error. The default server keeps the local model's tool table and
-instructions, and the store's deterministic test tier passes (3{,}612 tests). The commands are in
-the repository: \texttt{uv run pytest tests/adversarial/test\_guest\_leaks.py
-tests/unit/test\_sentence\_universe\_withheld.py} and \texttt{sh formal/check.sh}.
+instructions, and the store's deterministic test tier passes (3{,}689 tests). The commands are in
+the repository: \texttt{uv run pytest} over \texttt{tests/adversarial/test\_guest\_leaks.py},
+\texttt{tests/adversarial/test\_guest\_lite.py} and
+\texttt{tests/unit/test\_sentence\_universe\_withheld.py}, and \texttt{sh formal/check.sh}.
+
+\paragraph{A store that embeds nothing.}
+The guest is meant to serve an external coding agent, and the store's code instance embeds
+nothing: every item lands with its lexical units and no vector, a repository's files as items of
+the reference stratum, and \texttt{near} ranks by BM25 \citep{robertson2009bm25} over one index.
+A store of that profile can hold a vault, whose notes' units then share the index with the
+code's and the dialogue's, so a ranking whose unit count, mean length or document frequencies
+were read over the whole index would be a function of the notes. They are read over the classes
+a ranking asks for, and each lexical path of the universe asks for classes the grant reads. A
+second fixture embeds nothing: the note lands through the ingress, a scratch repository's three
+files through its repository source, and the dialogue turns and the paper with lexical units
+alone. Asked the 71 sentences and eleven of the code source's own (a lexical \texttt{near} over
+the reference stratum, \texttt{read} of a landed file, \texttt{trace}, a file the repository does
+not have), with and without the trace, the guest's 164 outputs carry no canary. Over a second
+such store whose note's body says none of the queried words, in four terms where the first's
+runs to over three hundred, they and the overview are identical, while the local model ranks the
+first note first and counts more units in the first store. Three mutations checked by hand each fail the
+test: a unit count and mean length read over every class, a reference seed that searches every
+class, and an overview that counts every unit. The launcher, spawned over an overlay made from the
+code instance's, answers \texttt{overview}, a lexical \texttt{near}, a \texttt{read} and three
+refusals in their fixed words, one reply per request on standard output.
 
 \section{Limitations}\label{sec:limits}
 
@@ -327,7 +355,11 @@ narrower grant (reference and curated alone) or a filtered dialogue. The withhol
 held by tests, not by a theorem: the Lean model states what a grant admits, not what the universe
 builder returns. The isolation is in the process: the guest's server opens the stores under the
 account it runs as, and an untrusted party should also be separated by the operating system.
-Response times may depend on the size of the excluded strata.
+Response times may depend on the size of the excluded strata; a lexical ranking, for one, reads a
+term's postings in every class before it keeps its own. The reference stratum holds what a store
+lands in it: a repository source is read through git at its ref, and a repository whose tree
+tracked a vault's files would land the notes as code, which the guest reads. The configuration
+does not refuse such a repository; the code instance declares only the store's own.
 
 Three limits follow from the allow list and the process. First, the event projector records a
 file written under a \texttt{docs/design-notes}, \texttt{docs/findings} or
