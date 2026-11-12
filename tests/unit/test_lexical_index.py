@@ -448,14 +448,23 @@ def test_the_units_refuse_a_write_that_does_not_keep_the_statistics(tmp_path: Pa
 
 def test_a_transaction_that_dies_between_the_units_and_the_statistics_leaves_neither(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """The statistics move once a transaction, after every unit row of it is written (a retire's
+    after its currency moved): an exception there leaves neither the rows nor the statistics."""
     from tests.fixtures.lexical_reference import recount
 
     store = LexicalStore(tmp_path / "lex.sqlite")
     store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
                chunks=_chunks("alpha beta"))
     kept = recount(store)
+    keep, seen = LexicalStore._keep, []
 
     def dying(self: LexicalStore, changes: dict[int, int]) -> None:
+        if not changes:                   # a version's own call, before its rows: nothing moves
+            keep(self, changes)
+            return
+        seen.append(self._conn.execute(
+            "SELECT (SELECT count(*) FROM units WHERE source_path = 'b.md'), "
+            "(SELECT count(*) FROM units WHERE source_path = 'a.md' AND current = 1)").fetchone())
         raise RuntimeError("died after the unit rows, before the statistics")
     monkeypatch.setattr(LexicalStore, "_keep", dying)
     with pytest.raises(RuntimeError):
@@ -464,14 +473,18 @@ def test_a_transaction_that_dies_between_the_units_and_the_statistics_leaves_nei
     with pytest.raises(RuntimeError):
         store.retire("a.md")
     monkeypatch.undo()
+    # the batch died with b.md's unit written and a.md's new version current; the retire with
+    # a.md's units no longer current
+    assert seen == [(1, 1), (0, 0)]
     assert recount(store) == kept
     assert store.units_of("b.md", current=False) == 0 and store.holds_current("a.md", "v1")
     assert store.landed_versions() == {("a.md", "v1")}
 
 
-def test_a_landing_killed_before_its_commit_leaves_neither(tmp_path: Path):
-    """The process dies (no exception, no rollback) between the unit rows and the statistics:
-    the uncommitted transaction is gone when the store is opened again."""
+def test_a_write_killed_before_its_commit_leaves_neither(tmp_path: Path):
+    """The process dies (no exception, no rollback) at the statistics, after the unit rows: a
+    landing with its units written and made current, a retire with its currency moved. The
+    uncommitted transaction is gone when the store is opened again."""
     import subprocess
     import sys
 
@@ -488,10 +501,27 @@ def test_a_landing_killed_before_its_commit_leaves_neither(tmp_path: Path):
         "from pathlib import Path\n"
         "from core.kernel.ingest.chunk import Chunk\n"
         "from core.stores.lexical import LexicalStore\n"
-        "LexicalStore._keep = lambda self, changes: os._exit(9)\n"
+        "keep = LexicalStore._keep\n"
+        "def dying(self, changes):\n"
+        "    if not changes:\n"
+        "        return keep(self, changes)\n"
+        "    row = self._conn.execute(\"SELECT (SELECT count(*) FROM units WHERE current = 1 \"\n"
+        "                             \"AND source_path = 'b.md'), (SELECT count(*) FROM units \"\n"
+        "                             \"WHERE current = 1 AND source_path = 'a.md')\").fetchone()\n"
+        "    print(*row, flush=True)\n"
+        "    os._exit(9)\n"
+        "LexicalStore._keep = dying\n"
         "s = LexicalStore(Path(sys.argv[1]))\n"
-        "s.land_many([('b.md', 'v1', 'observed', 'B', [Chunk(0, 'beta gamma')])])\n")
-    done = subprocess.run([sys.executable, "-c", script, str(path)], capture_output=True)
-    assert done.returncode == 9, done.stderr
-    again = LexicalStore(path)
-    assert recount(again) == kept and again.units_of("b.md", current=False) == 0
+        "if sys.argv[2] == 'land':\n"
+        "    s.land_many([('b.md', 'v1', 'observed', 'B', [Chunk(0, 'beta gamma')])])\n"
+        "else:\n"
+        "    s.retire('a.md')\n")
+    for write, inside in (("land", "1 1"), ("retire", "0 0")):
+        done = subprocess.run([sys.executable, "-c", script, str(path), write],
+                              capture_output=True, text=True)
+        assert done.returncode == 9, done.stderr
+        assert done.stdout.split() == inside.split()        # it died with its rows written
+        again = LexicalStore(path)
+        assert recount(again) == kept and again.units_of("b.md", current=False) == 0
+        assert again.holds_current("a.md", "v1")
+        again.close()

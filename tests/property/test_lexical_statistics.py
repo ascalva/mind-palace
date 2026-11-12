@@ -9,8 +9,9 @@ stores (several classes, three tokenizers, ties, empty and absent classes, paths
 1. the ranking is the old statements' to the bit: the same units in the same order with the same
    scores, for `search` and `scores`, every shape a caller uses (the old statements are kept,
    verbatim from the store before the change, in `tests/fixtures/lexical_reference.py`);
-2. after any sequence of landings, re-landings, retires and re-derivations, the stored statistics
-   equal a recount from the units;
+2. after any sequence of landings, re-landings, batched landings (one transaction landing a path
+   more than once), retires and re-derivations, the stored statistics equal a recount from the
+   units;
 3. a reader's statistics, and so its scores, are a function of its cleared classes' units alone:
    a store that also holds other classes' units, landed and retired around the cleared ones,
    answers the reader exactly as a store holding the cleared units alone.
@@ -48,9 +49,14 @@ text = st.lists(st.sampled_from(WORDS), min_size=0, max_size=7).map(" ".join)
 chunks = st.lists(text, min_size=0, max_size=3)
 land = st.tuples(st.just("land"), st.sampled_from(PATHS), st.sampled_from(["v0", "v1", "v2"]),
                  st.sampled_from(CLASSES), chunks)
+# one transaction of several versions, a path and a digest drawn again and again among them, so a
+# unit's currency can move more than once before the batch's statistics move (`land_many`)
+item = st.tuples(st.sampled_from(PATHS[:3]), st.sampled_from(["v0", "v1"]),
+                 st.sampled_from(CLASSES), chunks)
+batch = st.tuples(st.just("batch"), st.lists(item, min_size=1, max_size=6))
 retire = st.tuples(st.just("retire"), st.sampled_from(PATHS))
 rederive = st.tuples(st.just("rederive"))
-ops = st.lists(st.one_of(land, land, land, retire, rederive), min_size=1, max_size=14)
+ops = st.lists(st.one_of(land, land, land, batch, retire, rederive), min_size=1, max_size=14)
 query = st.lists(st.sampled_from([*WORDS, "absent", "nowhere"]), min_size=0, max_size=5).map(
     " ".join)
 classes = st.one_of(st.none(), st.lists(st.sampled_from(CLASSES), max_size=3))
@@ -76,6 +82,10 @@ def apply(store: LexicalStore, steps: Iterable[tuple[Any, ...]],
             store.land(source_path=path, digest=digest, provenance=klass.value, title=path,
                        chunks=_chunks(texts))
             active[path] = (digest, klass.value, list(texts))
+        elif step[0] == "batch":
+            store.land_many([(p, d, k.value, p, _chunks(t)) for p, d, k, t in step[1]])
+            for p, d, k, t in step[1]:          # the batch's last version of a path is current
+                active[p] = (d, k.value, list(t))
         elif step[0] == "retire":
             store.retire(step[1])
             active.pop(step[1], None)
@@ -228,8 +238,16 @@ def test_a_readers_statistics_ignore_the_classes_it_is_not_cleared_for(
     """Store `a` takes every operation; store `b` only those on the cleared classes' items (and
     the re-derivations). After every step a reader cleared for those classes sees the same
     statistics in both, and so the same scores and the same ranking."""
-    def mine(step: tuple[Any, ...]) -> bool:
-        return step[0] != "land" or step[3] in cleared
+    def mine(step: tuple[Any, ...]) -> tuple[Any, ...] | None:
+        """The step as store `b` takes it: the cleared classes' items alone, or nothing."""
+        if step[0] == "land":
+            return step if step[3] in cleared else None
+        if step[0] == "batch":
+            items = [i for i in step[1] if i[2] in cleared]
+            return ("batch", items) if items else None
+        if step[0] == "retire" and first.get(step[1]) not in cleared:
+            return None
+        return step
     # a path keeps its class, as the catalog keeps an item's label (ING-17)
     first: dict[str, Provenance] = {}
     fixed = []
@@ -237,6 +255,8 @@ def test_a_readers_statistics_ignore_the_classes_it_is_not_cleared_for(
         if step[0] == "land":
             klass = first.setdefault(step[1], step[3])
             step = (*step[:3], klass, step[4])
+        elif step[0] == "batch":
+            step = ("batch", [(p, d, first.setdefault(p, k), t) for p, d, k, t in step[1]])
         fixed.append(step)
     vocabulary = sorted({t for w in WORDS for t in tok(w)})
     with tempfile.TemporaryDirectory() as d:
@@ -246,8 +266,9 @@ def test_a_readers_statistics_ignore_the_classes_it_is_not_cleared_for(
         active_b: dict[str, tuple[str, str, list[str]]] = {}
         for step in fixed:
             apply(a, [step], active_a)
-            if mine(step) and not (step[0] == "retire" and first.get(step[1]) not in cleared):
-                apply(b, [step], active_b)
+            theirs = mine(step)
+            if theirs is not None:
+                apply(b, [theirs], active_b)
             assert a.statistics(classes=cleared, terms=vocabulary) == \
                 b.statistics(classes=cleared, terms=vocabulary)
         for q in asked:
