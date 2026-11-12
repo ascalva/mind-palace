@@ -322,12 +322,16 @@ hash (`plane.py:113-115`) under the geometry the plane records (`plane.py:154-16
 through a reset loses no derived state and keeps the rebuild from calling the embedder. So the
 plane's reset for a lifecycle reset forgets the occupancies and the supersession log and keeps the
 atoms and the recorded geometry. The rebuild re-occupies exactly the (path, digest) pairs the plane
-held current before the clearing, read once and kept in the marker (§4.3), and nothing more: an
-item a lazy instance landed without its vector stays waiting for the embed job, so the plane comes
-back to its state before. The drain over those items finds every atom held (`embed_missing`,
-`derive.py:146-180`) and embeds nothing; the atoms no rebuilt row holds are dropped last. The
-`held` and `current` cache columns of the atom table are repaired from the rebuilt relations by the
-plane's existing repair ratchet. A configured embedder that differs from the recorded geometry is
+held current before the clearing, read once with each occupancy's title and class and kept in the
+marker (§4.3), and nothing more: an item a lazy instance landed without its vector stays waiting
+for the embed job, so the plane comes back to its state before. Each pair is rebuilt from raw at
+the digest the plane held, whether or not that digest is still the catalog's head: a note edited
+after it was embedded, and landed again without its vector, comes back at the version the plane
+held, and its new version stays with the embed job. Raw keeps every version, and a purge removes
+an object's occupancies with it, so a held version can always be read. The drain over those items
+finds every atom held (`embed_missing`, `derive.py:146-180`) and embeds nothing; the atoms no
+rebuilt row holds are dropped last. The `held` and `current` cache columns of the atom table are
+repaired from the rebuilt relations by the plane's existing repair ratchet. A configured embedder that differs from the recorded geometry is
 not a reset's business: the reset refuses and names `palace reembed` (§4.5). `[INFERENCE,
 falsifier LCF-2]`
 
@@ -387,7 +391,8 @@ As today: without `--confirm` nothing is written. The dry run prints, by class, 
 would clear with its row count, the rebuild's steps with the count of items each would read, the
 stores it keeps, and for the plane the items it re-occupies, the distinct atoms they need and how
 many of those the atom table lacks (the embedder is called for those alone), and the items of the
-plane's classes that hold no vector, which the reset leaves to the embed job.
+plane's classes whose current version holds no vector, which the reset leaves to the embed job;
+the items the plane holds at a version older than the catalog's head are counted among both.
 
 ## 5. A sync heals a stale lexical index
 
@@ -508,7 +513,7 @@ later fill would put the object back. `[DERIVED]`
   embedder that made it: a fill and a destroy refuse unless the configured geometry is the one the
   plane recorded, as a reset does. The plane does not record the backend, so a change of backend
   alone between embedding and a fill files the vectors under the new backend's key; whether to
-  record it is open question 1. `[PROPOSED; falsifier LCF-6]`
+  record it is open question 5. `[PROPOSED; falsifier LCF-6]`
 - **A raw object, by digest.** `RawStore.get` on a miss reads the cache's object, checks that its
   SHA-256 is the digest asked for, and copies it in; a mismatch is refused and the entry deleted.
   The address is the whole trust decision. This is how an instance takes a raw object it has a
@@ -703,7 +708,10 @@ An audit of the build found these, and the build was changed to match the design
 
 9. **The plane step re-occupies what the plane held, not every pending item (§4.2).** Draining every
    pending item embedded a lazy instance's backlog inside the reset. The (path, digest) pairs the
-   plane held current are read before the clearing and kept in the marker.
+   plane held current are read before the clearing and kept in the marker. A second audit found
+   that the step still rebuilt only the pairs that were the catalog's head, so a held note edited
+   since it was embedded lost its occupancy; each held pair is now rebuilt at its own digest, with
+   the occupancy's title and class.
 10. **A step's inputs are checked before the clearing, or tolerated (§4.3).** A pruned ledgered
     commit refuses the reset before anything is written; a purged transcript is skipped by the
     replay.
@@ -749,6 +757,13 @@ An audit of the build found these, and the build was changed to match the design
 4. A commit the commit ledger holds and the repository has lost refuses every reset of the instance
    (§4.3). Whether a reset may then drop that commit's code observations, and on what
    confirmation, is a decision this note leaves open.
+5. The plane records its geometry (`Fingerprint`: model, document template, dimension) but not the
+   runtime backend that served the embedder, and the vector cache's key names both (§6.5). A
+   change of backend alone between embedding and a fill is not caught: the fill files the plane's
+   vectors under the new backend's key. Catching it needs the plane to record the backend, as a
+   new key of its `meta` table written beside the geometry at the first landing, checked by the
+   fill, the destroy and the reset as the geometry is, with a rule for a plane that predates the
+   key. Whether to make that schema change is open.
 
 ## Cross-references
 

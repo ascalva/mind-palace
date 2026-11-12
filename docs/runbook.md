@@ -1066,7 +1066,9 @@ kept, so no embedder is called while they are held), the code and agent observat
 without the attestor), the authored relation edges (parsed from raw), the chat log (replayed from
 the retention ledger, with no transcript directory), the chat events, the causal edges and the
 verdict dispositions. The plane step re-occupies only what the plane held current before the
-clearing, so on a lazy instance the items still waiting for a vector stay with the embed job. It
+clearing, each at the version it held, so on a lazy instance the items still waiting for a vector
+stay with the embed job, and a note edited since it was embedded stays searchable at its old
+version until the embed job takes the new one. It
 refuses a live daemon, the supervisor lock held, an embedder whose geometry is not the plane's
 (that is `palace reembed`), and a commit the commit ledger holds that the repository no longer has;
 each refusal writes nothing. A transcript a purge erased is skipped by the chat log's replay, and

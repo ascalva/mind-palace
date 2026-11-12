@@ -144,8 +144,9 @@ forget which code atoms are held under which embedder.
 
 \Cref{alg:reset} gives the reset. The steps are: the lexical index (reset, then the lexical
 backfill from the catalog and raw); the plane's occupancies and supersession log, whose atoms are
-kept, re-occupied for exactly the pairs $H$ so that items a lazy instance has not yet embedded stay
-with its embed job; the code and agent observations, re-projected with the attestor left out; the authored
+kept, re-occupied for exactly the pairs $H$, each from raw at its own digest even where the
+catalog's head has moved on, so that items a lazy instance has not yet embedded stay with its
+embed job; the code and agent observations, re-projected with the attestor left out; the authored
 relation edges, parsed from each note's raw bytes by its catalog digest instead of its vault file;
 the chat log, replayed from the retention ledger; the chat events; the causal edges; the verdict
 dispositions, by applying every verdict in sequence order.
@@ -294,8 +295,9 @@ because no reader takes them back yet. The cost of a full reset of the corpus in
 lexical re-derivation its next landing will run, is not measured here, nor is a fill of the cache
 from the corpus, which would copy its raw store and about 8.2~GB of vectors. A pruned ledgered commit
 refuses every reset of its instance until a way to accept that loss is designed. The plane does not
-record the embedder's backend, so a change of backend alone is not caught before a fill. The class table is checked
-on fixtures; a store a lane writes that the fixtures do not exercise would escape it.
+record the embedder's backend, so a change of backend alone is not caught before a fill; catching
+it needs the plane to record the backend beside its geometry, a schema change left open. The class
+table is checked on fixtures; a store a lane writes that the fixtures do not exercise would escape it.
 
 \section{Conclusion}
 
