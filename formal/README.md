@@ -27,7 +27,7 @@ Each family comes in three parts:
 `Spec/` is proved in `Palace` with exactly the same statement, from the standard axioms, and
 everything the statements reach passes Lean's kernel and five independent checkers. A proof file
 therefore cannot change what the ledger's laws state: only `Spec/` and the model can. The design
-theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, Scale, Snapshot, and the parts of Magnetic and
+theorems (Sever, Frustration, Leak, Transport, Superconnection, Lineage, Dynamics, Scale, and the parts of Snapshot, Magnetic and
 NegativeType no row cites) have no `Spec/` statements yet: the kernel replays their proofs, but their statements live
 in the proof files, which can change them, until code relies on them and a row cites them. Whether a statement says
 what its row says stays a reader's judgment, and the reading is now confined to those two places;
@@ -298,7 +298,9 @@ Roundoff and FloatModel, so it has no statements of its own):
   falsifiers, so the six laws are the ledger's family XV (`Spec/Utility.lean`, 20 statements); the
   controls and the gap stay design theorems.
 - `Snapshot`: a read of the stores at a cut (`docs/design-notes/dn-temporal-snapshot.md`), proved
-  before any code reads a store at a cut, on a model of a store as a family of append chains (a
+  before any code reads a store at a cut; SNP-1 to SNP-5 entered the ledger with stage SN-1, the
+  landing log (`core/stores/landings.py`), and are stated in `Spec/Snapshot.lean`, the rest stay
+  design theorems. On a model of a store as a family of append chains (a
   document's versions, a session's turns, a class's landing log), a cut as a prefix length for
   each chain (the frontier of the event clock's §2.4), the read at a cut and between two cuts, a
   derived view as a derivation of the prefixes, a store of keyed writes held three ways (rewritten
@@ -506,6 +508,11 @@ Roundoff and FloatModel, so it has no statements of its own):
 | UTL-5 | `\|xᵀ (L' − L) x\| ≤ θ xᵀ L x`, so the nudged Laplacian is within `2θ d_max` of the structural one and Weyl's counts bound every eigenvalue's move; order beyond the margin is kept | proved; the form bound survived 500, the degree bound 500 |
 | UTL-6 | with the use `K`-Lipschitz in the field and `K < lam`, the loop contracts the sup metric by `1 − lam + K` and has one stationary field; at `K ≥ lam` the ceiling is a second fixed point | proved; the contraction survived 500 |
 | the regimes | the two-site mean field's ratio moves apart at exponent 2, holds at 1, moves to one at 0; the greedy walk never leaves two nodes of the three-node path | proved; the three exponents survived 500 as one attack, the greedy walk 500 |
+| SNP-1 | a read at a cut inside the store, a read between two such cuts and every derived view are unchanged by any growth; so are the reads under an erasure and a grant, the keyed state and its generations, the history of a key with no seal and of an identity by its lives, and the filtered read | proved; attacks survived 500 each (seeds 430, 432, 446, 521, 527); the controls refuted, the reader that ignores the cut and the seal's history also as theorems |
+| SNP-2 | the read at an earlier cut is a prefix of the read at a later one, and a cut of a cut is the meet; so for the visible read, the history with no seal and the filtered read | proved; attacks survived 500 each (seeds 433, 435, 515); the controls refuted |
+| SNP-3 | the read at `a` and the read between `a` and `b` compose to the read at `b`, so a fold continued over the delta is the fold of the prefix; a key the delta does not write keeps its state | proved; attacks survived 500 each (seeds 436, 438, 439, 447, 475, 476); the controls refuted |
+| SNP-4 | a cut at or past the head reads the store, so every reading at the head is the present's | proved; the attack survived 500 (seed 440); the control refuted |
+| SNP-5 | a reader is append invariant exactly when it reads only the prefixes, exactly when it is a derived view; the generational read is the recomputed state and the last write, with at most one generation alive | proved; attacks survived 500 each (seeds 441, 442, 443); the controls refuted, the store rewritten in place also as a theorem |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.

@@ -13,7 +13,9 @@ public import Mathlib.Order.Sublattice
 
 Design theorems of `docs/design-notes/dn-temporal-snapshot.md`, proved before any code reads a
 store at a cut, on the model of `Palace/Snapshot/Defs.lean`: a store is a family of append chains,
-a cut a prefix length for each. Cited from the note, not from the ledger.
+a cut a prefix length for each. SNP-1 to SNP-5 are the ledger's (`docs/LAWS.md`, XVI) since stage
+SN-1 built the landing log: each declaration a row cites carries its law in bold and is stated in
+`formal/Spec/Snapshot.lean`. SNP-6 to SNP-10 are cited from the note.
 
 * SNP-1, append invariance: a read at a cut inside the store, a read between two such cuts and
   every derived view of them are the same after any growth of the store (`readAt_grow`,
@@ -144,47 +146,48 @@ theorem Extends.exists_grow {s s' : Store K α} (h : Extends s s') : ∃ t, s' =
 theorem Extends.head_le {s s' : Store K α} (h : Extends s s') : head s ≤ head s' :=
   fun k ↦ (h k).length_le
 
-/-- SNP-1 Append invariance: the read at a cut inside the store does not change when the store
+/-- **SNP-1** Append invariance: the read at a cut inside the store does not change when the store
 grows. -/
 theorem readAt_grow {s : Store K α} (t : Store K α) {c : Cut K} (h : c ≤ head s) :
     readAt (grow s t) c = readAt s c :=
   funext fun k ↦ List.take_append_of_le_length (h k)
 
-/-- SNP-1 The same over every extension: a later state of an append-only store reads, at a cut
+/-- **SNP-1** The same over every extension: a later state of an append-only store reads, at a cut
 of an earlier state, what the earlier state read. -/
 theorem readAt_of_extends {s s' : Store K α} {c : Cut K} (h : Extends s s') (hc : c ≤ head s) :
     readAt s' c = readAt s c := by
   obtain ⟨t, rfl⟩ := h.exists_grow
   exact readAt_grow t hc
 
-/-- SNP-1 The read between two cuts inside the store does not change when the store grows. -/
+/-- **SNP-1** The read between two cuts inside the store does not change when the store grows. -/
 theorem readBetween_grow {s : Store K α} (t : Store K α) (a : Cut K) {b : Cut K}
     (h : b ≤ head s) : readBetween (grow s t) a b = readBetween s a b :=
   funext fun k ↦ congrArg (List.drop (a k)) (List.take_append_of_le_length (h k))
 
-/-- SNP-1 Every derived view is append invariant. -/
+/-- **SNP-1** Every derived view is append invariant. -/
 theorem appendInvariant_view (D : Store K α → β) : AppendInvariant (view D) :=
   fun _ t _ h ↦ congrArg D (readAt_grow t h)
 
 theorem readAt_extends (s : Store K α) (c : Cut K) : Extends (readAt s c) s :=
   fun k ↦ List.take_prefix (c k) (s k)
 
-/-- SNP-2 Monotonicity: the read at an earlier cut is a prefix, chain by chain, of the read at a
+/-- **SNP-2** Monotonicity: the read at an earlier cut is a prefix, chain by chain, of the read at a
 later one. -/
 theorem readAt_mono (s : Store K α) {c d : Cut K} (h : c ≤ d) :
     Extends (readAt s c) (readAt s d) :=
   fun k ↦ List.take_prefix_take_left (h k)
 
-/-- SNP-2 An event read at a cut is read at every later cut. -/
+/-- **SNP-2** An event read at a cut is read at every later cut. -/
 theorem mem_readAt_of_le {s : Store K α} {c d : Cut K} (h : c ≤ d) {k : K} {a : α}
     (ha : a ∈ readAt s c k) : a ∈ readAt s d k :=
   (readAt_mono s h k).subset ha
 
-/-- SNP-2 A cut of a cut is the meet of the two. -/
+/-- **SNP-2** A cut of a cut is the meet of the two. -/
 theorem readAt_readAt (s : Store K α) (c d : Cut K) :
     readAt (readAt s c) d = readAt s (d ⊓ c) :=
   funext fun _ ↦ List.take_take
 
+/-- **SNP-2** The head of the read at a cut is the meet of the cut and the store's head. -/
 theorem head_readAt (s : Store K α) (c : Cut K) : head (readAt s c) = c ⊓ head s :=
   funext fun _ ↦ List.length_take
 
@@ -192,14 +195,14 @@ theorem head_readAt_of_le {s : Store K α} {c : Cut K} (h : c ≤ head s) :
     head (readAt s c) = c := by
   rw [head_readAt, inf_of_le_left h]
 
-/-- SNP-4 A cut at or past the head reads the store. -/
+/-- **SNP-4** A cut at or past the head reads the store. -/
 theorem readAt_of_head_le {s : Store K α} {c : Cut K} (h : head s ≤ c) : readAt s c = s :=
   funext fun k ↦ List.take_of_length_le (h k)
 
-/-- SNP-4 Idempotence: the read at the head cut is the store. -/
+/-- **SNP-4** Idempotence: the read at the head cut is the store. -/
 theorem readAt_head (s : Store K α) : readAt s (head s) = s := readAt_of_head_le le_rfl
 
-/-- SNP-4 Every derived view at the head cut is the derivation of the present: `as of` the
+/-- **SNP-4** Every derived view at the head cut is the derivation of the present: `as of` the
 current cut is no `as of`. -/
 theorem view_head (D : Store K α → β) (s : Store K α) : view D s (head s) = D s :=
   congrArg D (readAt_head s)
@@ -212,7 +215,7 @@ theorem drop_take_append_drop (l : List α) {a b : ℕ} (h : a ≤ b) :
   · rw [List.length_take, Nat.min_eq_left hb, Nat.sub_eq_zero_of_le h, List.drop_zero]
   · rw [List.drop_of_length_le hb, List.drop_nil]
 
-/-- SNP-3 Composition: the read at `a` followed by the read between `a` and `b` is the read at
+/-- **SNP-3** Composition: the read at `a` followed by the read between `a` and `b` is the read at
 `b`. -/
 theorem readAt_append_readBetween (s : Store K α) {a b : Cut K} (h : a ≤ b) :
     grow (readAt s a) (readBetween s a b) = readAt s b := by
@@ -222,7 +225,7 @@ theorem readAt_append_readBetween (s : Store K α) {a b : Cut K} (h : a ≤ b) :
   change (s k).take (a k) ++ ((s k).take (b k)).drop (a k) = (s k).take (b k)
   rw [h1, List.take_append_drop]
 
-/-- SNP-3 Two adjacent reads-between compose. -/
+/-- **SNP-3** Two adjacent reads-between compose. -/
 theorem readBetween_append (s : Store K α) {a b c : Cut K} (hab : a ≤ b) (hbc : b ≤ c) :
     grow (readBetween s a b) (readBetween s b c) = readBetween s a c := by
   funext k
@@ -251,7 +254,7 @@ theorem readBetween_head (s : Store K α) (a : Cut K) :
   change ((s k).take (s k).length).drop (a k) = (s k).drop (a k)
   rw [List.take_length]
 
-/-- SNP-3 The journal: a fold of the prefixes at a later cut is the fold at an earlier cut
+/-- **SNP-3** The journal: a fold of the prefixes at a later cut is the fold at an earlier cut
 continued over the events between the two. A job that keeps its state and the cut it stopped at
 reads only the delta. -/
 theorem foldAt_readBetween (f : β → α → β) (init : K → β) (s : Store K α) {a b : Cut K}
@@ -262,13 +265,13 @@ theorem foldAt_readBetween (f : β → α → β) (init : K → β) (s : Store K
         congrArg (fun l ↦ l.foldl f (init k)) (congrFun (readAt_append_readBetween s h) k).symm
     _ = _ := List.foldl_append
 
-/-- SNP-3 An event read at the later cut was read at the earlier cut or lies in the delta. -/
+/-- **SNP-3** An event read at the later cut was read at the earlier cut or lies in the delta. -/
 theorem mem_readAt_iff {s : Store K α} {a b : Cut K} (h : a ≤ b) {k : K} {x : α} :
     x ∈ readAt s b k ↔ x ∈ readAt s a k ∨ x ∈ readBetween s a b k := by
   rw [← readAt_append_readBetween s h]
   exact List.mem_append
 
-/-- SNP-3 The delta rule for a job that joins two chains: a pair of events read at the later
+/-- **SNP-3** The delta rule for a job that joins two chains: a pair of events read at the later
 cut was read at the earlier cut, or one of the two lies in the delta. So a job that kept the
 pairs of its checkpoint has only the pairs with a new member left to visit. -/
 theorem pair_readAt {s : Store K α} {a b : Cut K} (h : a ≤ b) {k k' : K} {x y : α}
@@ -281,17 +284,17 @@ theorem pair_readAt {s : Store K α} {a b : Cut K} (h : a ≤ b) {k k' : K} {x y
     · exact Or.inr (Or.inr hy)
   · exact Or.inr (Or.inl hx)
 
-/-- SNP-5 A derived view reads only the prefixes. -/
+/-- **SNP-5** A derived view reads only the prefixes. -/
 theorem prefixOnly_view (D : Store K α → β) : PrefixOnly (view D) := fun s c _ ↦ by
   change D (readAt s c) = D (readAt (readAt s c) c)
   rw [readAt_readAt, inf_idem]
 
-/-- SNP-5 Two stores with the same prefixes at a cut give every derived view the same
+/-- **SNP-5** Two stores with the same prefixes at a cut give every derived view the same
 reading. -/
 theorem view_congr (D : Store K α → β) {s s' : Store K α} {c : Cut K}
     (h : readAt s c = readAt s' c) : view D s c = view D s' c := congrArg D h
 
-/-- SNP-5 A reader is append invariant exactly when it reads only the prefixes. -/
+/-- **SNP-5** A reader is append invariant exactly when it reads only the prefixes. -/
 theorem appendInvariant_iff_prefixOnly (F : Store K α → Cut K → β) :
     AppendInvariant F ↔ PrefixOnly F := by
   constructor
@@ -303,7 +306,7 @@ theorem appendInvariant_iff_prefixOnly (F : Store K α → Cut K → β) :
   · intro h s t c hc
     rw [h (grow s t) c (hc.trans (extends_grow s t).head_le), readAt_grow t hc, ← h s c hc]
 
-/-- SNP-5 A reader is append invariant exactly when it is a derived view: on cuts inside the
+/-- **SNP-5** A reader is append invariant exactly when it is a derived view: on cuts inside the
 store, a function of the prefixes alone. -/
 theorem appendInvariant_iff_exists_view (F : Store K α → Cut K → β) :
     AppendInvariant F ↔ ∃ D : Store K α → β, ∀ s c, c ≤ head s → F s c = view D s c := by
@@ -340,13 +343,13 @@ theorem stateAt_of_length_le {l : List (κ × β)} {c : ℕ} (h : l.length ≤ c
   unfold stateAt
   rw [List.take_of_length_le h]
 
-/-- SNP-1 The state at a cut inside the chain does not change when the chain grows. -/
+/-- **SNP-1** The state at a cut inside the chain does not change when the chain grows. -/
 theorem stateAt_append {l : List (κ × β)} (t : List (κ × β)) {c : ℕ} (h : c ≤ l.length) :
     stateAt (l ++ t) c = stateAt l c := by
   unfold stateAt
   rw [List.take_append_of_le_length h]
 
-/-- SNP-3 The journal of the keyed state: the state at a later cut is the state at an earlier
+/-- **SNP-3** The journal of the keyed state: the state at a later cut is the state at an earlier
 cut with the writes between the two applied in order. -/
 theorem stateAt_eq_foldl (l : List (κ × β)) {a b : ℕ} (h : a ≤ b) :
     stateAt l b = ((l.take b).drop a).foldl
@@ -365,7 +368,7 @@ theorem foldl_update_of_ne {t : List (κ × β)} {m : κ → Option β} {x : κ}
     rw [List.foldl_cons, ih fun e' he' ↦ ht e' (List.mem_cons_of_mem _ he')]
     exact Function.update_of_ne (Ne.symm (ht e List.mem_cons_self)) _ _
 
-/-- SNP-3 The delta bounds the change: a key the writes between two cuts do not name has the
+/-- **SNP-3** The delta bounds the change: a key the writes between two cuts do not name has the
 same state at both. What changed between two cuts is found among the keys of the delta. -/
 theorem stateAt_eq_of_not_written (l : List (κ × β)) {a b : ℕ} (h : a ≤ b) {x : κ}
     (hx : ∀ e ∈ (l.take b).drop a, e.1 ≠ x) : stateAt l b x = stateAt l a x := by
@@ -384,7 +387,7 @@ theorem stateOf_eq_find? (l : List (κ × β)) (x : κ) :
     · simp [hx]
     · simp [hx, Function.update_of_ne (Ne.symm hx), ih]
 
-/-- SNP-5 The state at a cut is the last write of the key inside the prefix: one seek on an
+/-- **SNP-5** The state at a cut is the last write of the key inside the prefix: one seek on an
 index of (key, position). -/
 theorem stateAt_eq_lastWrite (l : List (κ × β)) (c : ℕ) (x : κ) :
     stateAt l c x = lastWrite l c x :=
@@ -476,7 +479,7 @@ theorem find?_landGen_of_new {rs : List (Gen κ β)} {p : ℕ} {e : κ × β} {q
   simp only [landGen, List.find?_append, hnone, Option.none_or, List.find?_singleton, hnew,
     ↓reduceIte]
 
-/-- SNP-5 Generations are recomputation: the generational store read at a cut is the state
+/-- **SNP-5** Generations are recomputation: the generational store read at a cut is the state
 recomputed from the chain's prefix, at every cut. -/
 theorem genRead_gens (l : List (κ × β)) (c : ℕ) (x : κ) :
     genRead (gens l) c x = stateAt l c x := by
@@ -503,12 +506,12 @@ theorem genRead_gens (l : List (κ × β)) (c : ℕ) (x : κ) :
           (by simp [selects, Ne.symm hx]), ih, Function.update_of_ne hx,
           stateAt_of_length_le (Nat.le_of_succ_le hc)]
 
-/-- SNP-4 At the head cut the generational store reads the store rewritten in place. -/
+/-- **SNP-4** At the head cut the generational store reads the store rewritten in place. -/
 theorem genRead_gens_length (l : List (κ × β)) (x : κ) :
     genRead (gens l) l.length x = stateOf l x := by
   rw [genRead_gens, stateAt_length]
 
-/-- SNP-1 The generational store read at a cut inside the chain does not change when the chain
+/-- **SNP-1** The generational store read at a cut inside the chain does not change when the chain
 grows, though the growth writes closing stamps into it. -/
 theorem genRead_gens_append {l : List (κ × β)} (t : List (κ × β)) {c : ℕ} (h : c ≤ l.length)
     (x : κ) : genRead (gens (l ++ t)) c x = genRead (gens l) c x := by
@@ -535,7 +538,7 @@ theorem length_filter_landGen_of_new {rs : List (Gen κ β)} {p : ℕ} {e : κ �
   rw [List.filter_append, hnil]
   simp [hnew]
 
-/-- SNP-5 At most one generation of a key is alive at a cut: the snapshot of a keyed store is a
+/-- **SNP-5** At most one generation of a key is alive at a cut: the snapshot of a keyed store is a
 transversal of its chains. -/
 theorem length_filter_selects_le_one (l : List (κ × β)) (c : ℕ) (x : κ) :
     ((gens l).filter (selects c x)).length ≤ 1 := by
@@ -643,7 +646,7 @@ theorem prune_landGen {h p : ℕ} (hp : h < p) (rs : List (Gen κ β)) (e : κ �
   rw [List.filter_append, List.filter_map, hq]
   simp
 
-/-- SNP-4 At the head cut nothing is sealed: a chain of landings and retires serves what the
+/-- **SNP-4** At the head cut nothing is sealed: a chain of landings and retires serves what the
 store rewritten in place holds live. -/
 theorem servedAt_length (l : List (κ × Option β)) (x : κ) :
     servedAt l l.length x = (stateOf l x).join := by
@@ -715,7 +718,7 @@ theorem servedNow_of_not_live {l : List (κ × Option β)} {x : κ}
     (h : (stateOf l x).join = none) (c : ℕ) : servedNow l c x = none := by
   simp [servedNow, h]
 
-/-- SNP-4 At the head cut the looser seal serves what the store rewritten in place holds
+/-- **SNP-4** At the head cut the looser seal serves what the store rewritten in place holds
 live. -/
 theorem servedNow_length (l : List (κ × Option β)) (x : κ) :
     servedNow l l.length x = (stateOf l x).join := by
@@ -813,26 +816,26 @@ theorem historyAt_of_retire_inside (l t : List (κ × Option β)) (x : κ) {c : 
         show c - l.length = (c - (l.length + 1)) + 1 by omega, List.take_succ_cons]
     rw [h1, sinceRetire_append_retire]
 
-/-- SNP-4 At the head cut the history served is the key's present life. -/
+/-- **SNP-4** At the head cut the history served is the key's present life. -/
 theorem historyAt_length (l : List (κ × Option β)) (x : κ) :
     historyAt l l.length x = sinceRetire l x := by
   simp [historyAt, sealedAt]
 
 /-! ### A retire with no seal, and the fresh identity -/
 
-/-- SNP-1 With no seal the history of a key at a cut is append invariant: growth of the chain, a
+/-- **SNP-1** With no seal the history of a key at a cut is append invariant: growth of the chain, a
 retire of the key included, changes nothing in it. -/
 theorem landingsAt_append {l : List (κ × Option β)} (t : List (κ × Option β)) {c : ℕ}
     (hc : c ≤ l.length) (x : κ) : landingsAt (l ++ t) c x = landingsAt l c x := by
   unfold landingsAt
   rw [List.take_append_of_le_length hc]
 
-/-- SNP-4 At the head cut the history with no seal is every landing of the key. -/
+/-- **SNP-4** At the head cut the history with no seal is every landing of the key. -/
 theorem landingsAt_length (l : List (κ × Option β)) (x : κ) :
     landingsAt l l.length x = l.filterMap fun e ↦ if e.1 = x then e.2 else none := by
   simp [landingsAt]
 
-/-- SNP-2 With no seal the history at an earlier cut is a prefix of the history at a later
+/-- **SNP-2** With no seal the history at an earlier cut is a prefix of the history at a later
 one. -/
 theorem landingsAt_mono (l : List (κ × Option β)) {a b : ℕ} (h : a ≤ b) (x : κ) :
     landingsAt l a x <+: landingsAt l b x :=
@@ -980,7 +983,7 @@ theorem landingsAt_lives_of_retire (l t : List (κ × Option β)) (x : κ) {c : 
       omega
     simp [hne]
 
-/-- SNP-1 The history of an identity at a cut inside the chain is unchanged by any growth of the
+/-- **SNP-1** The history of an identity at a cut inside the chain is unchanged by any growth of the
 chain: a later retire or a later landing at its path closes nothing and adds nothing. -/
 theorem landingsAt_lives_append {l : List (κ × Option β)} (t : List (κ × Option β)) {c : ℕ}
     (hc : c ≤ l.length) (y : κ × ℕ) :
@@ -1062,7 +1065,7 @@ section Grant
 
 variable {K α : Type*}
 
-/-- SNP-6 A snapshot under a grant is append invariant. -/
+/-- **SNP-1** A snapshot under a grant (SNP-6) is append invariant. -/
 theorem snapshot_grow (G : K → Prop) [DecidablePred G] (p : α → Bool) {s : Store K α}
     (t : Store K α) {c : Cut K} (h : c ≤ head s) :
     snapshot G p (grow s t) c = snapshot G p s c := by
@@ -1104,7 +1107,7 @@ theorem snapshot_congr (G : K → Prop) [DecidablePred G] (p : α → Bool) {s s
   · simp [snapshot, restrict, readAt, h, hs k h, hc k h]
   · simp [snapshot, restrict, h]
 
-/-- SNP-4 At the head cut a snapshot is the grant's restriction of the store. -/
+/-- **SNP-4** At the head cut a snapshot is the grant's restriction of the store. -/
 theorem snapshot_head (G : K → Prop) [DecidablePred G] (p : α → Bool) (s : Store K α) :
     snapshot G p s (head s) = restrict G p s := by
   unfold snapshot
@@ -1117,7 +1120,7 @@ theorem restrict_readAt (G : K → Prop) [DecidablePred G] (s : Store K α) (c :
   funext k
   by_cases h : G k <;> simp [restrict, readAt, h]
 
-/-- SNP-1 for the composite reader: what an asker is shown at a cut inside the store is the
+/-- **SNP-1** for the composite reader: what an asker is shown at a cut inside the store is the
 same after any growth. -/
 theorem shown_grow (G : K → Prop) [DecidablePred G] (p E : α → Bool) {s : Store K α}
     (t : Store K α) {c : Cut K} (h : c ≤ head s) :
@@ -1146,7 +1149,7 @@ theorem shown_narrow {G G' : K → Prop} [DecidablePred G] [DecidablePred G']
     · have := hE a h
       simp [this] at ha) s c
 
-/-- SNP-4 for the composite reader: at the head cut it is the grant's restriction of the store
+/-- **SNP-4** for the composite reader: at the head cut it is the grant's restriction of the store
 without the erased events. -/
 theorem shown_head (G : K → Prop) [DecidablePred G] (p E : α → Bool) (s : Store K α) :
     shown G p E s (head s) = restrict G (fun a ↦ p a && !E a) s :=
@@ -1198,18 +1201,18 @@ theorem visible_sublist {E E' : α → Bool} (h : ∀ a, E a = true → E' a = t
   · rfl
   · simp [h a hE] at ha
 
-/-- SNP-2 under an erasure: what is visible at an earlier cut is a prefix of what is visible
+/-- **SNP-2** under an erasure: what is visible at an earlier cut is a prefix of what is visible
 at a later one. -/
 theorem visible_mono (E : α → Bool) (s : Store K α) {c d : Cut K} (h : c ≤ d) (k : K) :
     visible E s c k <+: visible E s d k :=
   (List.take_prefix_take_left (h k)).filter _
 
-/-- SNP-4 under an erasure: at the head cut what is visible is the store without the erased
+/-- **SNP-4** under an erasure: at the head cut what is visible is the store without the erased
 events. -/
 theorem visible_head (E : α → Bool) (s : Store K α) : visible E s (head s) = compact E s :=
   funext fun _ ↦ congrArg (List.filter fun a ↦ !E a) List.take_length
 
-/-- SNP-1 under an erasure: growth of the store changes nothing visible at a cut inside it. -/
+/-- **SNP-1** under an erasure: growth of the store changes nothing visible at a cut inside it. -/
 theorem visible_grow (E : α → Bool) {s : Store K α} (t : Store K α) {c : Cut K}
     (h : c ≤ head s) : visible E (grow s t) c = visible E s c :=
   funext fun k ↦ congrArg (List.filter fun a ↦ !E a) (List.take_append_of_le_length (h k))
@@ -1649,7 +1652,7 @@ theorem Withheld.anti {c d : Cut K} (hcd : c ≤ d) {k : K} {i : ℕ} (h : Withh
   | outside hr hle => exact .outside hr ((hcd _).trans hle)
   | through hr _ ih => exact .through hr ih
 
-/-- SNP-2 The filtered read is monotone in the cut, for a test that does not depend on the cut:
+/-- **SNP-2** The filtered read is monotone in the cut, for a test that does not depend on the cut:
 a row kept at a cut is kept at every later one. -/
 theorem Kept.mono {c d : Cut K} (hcd : c ≤ d) {k : K} {i : ℕ} (h : Kept R ok c k i) :
     Kept R ok d k i :=
@@ -1668,7 +1671,7 @@ theorem Withheld.of_grown {R' : K → ℕ → K → ℕ → Prop} {h : Cut K}
     · exact .through (hR _ _ _ _ hi hr) (ih hj)
     · exact .outside (hR _ _ _ _ hi hr) ((hc k').trans (not_lt.1 hj))
 
-/-- SNP-1 The filtered read is append invariant: when the rows inside the old head keep the
+/-- **SNP-1** The filtered read is append invariant: when the rows inside the old head keep the
 references they had, the rows kept at a cut inside the old head are the same after the store
 grows. -/
 theorem kept_grown_iff {R' : K → ℕ → K → ℕ → Prop} {h : Cut K}
@@ -1825,7 +1828,7 @@ end Certified
 
 namespace Witness
 
-/-- The control for SNP-1: the reader that ignores the cut, which is what a verb reads of a
+/-- **SNP-1** The control: the reader that ignores the cut, which is what a verb reads of a
 store rewritten in place, is not append invariant. -/
 theorem present_not_appendInvariant :
     ¬AppendInvariant (present fun s : Store Unit ℕ ↦ (s ()).length) := by
@@ -1833,7 +1836,7 @@ theorem present_not_appendInvariant :
   have h1 := h (fun _ ↦ []) (fun _ ↦ [0]) (fun _ ↦ 0) (fun _ ↦ le_rfl)
   simp [present, grow] at h1
 
-/-- The control for SNP-5: the store rewritten in place determines no read at a past cut. Two
+/-- **SNP-5** The control: the store rewritten in place determines no read at a past cut. Two
 chains leave one head state and had different states at the first cut. -/
 theorem stateOf_forgets :
     ¬∃ G : (Unit → Option ℕ) → ℕ → Unit → Option ℕ,
@@ -1893,9 +1896,9 @@ theorem reused_identity_inherits :
         landingsAt (lives l) l.length ((), 0) = [1] :=
   ⟨[((), some 1), ((), none), ((), some 2)], by decide, by decide, by decide⟩
 
-/-- The control for the retire with no seal: what the stricter seal costs. A retire written
-after a cut empties the history the seal serves there, and leaves the history with no seal as
-it was. -/
+/-- **SNP-1** The control for the retire with no seal: what the stricter seal costs. A retire
+written after a cut empties the history the seal serves there, and leaves the history with no
+seal as it was. -/
 theorem seal_empties_history :
     ∃ (l t : List (Unit × Option ℕ)) (c : ℕ), c ≤ l.length ∧
       historyAt l c () = [5] ∧ historyAt (l ++ t) c () = [] ∧ landingsAt (l ++ t) c () = [5] :=
