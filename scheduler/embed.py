@@ -8,7 +8,9 @@ the lexical index lacks and re-derives the whole index when its tokenizer change
 idempotent at the plane, so the queue folds every request into the one row waiting
 (`_IDEMPOTENT_KINDS`), and a job a crash left running goes back to the queue and runs again as if
 it had not started. It calls the embedder and no chat model, so it
-pins (`router._PINNED_KINDS`) and runs at BACKGROUND priority, like `code_sync`.
+pins (`router._PINNED_KINDS`) and runs at BACKGROUND priority, like `code_sync`. An atom the plane
+lacks is first looked up in the shared cache under the instance's embedder key
+(dn-instance-lifecycle §6.5), so a vector another instance left there is not embedded again.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from typing import Any
 from config.loader import Config
 from core.ingest import ingress
 from core.ingest.derive import EMBED_JOB, derive_lexical, drain
+from core.stores.cache import with_cache
 from scheduler.queue import PRIORITY_BACKGROUND, Job, JobQueue
 from scheduler.router import Router
 
@@ -34,7 +37,8 @@ def embed_handler(cfg: Config, *, stores: Callable[[], Any] | None = None) -> Ha
 
     def the_stores() -> Any:
         if "s" not in opened:
-            opened["s"] = stores() if stores is not None else ingress.build_stores(cfg)
+            opened["s"] = with_cache(stores() if stores is not None
+                                     else ingress.build_stores(cfg), cfg)
         return opened["s"]
 
     def handle(_job: Job) -> str:

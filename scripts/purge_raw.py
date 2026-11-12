@@ -5,7 +5,9 @@
 
 A vault delete only TOMBSTONES (derived dropped, raw kept). This removes the raw blob too —
 deliberate, irreversible, and refused unless `--confirm` is passed AND the digest is held by
-no active note (tombstone it from the vault first). Lists tombstoned digests with `--list`.
+no active note (tombstone it from the vault first). Lists tombstoned digests with `--list`. The
+shared cache (`~/.mind-palace/cache`) loses the object and its chunks' vectors as well, and records
+the digest so no instance puts it back (dn-instance-lifecycle §6.6).
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ def main(argv: list[str]) -> int:
     from config.loader import get_config
     from core.ingest.purge import PurgeRefusedError, purge_raw
     from core.kernel.stores.rawstore import RawStore
+    from core.stores.cache import Cache, cache_home
     from core.stores.catalog import VaultCatalog
 
     cfg = get_config()
@@ -53,12 +56,14 @@ def main(argv: list[str]) -> int:
             store=open_vector_store(cfg),
             catalog=catalog,
             confirm=confirm,
+            cache=Cache(cache_home()),
         )
     except PurgeRefusedError as e:
         print(f"REFUSED: {e}")
         return 1
     print(f"purged {result.digest}: raw_removed={result.raw_removed} "
-          f"paths={list(result.paths_removed)}")
+          f"paths={list(result.paths_removed)} cache: raw_removed={result.cache_raw_removed} "
+          f"vectors_removed={result.cache_vectors_removed}")
     return 0
 
 

@@ -10,6 +10,7 @@ source of truth the frozen anchors protect.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,6 +18,10 @@ from pathlib import Path
 @dataclass
 class RawStore:
     root: Path
+    # Where a miss is looked up before it raises (dn-instance-lifecycle §6.5): the shared cache's
+    # object by digest. What it returns is checked against the digest here as well, and only then
+    # copied in, so the address is the whole trust decision. None: a miss raises, as it always did.
+    fallback: Callable[[str], bytes | None] | None = None
 
     def __post_init__(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -43,7 +48,13 @@ class RawStore:
         return self.add(text.encode("utf-8"))
 
     def get(self, digest: str) -> bytes:
-        return self._path(digest).read_bytes()
+        p = self._path(digest)
+        if not p.exists() and self.fallback is not None:
+            data = self.fallback(digest)
+            if data is not None and hashlib.sha256(data).hexdigest() == digest:
+                self.add(data)
+                return data
+        return p.read_bytes()
 
     def exists(self, digest: str) -> bool:
         return self._path(digest).exists()
