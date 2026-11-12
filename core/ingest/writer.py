@@ -434,6 +434,7 @@ class Writer:
         path, label = e.path, e.content.label
         catalog = self.stores.catalog
         appended = False
+        version = None                         # the version this landing is, where one is kept
         versions = self.stores.versions
         if place.versions and versions is not None:
             doc = catalog.doc_id_for(path) if prev is not None else (doc_id or path)
@@ -443,11 +444,13 @@ class Writer:
                 appended = True
             else:
                 appended = record_version_if_new(versions, doc, record.digest) is not None
+            head = versions.current(doc)       # the version just appended, or found at the head
+            version = head.version_seq if head is not None else None
         if producers is None:
             attest_once(self.stores.attestor, agent_role=self.role, action=place.action,
                         digest=record.digest, event=appended)
             catalog.record(path, record.digest, e.title, provenance=Provenance(label),
-                           doc_id=doc_id)                                   # the key, last
+                           doc_id=doc_id, version=version)                  # the key, last
             return Outcome("store", path, "landed", digest=record.digest,
                            attestations=tuple(attested_by(self.stores.attestor, place.action,
                                                           record.digest)))
@@ -461,7 +464,7 @@ class Writer:
             made.append((place.action, att.id))
             mine.append(att.id)
         catalog.record(path, record.digest, e.title, provenance=Provenance(label),
-                       doc_id=doc_id)                                       # the key, last
+                       doc_id=doc_id, version=version)                      # the key, last
         return Outcome("store", path, "landed", digest=record.digest,
                        attestations=tuple(sorted(mine)))
 
