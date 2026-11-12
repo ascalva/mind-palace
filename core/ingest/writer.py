@@ -33,7 +33,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from core.ingest.derive import EMBED_JOB, HOLDS
+from core.ingest.derive import EMBED_JOB, HOLDS, LexicalReport, derive_lexical
 from core.ingest.index import index_amendment, index_batch
 from core.ingest.landing import (
     attest_once,
@@ -75,6 +75,9 @@ class Stores:
     # the lexical index (dn-two-phase-ingestion D1): landed beside the raw object whenever it is
     # open, and the UNCHANGED check's witness in place of the plane's rows under lazy embedding
     lexical: Any | None = None
+    # the shared cache's vectors under the instance's embedder key (dn-instance-lifecycle §6.5):
+    # the vector drain takes an atom the plane lacks from it before it calls the embedder
+    cache: Any | None = None
 
 
 @dataclass(frozen=True)
@@ -203,6 +206,7 @@ class Writer:
         return self.lazy or not self.keeps_vectors(path)
 
     def land(self, plan: Sequence[Effect]) -> list[Outcome]:
+        self.heal_lexical()
         self.price(plan)
         if self.batch and batchable(plan):
             out = self.land_batch(plan)
@@ -217,6 +221,25 @@ class Writer:
                              and self.keeps_vectors(o.path) for o in out):
             self.derive_later()
         return out
+
+    def heal_lexical(self) -> LexicalReport | None:
+        """Re-derive a stale lexical index before anything lands (dn-instance-lifecycle §5).
+
+        An index whose units another tokenizer made refuses to land (`TokenizerMismatch`), and the
+        embed job that would re-derive it is asked for only after a landing succeeds, so nothing
+        healed it unasked: on 2026-11-11 every repository sync of the code instance stopped at the
+        index until it was re-derived by hand. Every landing passes here, so the writer resets such
+        an index and lands every active item of the lexical classes again under the current
+        tokenizer (`derive_lexical`), then lands the plan. Timed as the `rederive` stage. Returns
+        what the re-derivation did, or None when the index was current or not open."""
+        lexical = self.stores.lexical
+        if lexical is None or not getattr(lexical, "stale", False):
+            return None
+        start = time.perf_counter()
+        report = derive_lexical(self.stores, max_chars=self.max_chars,
+                                overlap_chars=self.overlap_chars)
+        self.timing["rederive"] = self.timing.get("rederive", 0.0) + time.perf_counter() - start
+        return report
 
     def derive_later(self) -> None:
         """Ask for the embed drain once a plan has landed an item without its vector: one job of
