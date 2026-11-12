@@ -49,7 +49,7 @@ from collections import deque
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -79,6 +79,9 @@ from core.sentence.types import (
     clauses_of,
     stratum_of_provenance,
 )
+
+if TYPE_CHECKING:
+    from core.stores.causal_edges import CausalEdge
 
 # ── what the sentence names ────────────────────────────────────────────────────────────────────
 
@@ -956,13 +959,19 @@ class _Builder:
             doc_id = catalog.doc_id_for(atom) if catalog.get(atom) is not None else atom
             return [(v.doc_id, v.version_seq, v.digest, v.at) for v in versions.history(doc_id)]
 
+        def may_see(edge: CausalEdge) -> bool:
+            return self._named(str(edge.dst), str(edge.dst_type))
+
         def witness(edge_id: str) -> Mapping[str, object] | None:
             # an edge whose endpoint the reader may not see named is no record to it (`_named`):
-            # the answer is `None`, as for an id the store does not hold
+            # the answer is `None`, as for an id the store does not hold. Through `origin` it is
+            # no candidate either, judged before the first is chosen, so it cannot stand in front
+            # of an edge keyed to the same commit that the reader may see
             edge = origin(edge_id, causal_edges=self.store("causal"),
-                          reference_edges=self.store("references"))
+                          reference_edges=self.store("references"),
+                          admit=may_see if self.hide_mirror else None)
             if edge is not None:
-                if self.hide_mirror and not self._named(str(edge.dst), str(edge.dst_type)):
+                if self.hide_mirror and not may_see(edge):    # fail closed all the same
                     return None
                 return {k: str(v) for k, v in edge.__dict__.items()}
             row = self.store("causal").edge(edge_id)      # a causal edge's own id: the witness

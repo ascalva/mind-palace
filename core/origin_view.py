@@ -50,6 +50,7 @@ network, no model in the path.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from core.stores.causal_edges import CausalEdge, CausalEdgeStore
@@ -77,11 +78,16 @@ def origin(
     *,
     causal_edges: CausalEdgeStore,
     reference_edges: ReferenceEdgeStore,
+    admit: Callable[[CausalEdge], bool] | None = None,
 ) -> CausalEdge | None:
     """The C-edge whose witnessed commit minted the durable edge `edge_id` — the derived regenerable
     two-hop join `C ∘ commit-keying` (dn-agentic-loop §2.4b EX-2). Returns `None` when `edge_id` is
     not a known reference edge, carries no commit key, or no causal edge witnessed that commit
     (a legitimate empty answer — e.g. a pre-integration commit; NOT a falsifier).
+
+    With `admit`, only the causal edges it accepts are candidates, judged before the lowest is
+    chosen: a reader that may not see an edge gets the answer of a store without it, never `None`
+    because that edge came first (dn-guest-principal §5). Without it every edge is a candidate.
 
     Read-only over the two stores; mints nothing; the returned link is dispositional (E_disp — never
     enters `A_geom`/L). Scoped to reference-edge (X_cite) ids — the durable kind that carries a
@@ -98,9 +104,10 @@ def origin(
     # `pair_cut_sha` = the full sha (finding-0111); file/doc edges carry '' and so never match a
     # non-empty key. Deterministic on the (rare) multi-witness case: lowest (event_order, edge_id).
     matches = [
-        _causal_edge_from_row(row)
-        for row in causal_edges.all_edges()
-        if row["pair_cut_sha"] == commit_key
+        edge
+        for edge in (_causal_edge_from_row(row) for row in causal_edges.all_edges()
+                     if row["pair_cut_sha"] == commit_key)
+        if admit is None or admit(edge)
     ]
     if not matches:
         return None
