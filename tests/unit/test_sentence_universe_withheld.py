@@ -8,6 +8,7 @@ checkout."""
 
 from __future__ import annotations
 
+import os
 import subprocess
 import unicodedata
 from dataclasses import replace
@@ -102,15 +103,15 @@ def test_tracked_paths_are_the_tree_at_head_and_none_when_git_cannot_answer(
         assert not ex.is_commit_sha(text), text
 
 
-# ── the vault, in every spelling ───────────────────────────────────────────────────────────────
+# ── the vault, in the spellings the check folds ────────────────────────────────────────────────
 
 
-def test_a_vault_path_is_recognised_in_every_spelling(tmp_path: Path,
-                                                      monkeypatch: pytest.MonkeyPatch) -> None:
-    """The spellings a file system may treat as one file, whether or not this one does: another
-    letter case, another Unicode normal form, `..`, a symlink, `~`, a path relative to the
-    working directory. The comparison is by component, so a sibling whose name starts with the
-    vault's is outside."""
+def test_a_vault_path_is_recognised_in_the_spellings_it_folds(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Spellings a file system may treat as one file, whether or not this one does: another
+    letter case, another Unicode normal form, `.` and `..`, a symlink, `~`, a path relative to
+    the working directory. The comparison is by component, so a sibling whose name starts with
+    the vault's is outside. The names it does not fold are the next test's."""
     home = tmp_path / unicodedata.normalize("NFC", "w\u00e9")
     vault = home / "vault"
     (vault / "sub").mkdir(parents=True)
@@ -145,6 +146,28 @@ def test_a_vault_path_is_recognised_in_every_spelling(tmp_path: Path,
         assert b._in_vault(ref), ref
     unset = _Builder(cast(QueryEngine, SimpleNamespace(config=None)), DEFAULT, hide_mirror=True)
     assert unset._in_vault("/srv/repo/core/x.py")            # any failure: inside
+
+
+def test_a_name_the_vault_check_does_not_fold_is_left_to_the_allow_list(
+        repo: Path, tmp_path: Path) -> None:
+    """A file system knows a note by names the vault check does not fold: a hard link to it,
+    outside the vault or in the checkout, and its path through another mount of the volume
+    (macOS's data volume, `/System/Volumes/Data`). None of them is a file git tracks in a
+    checkout, so the allow list does not name it."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "n.md"
+    note.write_text("private\n")
+    outside, inside = tmp_path / "elsewhere.md", repo / "core" / "n.md"
+    os.link(note, outside)
+    os.link(note, inside)
+    mounted = f"/System/Volumes/Data{note}"
+    assert os.path.samefile(outside, note) and os.path.samefile(inside, note)
+    if Path("/System/Volumes/Data").is_dir():               # macOS: the same file again
+        assert os.path.samefile(mounted, note)
+    b = _builder(vault)
+    for dst in (str(outside), str(inside), mounted):
+        assert not b._named(dst, "file"), dst
 
 
 # ── a causal edge's endpoint ───────────────────────────────────────────────────────────────────
@@ -195,6 +218,14 @@ def test_only_a_commit_or_a_tracked_file_is_named(repo: Path, tmp_path: Path,
     inner = _builder(repo / "docs")
     assert not inner._named(f"{repo}/docs/a.md", "file")
     assert inner._named(f"{repo}/core/x.py", "file")
+    # and so when the configured vault is a symlink to that directory: a path is compared with
+    # the vault's resolved form too, and a citation neighbour under it, tracked or not, is not
+    # named either
+    (tmp_path / "vault-link").symlink_to(repo / "docs")
+    linked = _builder(tmp_path / "vault-link")
+    assert not linked._named(f"{repo}/docs/a.md", "file")
+    assert not linked._citable("docs/a.md") and not linked._citable("docs/n.md")
+    assert linked._named(f"{repo}/core/x.py", "file") and linked._citable("core/x.py")
 
 
 def test_nothing_but_a_commit_is_named_when_the_tree_cannot_be_read(

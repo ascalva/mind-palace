@@ -618,12 +618,15 @@ class _Builder:
         return self._tracked_paths
 
     def _in_vault(self, ref: str) -> bool:
-        """Whether a path is the vault or lies under it, in any spelling the file system treats
-        as the same file: another letter case, another Unicode normalisation, `..` components, a
-        symlink. The components are compared folded (`_folded`), as a prefix, for the path as
-        written (`~` expanded), for its normal form and for its resolved form, against the
-        configured vault path and its resolved form. A path that cannot be read this way counts
-        as inside, so the test errs toward withholding."""
+        """Whether a path is the vault or lies under it, in the spellings this folds: another
+        letter case, another Unicode normal form, `.` and `..` components, a symlink, `~`. The
+        components are compared folded (`_folded`), as a prefix, for the path as written (`~`
+        expanded), for its normal form and for its resolved form, against the configured vault
+        path and its resolved form. A path that cannot be read this way counts as inside, so the
+        test errs toward withholding. A file system also knows a note by names this does not
+        fold, a hard link or the path through another mount of its volume among them: such a
+        path is the allow list's to judge (`_named`), which names it only when it is a file git
+        tracks in a checkout, as it names any other."""
         try:
             if self._vault_forms is None:
                 vault = Path(str(self.e.config.ingestion.vault.path)).expanduser()
