@@ -430,6 +430,63 @@ def test_a_line_that_is_no_request_is_answered_and_the_server_reads_on(
     assert second["id"] == 7 and "the table could not be read" in capsys.readouterr().err
 
 
+def test_initialize_answers_the_version_asked_when_it_is_a_string_and_its_own_otherwise() -> None:
+    """`initialize` answers with the protocol version a client asks for when it is a string, and
+    with the server's own for any other value, as MCP answers a version a server does not
+    support. The value was repeated as it came, and one nested past what `json.dumps` writes,
+    though not past what `json.loads` reads, made a reply the server could not write: the
+    process ended there, and the requests after it went unanswered."""
+    from agents.ambassador import mcp
+
+    def answered(asked: Any) -> Any:
+        reply = mcp.Server("guest").handle({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                                            "params": {"protocolVersion": asked}})
+        assert reply is not None
+        return reply["result"]["protocolVersion"]
+
+    assert answered("2025-03-26") == "2025-03-26"
+    for asked in (["2025-06-18"], [[1]], {"version": "2025-06-18"}, 20250618, 1.5, True, None,
+                  ""):
+        assert answered(asked) == mcp.PROTOCOL_VERSION
+
+
+def test_a_request_whose_reply_cannot_be_written_is_answered_as_an_internal_error(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """A reply `json.dumps` cannot write, one that holds itself or one nested past the stack, is
+    replaced by JSON-RPC's internal error with the request's id, its traceback on stderr, and
+    the next request is answered as ever: the server writes a reply inside a guard too. The
+    lines are served on a stack of 1 MB (`_on_a_small_stack`), which a reply nested 100,000
+    deep is past."""
+    from agents.ambassador import mcp
+
+    holds_itself: list[Any] = []
+    holds_itself.append(holds_itself)
+    deep: list[Any] = []
+    for _ in range(100_000):
+        deep = [deep]
+
+    class Unwritable(mcp.Server):
+        def handle(self, msg: Any) -> dict[str, Any] | None:
+            if msg.get("method") == "tools/list":
+                tools = holds_itself if msg["id"] == 4 else deep
+                return {"jsonrpc": "2.0", "id": msg["id"], "result": {"tools": tools}}
+            return super().handle(msg)
+
+    ping = json.dumps({"jsonrpc": "2.0", "id": 7, "method": "ping"})
+    stream = io.StringIO("".join(
+        json.dumps({"jsonrpc": "2.0", "id": i, "method": "tools/list"}) + f"\n{ping}\n"
+        for i in (4, 5)))
+    out = io.StringIO()
+    _on_a_small_stack(lambda: mcp.serve(stream, out, Unwritable("guest")))
+    internal = {"code": -32603, "message": "internal error"}
+    pong = {"jsonrpc": "2.0", "id": 7, "result": {}}
+    assert [json.loads(r) for r in out.getvalue().splitlines()] == [
+        {"jsonrpc": "2.0", "id": 4, "error": internal}, pong,
+        {"jsonrpc": "2.0", "id": 5, "error": internal}, pong]
+    err = capsys.readouterr().err
+    assert "Circular reference detected" in err and "RecursionError" in err
+
+
 def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.MonkeyPatch):
     from agents.ambassador import mcp
 
