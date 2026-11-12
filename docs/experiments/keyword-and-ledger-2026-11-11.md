@@ -348,8 +348,8 @@ The five runs gave the same 65 answers. The JSON keeps the earlier runs' figures
 - The record and the article gave the filtered aggregate as 6 to 27% faster than the `CASE` form
   on the long titles. No run recorded that figure; the interleaved comparison above is the
   measurement.
-- The six lexical migrations of runs 2 and 3 took 114.5 to 121.6 s at one-minute loads of 2.4 to
-  4.9, the ledger's six 1.82 to 2.67 s at 2.6 to 4.9 (the loads read when each part or process
+- The six lexical migrations of runs 2 and 3 took 114.5 to 121.6 s at one-minute loads of 2.38 to
+  4.86, the ledger's six 1.82 to 2.67 s at 2.65 to 4.86 (the loads read when each part or process
   began; the JSON has each).
 
 ## Reproduce
