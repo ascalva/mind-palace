@@ -7,7 +7,7 @@
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3706-brightgreen)](docs/runbook.md)
+[![tests](https://img.shields.io/badge/tests-3711-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
@@ -33,7 +33,7 @@ read "reference:openai-math:Local-smoothing" chunk 3
 
 There are five sorts: a *field* (a score on every node), a *region* (a set of nodes), *chains* (paths that spell a word over the edge types), a *witness* (the commit that minted an edge) and a *text* (one record). The verbs move between them: `near`, `diffuse`, `reach`, `relate`, `trace`, `walk … via`, `witness`, `read`. The connectives compose them: `and`, `or`, `minus`, `then`; `within`, `over` and `as of` restrict; `top k`, `atleast t`, `far` and `not` bound; `assume … in` evaluates a sentence under a hypothesis, and its answer is a `Hyp` beside the actual answer, never a fact. The grammar is `core/sentence/grammar.py`; [`docs/query/asking.md`](docs/query/asking.md) is the guide to writing a sentence.
 
-Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has one read tool, `query`, and the Open WebUI bridge serves the same manifest. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A third surface holds a narrower grant: `scripts/palace_mcp.py --role guest` serves an external agent `query` and `overview` alone, read-only over the dialogue, the repository's code and docs, the papers and the observed records, never the notes or the interpretations derived from them (SCO-9, `docs/design-notes/dn-guest-principal.md`). A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
+Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has one read tool, `query`, and the Open WebUI bridge serves the same manifest. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A third surface holds a narrower grant: `scripts/palace_mcp.py --role guest` serves an external agent `query` and `overview` alone, read-only over the dialogue, the repository's code and docs, the papers and the observed records, never the notes or the interpretations derived from them (SCO-9, `docs/design-notes/dn-guest-principal.md`); it is how the code instance below serves a coding agent. A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
 
 ## From a sentence to an answer
 
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,706 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,711 tests
 uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
