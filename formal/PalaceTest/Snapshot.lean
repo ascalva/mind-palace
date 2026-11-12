@@ -727,8 +727,8 @@ retire of the key included. -/
   (historyAt (l.map ev ++ t.map ev) (min c l.length) x
     == historyAt (l.map ev) (min c l.length) x) = true) 522
 
-/- SNP-7: the history with no seal ends with what the stricter seal serves, and the history at
-an earlier cut is a prefix of the history at a later one. -/
+/- SNP-7 and SNP-2: the history with no seal ends with what the stricter seal serves (SNP-7),
+and the history at an earlier cut is a prefix of the history at a later one (SNP-2). -/
 #eval survives (∀ (l : List (Fin 9)) (c d : ℕ) (x : Fin 3),
   ((historyAt (l.map ev) c x).isSuffixOf (landingsAt (l.map ev) c x)
     && (landingsAt (l.map ev) (min c d) x).isPrefixOf (landingsAt (l.map ev) d x)) = true) 523

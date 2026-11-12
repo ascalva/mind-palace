@@ -17,11 +17,12 @@ between two cuts, a derived view as a derivation of the prefixes, a chain of key
 three ways (rewritten in place, recomputed from the prefix, kept by generation with a closing
 stamp), the grant and the erasure applied to one read, the history of a key with and without a
 seal, the identity a landing at a retired path takes (`lives`), and the filtered read of the
-references a resolver does not follow (`Kept`). Each law's controls are among its statements. What
-they leave out: the stores' SQL, the hash and the commitment of a row (SNP-9's, not stated here),
-the class a chain holds and the relabel that rewrites it, and the identity's name in the code;
-`core/stores/landings.py` is the transcription these laws are tested against
-(`tests/property/test_landing_log.py`).
+references a resolver does not follow (`Kept`). The controls that are theorems are among the
+statements, SNP-1's two and SNP-5's one; the other controls of the five laws are refuted attacks
+in `PalaceTest/Snapshot.lean`. What they leave out: the stores' SQL, the hash and the commitment
+of a row (SNP-9's, not stated here), the class a chain holds and the relabel that rewrites it, and
+the identity's name in the code; `core/stores/landings.py` is the transcription these laws are
+tested against (`tests/property/test_landing_log.py`).
 
 SNP-6 to SNP-10 are not stated here: they are design theorems of `Palace/Snapshot.lean`, cited from
 the note until a stage of dn-temporal-snapshot §12 builds what relies on them.
