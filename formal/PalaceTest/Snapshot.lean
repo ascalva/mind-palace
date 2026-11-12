@@ -21,7 +21,8 @@ the horizon, the positions a chain serves from ten bits, with the greatest consi
 them found by enumeration. The controls are the readings a build must not take: a read at a cut
 past the head, the store rewritten in place, generations without their closing stamp, a key's
 state taken for unchanged whatever the delta writes, an event filter before the cut, an erasure
-that deletes rows, a state served without the seal, the looser seal taken for a monotone one,
+that deletes rows, the state at a cut taken for what the stricter seal serves, the looser seal
+taken for a monotone one,
 kept rows served without their sources, a frontier taken for a cut, an additive digest, a digest
 over contents, the pruned store read under its horizon, a frontier lowered to the served
 positions without the descent, the floor and the descent each run once in either order, a hole
@@ -31,8 +32,10 @@ executable here too: the floor and the descent alternated until nothing moves, t
 the enumeration. So is the row filter: the rows no chain of sources leads outside the cut,
 tested against every set of rows of the two chains that lies inside the cut and holds its own
 sources; its controls are the filter without its closure, the prefix taken for the filtered
-read, and a chain that follows a lowered chain read as asked. They run when this module builds
-(`lake test`).
+read, and a chain that follows a lowered chain read as asked. For the retire with no seal
+(seeds 521 to 528) the controls are the sealed history taken for append invariant, a path's
+identity used again after its retire, and a retired identity's history taken for empty. They run
+when this module builds (`lake test`).
 -/
 
 @[expose] public section
@@ -361,7 +364,8 @@ is the same: positions count what an event filter hides. -/
     || servedAt (l.map ev ++ t.map ev) (min c l.length) x
       == servedAt (l.map ev) (min c l.length) x) = true) 457
 
-/- Control: the state at the cut, without the seal, serves a key retired since. -/
+/- Control: the state at the cut, without the seal, serves a key retired since. The two readings
+differ; the note's §6.2 says which a retire takes. -/
 #eval refuted (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
   ((stateAt (l.map ev ++ t.map ev) (min c l.length) x).join
     == servedAt (l.map ev ++ t.map ev) (min c l.length) x) = true) 458
@@ -586,7 +590,7 @@ retire of the key it holds no version landed before the retire. -/
         else sinceRetire ((t.map ev).take c) x) = true) 512
 
 /- Control: the versions of a key inside the cut, without the seal, hold versions landed
-before a retire. -/
+before a retire. That is the inheritance a fresh identity removes (524, 526). -/
 #eval refuted (∀ (l : List (Fin 9)) (c : ℕ) (x : Fin 3),
   (((l.map ev).take c).filterMap (fun e ↦ if e.1 = x then e.2 else none)
     == historyAt (l.map ev) c x) = true) 513
@@ -711,5 +715,53 @@ that position. -/
   (bestIn (foll es) (sv1 m) (resolve (foll es) x.val y.val 0) (resolve (foll es) x.val y.val 1)
     == (resolve (foll es) x.val y.val 0,
       floorSv (sv1 m) 1 (resolve (foll es) x.val y.val 1))) = true) 520
+
+/- SNP-1: with no seal the history of a key at a cut inside the chain is unchanged by growth, a
+retire of the key included. -/
+#eval survives (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (landingsAt (l.map ev ++ t.map ev) (min c l.length) x
+    == landingsAt (l.map ev) (min c l.length) x) = true) 521
+
+/- Control: the history the stricter seal serves is not: a retire after the cut empties it. -/
+#eval refuted (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (historyAt (l.map ev ++ t.map ev) (min c l.length) x
+    == historyAt (l.map ev) (min c l.length) x) = true) 522
+
+/- SNP-7: the history with no seal ends with what the stricter seal serves, and the history at
+an earlier cut is a prefix of the history at a later one. -/
+#eval survives (∀ (l : List (Fin 9)) (c d : ℕ) (x : Fin 3),
+  ((historyAt (l.map ev) c x).isSuffixOf (landingsAt (l.map ev) c x)
+    && (landingsAt (l.map ev) (min c d) x).isPrefixOf (landingsAt (l.map ev) d x)) = true) 523
+
+/- SNP-7: with a fresh identity at a retired path, the history of the identity a path holds at
+a cut is the path's landings since its last retire inside the cut. -/
+#eval survives (∀ (l : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (landingsAt (lives (l.map ev)) c (x, retiresOf ((l.map ev).take c) x)
+    == sinceRetire ((l.map ev).take c) x) = true) 524
+
+/- SNP-7: a retired identity keeps the life it had at every cut that holds its retire, whatever
+lands after. -/
+#eval survives (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (landingsAt (lives (l.map ev ++ (x, none) :: t.map ev)) (l.length + 1 + c)
+      (x, retiresOf (l.map ev) x)
+    == sinceRetire (l.map ev) x) = true) 525
+
+/- Control: an identity used again after its retire inherits. Keyed by the path, the history
+with no seal holds versions landed before a retire. -/
+#eval refuted (∀ (l : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (landingsAt (l.map ev) c x == sinceRetire ((l.map ev).take c) x) = true) 526
+
+/- SNP-1: the identity a landing takes is a function of the events before it, and the history
+of an identity at a cut inside the chain is unchanged by growth. -/
+#eval survives (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3) (n : Fin 4),
+  ((lives (l.map ev)).take c == lives ((l.map ev).take c)
+    && landingsAt (lives (l.map ev ++ t.map ev)) (min c l.length) (x, n.val)
+      == landingsAt (lives (l.map ev)) (min c l.length) (x, n.val)) = true) 527
+
+/- Control: a retired identity's history is not empty at the cuts that hold its retire, as the
+history of a sealed key is. -/
+#eval refuted (∀ (l t : List (Fin 9)) (c : ℕ) (x : Fin 3),
+  (landingsAt (lives (l.map ev ++ (x, none) :: t.map ev)) (l.length + 1 + c)
+      (x, retiresOf (l.map ev) x)).isEmpty = true) 528
 
 end Palace.Snapshot.Attack
