@@ -106,10 +106,16 @@ lone surrogate that a sentence held, is written as ASCII, the same JSON, whateve
 error handler: Python's UTF-8 mode gives stdout `surrogateescape`, which would write some
 surrogates as bytes that are not UTF-8. A line that is no request (JSON that is not an object,
 params that are not one, an id that is no string or number, a number past Python's limit on the
-digits it converts) is answered with JSON-RPC's error for it, and the server reads on.
+digits it converts, nesting past the stack) is answered with JSON-RPC's error for it.
+`initialize` repeats the protocol version a client asks for only when it is a string and answers
+any other value with the server's own, so no reply carries a nesting the client sent, and a reply
+that `json.dumps` cannot write all the same is answered as an internal error with the request's
+id. Either way the server reads on.
 `[TESTED: test_what_the_guests_tools_print_stays_off_the_protocol_stream,
 test_what_a_tool_writes_to_the_descriptor_stays_off_the_protocol_stream,
-test_a_line_that_is_no_request_is_answered_and_the_server_reads_on]`
+test_a_line_that_is_no_request_is_answered_and_the_server_reads_on,
+test_initialize_answers_the_version_asked_when_it_is_a_string_and_its_own_otherwise,
+test_a_request_whose_reply_cannot_be_written_is_answered_as_an_internal_error]`
 
 `status` is left out: it lists the owner's open and due tasks and the running jobs, whose briefs
 can name notes. No write tool is served (capture, tasks, reminders, link, dream, relate, the
@@ -269,8 +275,12 @@ in characters and in bytes, the escapes in both renderings, a line that is not a
 and counted, the log read a line at a time), `tests/unit/test_ambassador_surface.py` the stream
 (what a tool prints goes to stderr; a process without stderr drops it; a reply UTF-8 does not
 encode is written as ASCII, on a strict stream and on one with `surrogateescape`; a line that is
-no request is answered and the server reads on), and `tests/unit/test_sentence_grammar.py` that a
-string literal is read in memory its text bounds.
+no request is answered and the server reads on; `initialize` repeats a version only when it is a
+string; a request whose reply cannot be written is answered as an internal error and the server
+reads on), and `tests/unit/test_sentence_grammar.py` that a string literal is read in memory its
+text bounds. How deep `json` nests depends on the thread's stack (8 MB for a Linux main thread
+under the usual `ulimit -s`, 16 MB for the main thread of a macOS framework build), so the tests
+that need a nesting past it serve their lines on a thread whose stack they set to 1 MB.
 
 `tests/adversarial/test_guest_lite.py` asks the same of an instance that embeds nothing. Its
 palace lands the note through `sync_vault` and a scratch repository's files through
@@ -340,10 +350,13 @@ with lexical units alone and the same transcript turn, causal edges and citation
   or stops, a budget per role) and what is dropped at the bound are the owner's to decide; this
   change sets no bound.
 - A sentence's size is not capped; only a command's is (`MAX_COMMAND_BYTES`). The server reads
-  a request's line whole and holds a few copies of the sentence while it answers, and a sentence
-  refused as it parses is read three times: by the compile, by the log's entry, which reads its
-  shape, and by the surface's second compile. A string literal is read in memory its text
-  bounds: asked in process, a refused sentence of 40 MB raised the server's peak by some 40 MB
-  past the sentence itself and was answered in 0.8 s, and one of 40 MB of escaped quotes by some
-  54 MB, in 1.3 s (one-minute load 3.4 to 3.8). Whether a guest's sentence is capped, at what
-  size, and whether every surface takes the cap, are the owner's to decide.
+  a request's line whole and holds some five times its size while it answers: through the
+  launcher, a request refused as it parses took the server to 411 MB for a line of 50 MB and to
+  1,169 MB for one of 200 MB, answered in 6.1 s (one-minute load 1.5 to 2.0), so a line of about
+  0.8 GB would take it past 4 GB. A sentence refused as it parses is read three times: by the
+  compile, by the log's entry, which reads its shape, and by the surface's second compile. A
+  string literal is read in memory its text bounds: asked in process, a refused sentence of
+  40 MB raised the server's peak by some 40 MB past the sentence itself and was answered in
+  0.8 s, and one of 40 MB of escaped quotes by some 54 MB, in 1.3 s (one-minute load 3.4 to
+  3.8). Whether a guest's sentence is capped, at what size, whether every surface takes the cap,
+  and whether the server's reader stops a line at it, are the owner's to decide.
