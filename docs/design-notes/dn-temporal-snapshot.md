@@ -3,7 +3,7 @@ type: design-note
 id: dn-temporal-snapshot
 track: query-language
 status: draft                  # provenance description, never a gate; the merge is ratification
-implementation: design-only    # nothing built in the store; the laws are machine-checked in formal/Palace/Snapshot.lean
+implementation: partial        # SN-1 built (the landing log, core/stores/landings.py; SNP-1 to SNP-5 in docs/LAWS.md); SN-2 to SN-8 design
 created: 2026-11-10
 updated: 2026-11-11
 links:
@@ -18,6 +18,9 @@ links:
   - docs/design-notes/dn-graph-dynamics.md                 # GD-4: velocity over a window of cuts, which waits on the snapshot
   - docs/design-notes/dn-mathematical-foundations.md       # the ladder; design theorems before code
   - formal/Palace/Snapshot.lean                            # the theorems (Snapshot/Defs.lean the model; PalaceTest/Snapshot.lean the attacks)
+  - core/stores/landings.py                                # SN-1 as built: the landing log, in the catalog's file
+  - docs/experiments/landing-log-2026-11-11.md             # SN-1 measured on a copy of the corpus instance's catalog
+  - papers/2026-11-11-landing-log/paper.tex                # the article of SN-1
 supersedes: null
 superseded_by: null
 warrant: null
@@ -44,6 +47,13 @@ warrant: null
 > recommendation this note had made, and the note now carries the decision wherever the design
 > rested on the seal. And six findings the review of the design left open are closed (§3.1,
 > §3.5, §5.1, §5.4). The code cited for both was read at `f969904e`.
+>
+> Stage SN-1, the landing log, was built the same day (§12), with its tests, its ledger rows
+> (SNP-1 to SNP-5, `docs/LAWS.md` family XVI) and its measurements on a copy of the corpus
+> instance's catalog (§11, `docs/experiments/landing-log-2026-11-11.md`). Where the build
+> departed from §3.2 the section says so where it stands: the key of a path takes half of its
+> key from the instance's secret, outside the file; a path that changes class leaves its chain
+> by a sixth kind, `leave`; and the genesis writes a renamed path's tombstone as a `move`.
 
 ## 1. Purpose and scope
 
@@ -145,16 +155,20 @@ cut. One of them keeps text, the rejected requests, and §6.1 names it for the p
 Proved, in `formal/Palace/Snapshot.lean` over `formal/Palace/Snapshot/Defs.lean`: SNP-1 to SNP-10
 as §10 states them, 193 theorems, twenty of them the controls; attacked in
 `formal/PalaceTest/Snapshot.lean` (seeds 430 to 528: fifty-four attacks, every one surviving
-all 500 instances, and forty-five negative controls, each refuted). They are design theorems: no
-code relies on them, so they have no row in `docs/LAWS.md` and no statement in `formal/Spec/`;
-§12 says when they enter the ledger. Some of what §6 and §7 require holds by the construction of
+all 500 instances, and forty-five negative controls, each refuted). SNP-1 to SNP-5 entered the
+ledger with SN-1, the landing log: they are family XVI of `docs/LAWS.md`, and the 47 declarations
+§10 lists for them are restated in `formal/Spec/Snapshot.lean` and judged by the comparator. SNP-6
+to SNP-10 are design theorems: no code relies on them yet, so they have no row and no statement;
+§12 says when each enters. Some of what §6 and §7 require holds by the construction of
 the model and not by a theorem about the code: §10 says which, law by law.
 
-Measured, on synthetic fixtures only (§11): the landing log's size and the cost of its reads; what
+Measured, on synthetic fixtures (§11): the landing log's size and the cost of its reads; what
 a kept version costs in the lexical index; what a purge leaves behind today; that the causal store
 depends on the order of two jobs; that the events of a transcript's prefix are not always the
 prefix of its events, and what re-deriving a session costs; what `as of` accepts and when; that a
-position taken from a store's row numbering is given again after a delete.
+position taken from a store's row numbering is given again after a delete. And, at SN-1, the log as
+built, on a copy of the corpus instance's catalog: its migration, its bytes, its writes and its
+reads (§11, as built).
 
 Open, stated where it bites: the attestation ledger's own content hashes under an erasure
 (decision D9); the cadence of recorded cuts (§3.3); a repository history that is not one line
@@ -395,23 +409,26 @@ INFERENCE for the line, parked as SN-f]`
 Two tables in the catalog's file, written by the catalog's own methods in the transaction that
 writes the catalog's row, so the key and its log entry land together, no caller can write one
 without the other, and ING-7's order is unchanged (the key last, now two rows of one
-transaction):
+transaction). Stage SN-1 built them on 2026-11-11 (`core/stores/landings.py`), and three things
+changed from the design as it was merged, each marked where it stands: where the key of a path
+comes from, a sixth kind, and the tombstone the genesis writes.
 
 ```sql
 CREATE TABLE landing_chains (
-    chain  INTEGER PRIMARY KEY,   -- the chain's id: never reused, never changed
-    class  TEXT    NOT NULL,      -- the provenance class it holds now; a relabel rewrites this only
-    secret BLOB    NOT NULL       -- 32 random bytes: the key of path_key
+    chain     INTEGER PRIMARY KEY,  -- the chain's id: never reused, never changed
+    class     TEXT    NOT NULL,     -- the provenance class it holds now; a relabel rewrites it
+    secret    BLOB    NOT NULL,     -- 32 random bytes: the chain's half of the key of path_key
+    key_check BLOB    NOT NULL      -- hmac-sha256(the chain's key, 'key check')
 );
 CREATE TABLE landings (
     chain       INTEGER NOT NULL,  -- landing_chains.chain
     seq         INTEGER NOT NULL,  -- the position in the chain, from 1, never given twice
-    kind        TEXT    NOT NULL,  -- genesis | store | retire | move | horizon
-    path_key    BLOB,              -- hmac-sha256(secret, source_path): the key a hole keeps
+    kind        TEXT    NOT NULL,  -- genesis | store | retire | move | leave | horizon
+    path_key    BLOB,              -- hmac-sha256(the chain's key, source_path): kept by a hole
     source_path TEXT,              -- NULL once purged
     doc_id      TEXT,              -- the identity the event belongs to; NULL once purged
     version     INTEGER,           -- the version number, where the place keeps a chain
-    digest      TEXT,              -- NULL for a retire, and once purged
+    digest      TEXT,              -- a store's digest; NULL for every other kind, and once purged
     title       TEXT,              -- NULL once purged
     att_head    INTEGER,           -- the head of att when the row was written; NULL before SN-2
     horizon     INTEGER,           -- a horizon row: the position it declares; NULL otherwise
@@ -431,13 +448,19 @@ CREATE INDEX landings_closed ON landings (chain, closed_at) WHERE closed_at IS N
 **The kinds** are the catalog's writes. `store` is a landing (`record`). `retire` is the tombstone
 of an identity no other active path holds. `move` is a tombstone that leaves the identity at another
 path (the second half of a rename, which the writer tells from a delete by the catalog,
-`writer.py:409-413`), the owner-gated re-key of an identity (`catalog.py:210-241`), and the row that
-closes a path in one chain when a `record` gives it another class, its `store` then landing in a
-chain of the new class. `genesis` and `horizon` are below and in §8. There is no kind that lifts a
-retire: a retire seals nothing (§6.2). A purge is not a kind: it empties rows (§6.1). A `record`
-that changes nothing, the same path, digest, title, class and identity as the path's open row,
-appends nothing: the log is of the changes of the map, and the catalog's `updated_at` is a bookmark
-(the curated lane re-lands an unchanged digest after a plane reset, `core/ingest/curated.py:66-82`).
+`writer.py:409-413`), and the owner-gated re-key of an identity (`catalog.py:210-241`), which writes
+the path's `store` under the new identity after it, or its `retire` when the path is tombstoned.
+`leave` is the row that closes a path in one chain when a `record` gives it another class, its
+`store` then landing in a chain of the new class. The design had a `move` for this too; SN-1 made it
+a kind of its own, because the two fold differently. The catalog keeps a renamed path's row,
+tombstoned, so the old path's `move` folds to that row; a path that changed class has its row from
+the chain it went to, so its `leave` folds to nothing; and a path that changed class and was then
+renamed has an open `move` in two chains, which one kind cannot tell apart. `genesis` and `horizon`
+are below and in §8. There is no kind that lifts a retire: a retire seals nothing (§6.2). A purge is
+not a kind: it empties rows (§6.1). A `record` that changes nothing, the same path, digest, title,
+class and identity as the path's open row, appends nothing: the log is of the changes of the map,
+and the catalog's `updated_at` is a bookmark (the curated lane re-lands an unchanged digest after a
+plane reset, `core/ingest/curated.py:66-82`).
 
 **Which chain a landing goes to.** The chain that holds the path's last event; for a path with
 no event, the newest chain of its class, opened if the class has none. So a relabel moves no row
@@ -456,35 +479,46 @@ first row for as long as it lives. The chain is hashed like the prediction ledge
 commitment to the row and not the row, so a purge can empty the row and keep the chain
 (`commitments_purge`, `verifies_purge`). `[THEOREM: SNP-9]`
 
-**The key of a hole.** `path_key` is a keyed hash of the path under the chain's secret. It is
-what a read by path seeks on, and it is the one name a purged row keeps, so a hole still shadows
-the path's earlier versions (§6.1). `version` and `att_head` are the two fields a caller
-supplies: `record` gains a `version` argument, passed by the writer's last step from the version
-it just appended or found (`writer.py:408-419`, `:433`; `sync.py:201`) and left out where the
-place keeps no chain; `att_head` is the attestation ledger's head read inside the key's
-transaction, after the landing's own attestation, and stays `NULL` until SN-2 numbers that
-ledger, which reads as the end of the ledger's genesis (§8).
+**The key of a hole.** `path_key` is a keyed hash of the path. It is what a read by path seeks on,
+and it is the one name a purged row keeps, so a hole still shadows the path's earlier versions
+(§6.1). Its key has two halves: the chain's 32 random bytes, in the file, and the instance's
+landing-log secret, which is never in the file. The design had the chain's bytes alone; SN-1 takes
+the secret as the repository takes every instance's secret, from the environment through
+`get_secret`, Keychain-backed in the owner's setup and the instance's own item under a named
+instance (`landing-log-key`, `<id>.landing-log-key`), so the file alone cannot test a guess of a
+purged path. Without the secret the genesis and every write refuse, loudly, and write nothing; a
+secret that is not the one a chain was written with is refused by the chain's `key_check`; a read
+needs it only to seek by path. `version` and `att_head` are the two fields a caller supplies:
+`record` gains a `version` argument, passed by the writer's last step from the version it just
+appended or found (`writer.py:408-419`, `:433`; `sync.py:201`) and left out where the place keeps no
+chain; `att_head` is the attestation ledger's head read inside the key's transaction, after the
+landing's own attestation, and stays `NULL` until SN-2 numbers that ledger, which reads as the end
+of the ledger's genesis (§8).
 
-**The genesis.** At the first open after the migration that fills `doc_id`
-(`catalog.py:77-92`), each class the catalog holds gets a chain: a `genesis` row, then the
-catalog's rows of the class in path order, an active path as one `store` and a tombstoned path
-as a `store` of the digest it held followed by a `retire`, then a `horizon` row whose `horizon`
-is its own position. The order inside the block is not history, so the positions before the
-`horizon` are under it (§8). A class that first appears later opens its chain at its first
-landing, with a `genesis` and a `horizon` and nothing between.
+**The genesis.** At the first open after the migration that fills `doc_id` (`catalog.py:77-92`),
+each class the catalog holds gets a chain: a `genesis` row, then the catalog's rows of the class in
+path order, an active path as one `store` and a tombstoned path as a `store` of the digest it held
+followed by its tombstone, then a `horizon` row whose `horizon` is its own position. The tombstone
+is the one `tombstone` would write: a `move` where another active path holds the identity, a
+`retire` otherwise (the design said `retire` for every one, which would count a renamed path among
+the identities that run across a retire, §6.2). The order inside the block is not history, so the
+positions before the `horizon` are under it (§8). A class that first appears later opens its chain
+at its first landing, with a `genesis` and a `horizon` and nothing between.
 
-The catalog is then the fold of the log: each path's last event (`stateOf`), an active row for a
-`store`, a tombstoned row for a `retire` with the digest of the path's last `store`, and no row
-when that `store` is a hole or the path's last event is a `move`. The state at a position is the
-same fold of the prefix (`stateAt`), read by one seek as the path's last event at or under the
-position (`stateAt_eq_lastWrite`), or for every path at once through the closing stamp: the rows
-with `seq ≤ c` and `closed_at` absent or above `c` (`genRead_gens`). The stamp is the one field
-written after a row is appended, and it is a function of the rows, the position of the path's
+The catalog is then the fold of the log: each path's last event (`stateOf`) in the chain that holds
+its present, the one where its last event is not a `leave`; an active row for a `store`; a
+tombstoned row for a `retire` or a `move`, with the digest and title of the path's last `store` and
+the identity the tombstone names; and no row when that `store` is a hole. (The design read a `move`
+as no row, which the catalog contradicts: it keeps a renamed path's row, tombstoned.) The state at a
+position is the same fold of the prefix (`stateAt`), read by one seek as the path's last event at or
+under the position (`stateAt_eq_lastWrite`), or for every path at once through the closing stamp:
+the rows with `seq ≤ c` and `closed_at` absent or above `c` (`genRead_gens`). The stamp is the one
+field written after a row is appended, and it is a function of the rows, the position of the path's
 next event (`gens_append_singleton`), so it can be rebuilt and it changes no read at a cut inside
 the chain (`genRead_gens_append`). At most one row of a path is alive at a cut
-(`length_filter_selects_le_one`), which is L7's falsifier turned into a theorem. `[THEOREM:
-SNP-5]` The store's own precedent is the staging store: a generation clock, an admission stamp
-and a tombstone stamp on each row, and `read_at(g)` as exactly this predicate
+(`length_filter_selects_le_one`), which is L7's falsifier turned into a theorem. `[THEOREM: SNP-5]`
+The store's own precedent is the staging store: a generation clock, an admission stamp and a
+tombstone stamp on each row, and `read_at(g)` as exactly this predicate
 (`core/stores/staging.py:232-244`). `[ESTABLISHED]`
 
 ### 3.3 The cut and its record
@@ -1147,7 +1181,7 @@ content. `[THEOREM: SNP-9 for the chain; DERIVED for the salt]` What stays, and 
 
 - `chain`, `seq` and `kind`: the position, which the erasure must keep.
 - `path_key`: so that the hole shadows. It can be tested against a guess of the path only with
-  the chain's secret, which is in the same file as the rows.
+  the instance's landing-log secret, which is not in the file (§3.2, as built at SN-1).
 - `closed_at` and `version`: positions and a count, no content. `closed_at` is a function of
   the rows that keep their keys, so nulling it would hide nothing.
 - `att_head`: a position on another chain.
@@ -1939,8 +1973,9 @@ given as arithmetic are marked so where they stand.
 The probes are short scripts and are not in the repository: this pull request changes no
 Python, and the newest notes keep a harness under `eval/` with a record under
 `docs/experiments/`. So these figures cannot be repeated from the tree as it stands. Each stage
-of §12 commits the harness of what it builds with its record: SN-1 the log's size and reads,
-SN-3 the purge probe as a test, SN-5 the causal probes. The table gives each fixture closely
+of §12 commits the harness of what it builds with its record: SN-1 the log's size and reads
+(done: `eval/landing_log_bench.py`, measured on the corpus's catalog, below the table), SN-3 the
+purge probe as a test, SN-5 the causal probes. The table gives each fixture closely
 enough to be built again.
 
 One machine (Apple M2 Pro, 12 cores, 32 GB, macOS 27.0) with other work running, the load
@@ -1971,6 +2006,25 @@ recomputed over a real instance's sessions, cold or warm; a vector search with s
 joined to the heads at a cut; the reads of the chat log and the attestation ledger through their
 chain tables; a retention pass. Each is the measurement of the stage that builds it.
 
+**Measured at SN-1, on a copy of the corpus instance's catalog (added 2026-11-11).** The log as
+built, by its committed harness (`eval/landing_log_bench.py`), on two copy-on-write clones of the
+corpus instance's catalog, 400,274 rows all `observed` and active; the record is
+`docs/experiments/landing-log-2026-11-11.md`, every figure in its JSON. The same machine, with
+Python 3.15.2 and SQLite 3.54.1 and other work running. `[MEASURED]`
+
+| probe | result |
+|---|---|
+| the migration: the tables, their indexes and the genesis, one chain of 400,276 rows | 6.22 to 6.33 s; the file 162.7 MB before and 334.1 MB after, 429 bytes a row (the table 381, the key index 47, the other two empty); the fold of the log equal to the catalog row by row |
+| `verify`, every commitment and hash from the first row | 3.05 to 3.07 s |
+| the reads | `state_at` of one path at the middle cut 14.3 to 14.8 µs, 1.6 of them the keyed hash; `history_at` at the head 14.7 to 15.7 µs; `read_at` and `read_between` of 1,000 positions 3.3 to 3.4 ms, the rows built in Python; `heads_at` 0.15 s at a tenth, 0.79 to 0.80 s at the middle and 1.6 s at the head, of which the walk in SQL is 6 ms, 26 ms and 54 to 57 ms |
+| a key's write in a batch of 10,000, with the log and without | a new path 48.9 to 49.0 µs against 6.8; a new version of a held path 106.0 to 106.5 against 37.9 to 41.2: 42 and 65 to 69 µs added, 0.1 to 0.2 percent of a lazy landing's 31 ms (`docs/experiments/two-phase-ingestion-2026-11-07.md`) |
+
+Two findings came out of it. The update that writes a row's closing stamp took the primary key and
+walked the chain, about 40 ms a landing at this size, until it named the key index as the seeks do
+(§4.1); a test now asks the plan of every statement by path to name it. And every head at the head
+of a chain of 400,274 events is 1.6 s, past §4.2's tenth of a second, the walk itself at 0.14 µs an
+event: the corpus's chain is the one §4.2 says keeps heads at recorded cuts from SN-4 on (SN-c).
+
 ## 12. The build order
 
 Nothing is built by this note. What the merge licenses is decision D12. The stages, each a pull
@@ -1978,7 +2032,11 @@ request against main with its tests and its rollback, each transcribing its laws
 property-testing the transcription against the Lean statements; the laws a stage relies on enter
 `docs/LAWS.md` and `formal/Spec/` with it, as design theorems do when code comes to rely on them.
 
-- **SN-1 the landing log.** What is built:
+- **SN-1 the landing log.** Built on 2026-11-11: `core/stores/landings.py` and the catalog's six
+  methods, `tests/property/test_landing_log.py`, family XVI of `docs/LAWS.md` with
+  `formal/Spec/Snapshot.lean`, and the measurements of §11; the three departures from §3.2 are
+  marked there, and the landing-log secret is a deploy's precondition (`docs/runbook.md` §0).
+  What is built:
   - The tables `landing_chains` and `landings` of §3.2 with their three indexes, in the
     catalog's file, created by the catalog's own migration after it fills `doc_id`
     (`core/stores/catalog.py:77-92`), and the genesis of §3.2 for each class the catalog holds.
@@ -2017,7 +2075,10 @@ property-testing the transcription against the Lean statements; the laws a stage
   `formal/comparator.json` gains their names, as the last family added did.
 
   Rollback: the tables are additive and unread, so dropping them restores the file; a build
-  that stops writing them and resumes later appends a `horizon`.
+  that stops writing them and resumes later appends a `horizon`. As built, the resumption is a
+  new genesis on the dropped tables, which ends at its `horizon`: a build without the log that
+  wrote the catalog while the tables stayed would leave the log behind the catalog, and nothing
+  detects that yet, so the rollback drops them (`docs/runbook.md` §0).
 - **SN-2 cuts.** The chain tables, each with its running hash and its genesis followed by a horizon,
   for `chat`, `att`, `staging` and `runs`; `att_head` filled from then on; on the chain-table row of
   a pass attestation and of a run, the landing chains that held its inputs and the head of each, and
