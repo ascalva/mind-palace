@@ -10,7 +10,8 @@
 # A secret you haven't provisioned yet resolves to empty — which is falsy, so the layer that needs
 # it stays fail-closed (e.g. [attestation] enabled = true with no key is a hard error). Place only
 # the ones whose layer you've turned on. The landing log's secret is the exception: the catalog's
-# log has no switch, so a process that writes the catalog refuses to without it (runbook §0).
+# log has no switch, so the first process to open a catalog that has no log yet, and any process
+# that writes the catalog, refuses to without it (runbook §0).
 set -eu
 
 # These are Ouroboros's items. A named instance (MIND_PALACE_OVERLAY, DI-2) reads its own,

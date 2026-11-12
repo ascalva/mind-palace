@@ -436,12 +436,19 @@ fail-closed where it matters (see §1). Place only the ones whose layer you're t
 
 **One secret has no switch: the landing log's** (`landing-log-key`; dn-temporal-snapshot §3.2,
 stage SN-1). The catalog keeps its past in two tables of its own file, and every row names its path
-by a keyed hash whose key is this secret, so the file alone cannot be tested against a guess of a
-purged path. The first open of a catalog that has rows writes the log's genesis, and every write of
-the catalog appends to the log, so a process that writes the catalog refuses to, loudly, without
-the secret (`LandingLogKeyMissing`), and writes nothing; a read needs no secret once the genesis is
-written. Place it before deploying the build that brings the log, and run the daemon under the
-wrapper above (it carries the item), or the daemon stops at its first open:
+by a keyed hash whose key is half in the file and half this secret, so the key a purged row keeps
+cannot be tested against a guess of the path without it. The first open of a catalog that has rows
+and no log writes the log's genesis, whichever process opens it, a reader included, so that open
+needs the secret and holds the catalog's write lock for the genesis (six seconds on a catalog of
+400,000 items) while other openers wait. After that, every write that appends to the log needs the
+secret: a `record` or a `tombstone` that changes the catalog, the owner's re-key, and `remove`,
+which finds a path's rows by their key. Without it they refuse, loudly
+(`LandingLogKeyMissing`), and write nothing. A relabel, a purge by digest and a write that changes
+nothing need no secret, and nor does a read, except the log's two reads of one path
+(`state_at`, `history_at`), which nothing calls yet. Place it before deploying the build that
+brings the log, and run every process that opens the catalog under the wrapper above (it carries
+the item), the daemon first, or the first of them to open the catalog stops there. Whether the
+genesis should move off the first open is open with the owner (dn-temporal-snapshot §12, SN-1):
 
 ```sh
 openssl rand -hex 32                                                    # 32 random bytes, as hex
@@ -452,7 +459,10 @@ A named instance reads `<id>.landing-log-key`, and the wrapper refuses a named i
 instance's process must be given the item under its own name. The secret is not recoverable from
 the log: a lost one leaves the log unwritable (`LandingLogKeyMismatch` for any other value), so
 keep it with the attestation keys. A rollback to a build without the log drops the two tables
-(`landing_chains`, `landings`); the next open of a build with the log writes a new genesis.
+(`landing_chains`, `landings`); the next open of a build with the log writes a new genesis, its
+chains numbered from 1 again. A purge empties the log's rows of what it removes, but SQLite keeps
+the bytes it frees in the file until a `VACUUM`, so a copy of the file taken before one still holds
+them.
 
 ### 1. Attestation signing keys — turn on the signed runtime-proof layer
 
@@ -627,7 +637,7 @@ is Phase 5 (the bridge holding its own identity). On a single-user Mac with SSO 
 | `attestation-signing-key` | Keychain | `build_attestor` (supervisor signer) | signs all non-gate attestations |
 | `attestation-owner-key` | Keychain | `build_attestor` (owner signer) | signs **gate decisions only** |
 | `vault-supervisor-token` | Keychain | `build_secrets_backend` | mints scoped child tokens; reads no role secret |
-| `landing-log-key` | Keychain | `VaultCatalog` (`core/stores/landings.py::landing_log_key`) | keys the landing log's hash of a path; every catalog write needs it |
+| `landing-log-key` | Keychain | `VaultCatalog` (`core/stores/landings.py::landing_log_key`) | keys the landing log's hash of a path; the log's genesis at the first open and every catalog write that appends to the log need it |
 | `vault-unseal-key` / `vault-root-token` | Keychain | the unseal LaunchAgent / you | bootstrap Vault itself |
 | `kv/oura-daily-aggregates` | Vault kv-v2 | `dreamer`, `correlator` tokens | biometric aggregates |
 | `kv/oura-api-token` | Vault kv-v2 | `bridge`, `advisor` tokens | Oura API |
