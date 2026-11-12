@@ -11,11 +11,13 @@
 # tree. `palace repo-sync` lands each one's files as items of the reference stratum, a changed file
 # a new version and a file gone from the ref retired, with their lexical units and no vector; a
 # second run after no commit lands nothing. No daemon runs for this instance: it embeds nothing,
-# and nothing in it wakes a model.
+# and nothing in it wakes a model. An external agent is served the read-only guest's surface,
+# `query` and `overview` alone (docs/design-notes/dn-guest-principal.md).
 #
 #   MIND_PALACE_OVERLAY=config/instances/code.toml uv run scripts/palace.py repo-sync
 #   MIND_PALACE_OVERLAY=config/instances/code.toml uv run scripts/palace.py query 'near "x" over reference'
 #   MIND_PALACE_OVERLAY=config/instances/code.toml uv run python scripts/palace_mcp.py
+#   MIND_PALACE_OVERLAY=config/instances/code.toml uv run python scripts/palace_mcp.py --role guest
 
 [instance]
 id = "code"

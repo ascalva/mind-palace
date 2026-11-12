@@ -170,8 +170,11 @@ The MCP server runs against the instance by its overlay:
 
 The read is the one `query` tool; a lookup is `top 5 near "<words>" over reference`, `read
 "code/<name>/<path>"`, `trace "code/<name>/<path>"`. The server's write tools spool requests that
-no daemon of this instance lands; the read-only principal of the parallel guest work removes them
-from the tool list once it merges.
+no daemon of this instance lands. With `--role guest` it serves the read-only principal instead
+(`dn-guest-principal`): `query` and `overview` alone, no write tool, and a grant with no version
+plane, so `trace` is refused there and the other lookups answer as above.
+
+    MIND_PALACE_OVERLAY=config/instances/code.toml uv run --project <checkout> python <checkout>/scripts/palace_mcp.py --role guest
 
 ## 5. The default instance's code, without embedding
 
