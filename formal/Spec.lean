@@ -24,5 +24,6 @@ public import Spec.Scope
 public import Spec.Script
 public import Spec.Sentence
 public import Spec.SigmaStar
+public import Spec.Snapshot
 public import Spec.Spectral
 public import Spec.Utility
