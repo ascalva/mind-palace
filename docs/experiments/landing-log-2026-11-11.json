@@ -1,0 +1,413 @@
+{
+ "note": "eval/landing_log_bench.py on two copy-on-write clones of the corpus instance's catalog, 2026-11-11; default arguments (--batch 10000 --rounds 5 --repeat 200 --seed 11)",
+ "run1": {
+  "catalog_copy": "vault_catalog.sqlite",
+  "load_start": [
+   2.26123046875,
+   2.5947265625,
+   2.93701171875
+  ],
+  "python": "3.15.2",
+  "sqlite": "3.54.1",
+  "machine": "arm64",
+  "batch": 10000,
+  "rounds": 5,
+  "repeat": 200,
+  "seed": 11,
+  "catalog_rows": {
+   "observed active": 400274
+  },
+  "has_log_before": false,
+  "files_before": {
+   "vault_catalog.sqlite": 162652160,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 32768
+  },
+  "objects_before": {
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "migration_s": 6.220551250036806,
+  "chains": {
+   "1": {
+    "class": "observed",
+    "rows": 400276
+   }
+  },
+  "log_rows": 400276,
+  "files_after": {
+   "vault_catalog.sqlite": 334131200,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "objects_after": {
+   "landing_chains": 4096,
+   "landings": 152621056,
+   "landings_closed": 4096,
+   "landings_doc": 4096,
+   "landings_path": 18845696,
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "growth_bytes": 171806720,
+  "growth_bytes_a_row": 429.22063775994565,
+  "bytes_a_row": {
+   "landings": 381.28955021035483,
+   "landings_path": 47.081753590022885,
+   "landings_doc": 0.010232939271902388,
+   "landings_closed": 0.010232939271902388,
+   "landing_chains": 0.010232939271902388
+  },
+  "verify": {
+   "1": {
+    "ok": true,
+    "rows": 400276,
+    "commitments": 400276,
+    "seconds": 3.0703140411060303
+   }
+  },
+  "fold_equals_catalog": true,
+  "fold_seconds": 2.8317980838473886,
+  "reads": {
+   "chain": 1,
+   "class": "observed",
+   "head": {
+    "median_us": 2.4170149117708206,
+    "low_us": 2.3329630494117737,
+    "high_us": 18.124934285879135,
+    "runs": 200
+   },
+   "path_key": {
+    "median_us": 1.5830155462026596,
+    "low_us": 1.4998950064182281,
+    "high_us": 26.665860787034035,
+    "runs": 200
+   },
+   "state_at_mid": {
+    "median_us": 14.25005029886961,
+    "low_us": 8.167000487446785,
+    "high_us": 160.33300198614597,
+    "runs": 200
+   },
+   "history_at_head": {
+    "median_us": 15.708035789430141,
+    "low_us": 13.417098671197891,
+    "high_us": 66.83287210762501,
+    "runs": 200
+   },
+   "read_between_1000": {
+    "median_us": 3442.95846298337,
+    "low_us": 3368.9169213175774,
+    "high_us": 3593.666944652796,
+    "runs": 200
+   },
+   "read_at_1000": {
+    "median_us": 3280.0829503685236,
+    "low_us": 3207.0830930024385,
+    "high_us": 3584.667108952999,
+    "runs": 200
+   },
+   "heads_at_tenth": {
+    "median_us": 151410.75011342764,
+    "low_us": 150872.8750050068,
+    "high_us": 169505.79197145998,
+    "runs": 5,
+    "rows": 40026
+   },
+   "heads_walk_tenth": {
+    "median_us": 5558.416014537215,
+    "low_us": 5286.04188002646,
+    "high_us": 6100.333062931895,
+    "runs": 5
+   },
+   "heads_at_mid": {
+    "median_us": 789987.4169379473,
+    "low_us": 759208.207949996,
+    "high_us": 810563.457896933,
+    "runs": 5,
+    "rows": 200137
+   },
+   "heads_walk_mid": {
+    "median_us": 26317.6248408854,
+    "low_us": 26199.499843642116,
+    "high_us": 27383.832959458232,
+    "runs": 5
+   },
+   "heads_at_head": {
+    "median_us": 1617782.6661150903,
+    "low_us": 1572967.833140865,
+    "high_us": 1625654.5409560204,
+    "runs": 5,
+    "rows": 400274
+   },
+   "heads_walk_head": {
+    "median_us": 56461.54098212719,
+    "low_us": 55988.00000734627,
+    "high_us": 60100.20803660154,
+    "runs": 5
+   }
+  },
+  "writes_us_a_record": {
+   "new": {
+    "with": [
+     48.001220799051225,
+     48.92591249663383,
+     48.21360409259796,
+     49.26652500871569,
+     50.32935000490397
+    ],
+    "without": [
+     6.799195799976587,
+     6.8319084122776985,
+     6.65885410271585,
+     6.896770792081952,
+     6.805129209533334
+    ],
+    "with_median_us": 48.92591249663383,
+    "without_median_us": 6.805129209533334,
+    "overhead_us": 42.120783287100494
+   },
+   "changed": {
+    "with": [
+     105.88544998317957,
+     109.1484708013013,
+     105.0655041821301,
+     106.46303340326995,
+     107.13723751250654
+    ],
+    "without": [
+     40.69942079950124,
+     40.631037508137524,
+     37.9464291036129,
+     37.86343338433653,
+     37.41974588483572
+    ],
+    "with_median_us": 106.46303340326995,
+    "without_median_us": 37.9464291036129,
+    "overhead_us": 68.51660429965705
+   }
+  },
+  "verify_after_writes": true,
+  "files_end": {
+   "vault_catalog.sqlite": 389640192,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "load_end": [
+   8.271484375,
+   4.3427734375,
+   3.572265625
+  ]
+ },
+ "run2": {
+  "catalog_copy": "vault_catalog.sqlite",
+  "load_start": [
+   8.271484375,
+   4.3427734375,
+   3.572265625
+  ],
+  "python": "3.15.2",
+  "sqlite": "3.54.1",
+  "machine": "arm64",
+  "batch": 10000,
+  "rounds": 5,
+  "repeat": 200,
+  "seed": 11,
+  "catalog_rows": {
+   "observed active": 400274
+  },
+  "has_log_before": false,
+  "files_before": {
+   "vault_catalog.sqlite": 162652160,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 32768
+  },
+  "objects_before": {
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "migration_s": 6.325798250036314,
+  "chains": {
+   "1": {
+    "class": "observed",
+    "rows": 400276
+   }
+  },
+  "log_rows": 400276,
+  "files_after": {
+   "vault_catalog.sqlite": 334127104,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "objects_after": {
+   "landing_chains": 4096,
+   "landings": 152621056,
+   "landings_closed": 4096,
+   "landings_doc": 4096,
+   "landings_path": 18841600,
+   "sqlite_autoindex_vault_files_1": 16924672,
+   "sqlite_schema": 4096,
+   "vault_files": 94765056,
+   "vault_files_digest": 34033664,
+   "vault_files_doc_id": 16924672
+  },
+  "growth_bytes": 171802624,
+  "growth_bytes_a_row": 429.2104048206737,
+  "bytes_a_row": {
+   "landings": 381.28955021035483,
+   "landings_path": 47.07152065075098,
+   "landings_doc": 0.010232939271902388,
+   "landings_closed": 0.010232939271902388,
+   "landing_chains": 0.010232939271902388
+  },
+  "verify": {
+   "1": {
+    "ok": true,
+    "rows": 400276,
+    "commitments": 400276,
+    "seconds": 3.051000916864723
+   }
+  },
+  "fold_equals_catalog": true,
+  "fold_seconds": 2.848458959022537,
+  "reads": {
+   "chain": 1,
+   "class": "observed",
+   "head": {
+    "median_us": 2.459157258272171,
+    "low_us": 2.37487256526947,
+    "high_us": 24.124979972839355,
+    "runs": 200
+   },
+   "path_key": {
+    "median_us": 1.5830155462026596,
+    "low_us": 1.4998950064182281,
+    "high_us": 22.999942302703857,
+    "runs": 200
+   },
+   "state_at_mid": {
+    "median_us": 14.832941815257072,
+    "low_us": 8.542090654373169,
+    "high_us": 133.2079991698265,
+    "runs": 200
+   },
+   "history_at_head": {
+    "median_us": 14.666467905044556,
+    "low_us": 13.249926269054413,
+    "high_us": 63.04099224507809,
+    "runs": 200
+   },
+   "read_between_1000": {
+    "median_us": 3424.0210661664605,
+    "low_us": 3286.0420178622007,
+    "high_us": 3612.959058955312,
+    "runs": 200
+   },
+   "read_at_1000": {
+    "median_us": 3255.7500526309013,
+    "low_us": 3225.250169634819,
+    "high_us": 3565.666964277625,
+    "runs": 200
+   },
+   "heads_at_tenth": {
+    "median_us": 151474.91707466543,
+    "low_us": 150040.70801660419,
+    "high_us": 160787.37494535744,
+    "runs": 5,
+    "rows": 40026
+   },
+   "heads_walk_tenth": {
+    "median_us": 5932.959029451013,
+    "low_us": 5322.749959304929,
+    "high_us": 6092.166993767023,
+    "runs": 5
+   },
+   "heads_at_mid": {
+    "median_us": 798841.6668958962,
+    "low_us": 764181.62509799,
+    "high_us": 805269.2501805723,
+    "runs": 5,
+    "rows": 200137
+   },
+   "heads_walk_mid": {
+    "median_us": 26318.04207339883,
+    "low_us": 25891.083059832454,
+    "high_us": 27076.20896399021,
+    "runs": 5
+   },
+   "heads_at_head": {
+    "median_us": 1613144.7500083596,
+    "low_us": 1580234.7920835018,
+    "high_us": 1634123.8748282194,
+    "runs": 5,
+    "rows": 400274
+   },
+   "heads_walk_head": {
+    "median_us": 54320.41618041694,
+    "low_us": 52884.4587970525,
+    "high_us": 57886.87500171363,
+    "runs": 5
+   }
+  },
+  "writes_us_a_record": {
+   "new": {
+    "with": [
+     48.21380840148777,
+     48.990112519823015,
+     48.84648330044001,
+     49.588733399286866,
+     49.51973750721663
+    ],
+    "without": [
+     6.882070912979543,
+     6.796324998140335,
+     6.684429198503494,
+     6.795345805585384,
+     6.710762483999133
+    ],
+    "with_median_us": 48.990112519823015,
+    "without_median_us": 6.795345805585384,
+    "overhead_us": 42.19476671423763
+   },
+   "changed": {
+    "with": [
+     110.63325421418995,
+     106.03663329966366,
+     104.65863330755383,
+     106.02083748672158,
+     105.65141250845045
+    ],
+    "without": [
+     43.35534158162773,
+     41.16715001873672,
+     41.45721250679344,
+     37.74790000170469,
+     39.11720409523696
+    ],
+    "with_median_us": 106.02083748672158,
+    "without_median_us": 41.16715001873672,
+    "overhead_us": 64.85368746798486
+   }
+  },
+  "verify_after_writes": true,
+  "files_end": {
+   "vault_catalog.sqlite": 389656576,
+   "vault_catalog.sqlite-wal": 0,
+   "vault_catalog.sqlite-shm": 360448
+  },
+  "load_end": [
+   7.1728515625,
+   4.68798828125,
+   3.74462890625
+  ]
+ }
+}
