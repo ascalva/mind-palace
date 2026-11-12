@@ -7,12 +7,13 @@ key and its log rows land together and no caller can write one without the other
 is unchanged: the key last, now two rows of one transaction). The catalog is the fold of the log,
 and the state of a path at a past position is the same fold of a prefix (SNP-5).
 
-**Chains.** A chain is an append order with an integer id that is never reused or changed, and
-it holds one provenance class, which is its label in `landing_chains`. A relabel of a class
-rewrites that label and no row of the log, so it moves no position and breaks no hash; after a
-merge a class has two chains and the read of a class is the union of its chains' reads. A path's
-events stay in the chain that holds its last event; a path that changes class leaves its chain
-with a `leave` row and lands in a chain of its new class.
+**Chains.** A chain is an append order with an integer id that is never changed and is given
+once while the log's tables stand (a rollback that drops them begins the ids again,
+dn-temporal-snapshot §12), and it holds one provenance class, which is its label in
+`landing_chains`. A relabel of a class rewrites that label and no row of the log, so it moves no
+position and breaks no hash; after a merge a class has two chains and the read of a class is the
+union of its chains' reads. A path's events stay in the chain that holds its last event; a path
+that changes class leaves its chain with a `leave` row and lands in a chain of its new class.
 
 **Rows.** `genesis` and `horizon` open a chain (§8: the positions before a horizon are under
 it); `store` is a landing; `retire` the tombstone of an identity no other active path holds;
