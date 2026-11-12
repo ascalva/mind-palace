@@ -751,9 +751,12 @@ def test_a_purge_of_every_version_of_a_deleted_note_leaves_no_row_that_names_it(
     vault, then each of its digests purged by `remove_digest`. While one of its versions keeps its
     content the path's other rows keep its name; once none does, its `leave` and its `retire` are
     emptied too, so no row names the path or the identity, or carries the date of its delete; the
-    holes keep their keys and positions. After a vacuum no byte of the file holds either name."""
+    holes keep their keys and positions. Another note held one of the digests before: its row of
+    that digest is emptied too, as every row of a digest is, and its later version keeps its name
+    on its other rows. After a vacuum no byte of the file holds either name of the purged note."""
     db = tmp_path / "catalog.sqlite"
     cat = VaultCatalog(db)
+    cat.record("keep.md", "dp1", "K")                   # an earlier version, the bytes of dp1
     cat.record("keep.md", "dk", "K")
     note = "notes/private-topic.md"
     cat.record(note, "dp1", "Private", doc_id="id-private")
@@ -766,8 +769,9 @@ def test_a_purge_of_every_version_of_a_deleted_note_leaves_no_row_that_names_it(
     cat.remove_digest("dp1")
     rows = log_rows(cat)
     assert all(note not in (r.source_path, r.doc_id) and r.doc_id != "id-private" for r in rows)
+    assert all(r.digest != "dp1" for r in rows)          # keep.md's row of it as well
     holes = [r for r in rows if r.hole]
-    assert sorted(r.kind for r in holes) == ["leave", "retire", "store", "store"]
+    assert sorted(r.kind for r in holes) == ["leave", "retire", "store", "store", "store"]
     assert all(emptied(r) and r.path_key is not None for r in holes)
     assert cat.get(note) is None and cat.get("keep.md") is not None
     assert_consistent(cat)
@@ -889,8 +893,8 @@ def test_every_statement_by_path_seeks_the_key_index() -> None:
     """A write or a read of one path touches that path's rows through `landings_path`, never by
     walking the chain: on the corpus's 400,274 rows the planner took the primary key for the
     closing stamp's update, and a landing took 40 ms where it takes tens of microseconds. A
-    purge by digest walks the log for the digest and the names, which have no index, and then
-    reaches each path's rows by their key."""
+    purge by digest walks the log twice, for the digest and for the names, which have no index;
+    it empties the digest's rows by their positions and reaches each path's rows by their key."""
     cat = VaultCatalog(Path(":memory:"))
     for i in range(50):
         cat.record(f"p{i}.md", f"d{i}", "t")
@@ -904,11 +908,18 @@ def test_every_statement_by_path_seeks_the_key_index() -> None:
     cat.state_at(Provenance.AUTHORED_SOLO, "p1.md", {chain: 30})
     cat.history_at(Provenance.AUTHORED_SOLO, "p1.md", {chain: cat.head(chain)})
     cat.remove("p3.md")
+    purge = len(seen)
     cat.remove_digest("d5")                             # p5's only version: its retire as well
     cat._conn.set_trace_callback(None)
+
+    def plan(q: str) -> str:
+        return " ".join(str(tuple(r)[-1]) for r in cat._conn.execute("EXPLAIN QUERY PLAN " + q))
+
     by_path = [q for q in seen if "path_key = " in q]
     assert len(by_path) >= 8
     for q in by_path:
-        plan = " ".join(str(tuple(r)[-1]) for r in cat._conn.execute("EXPLAIN QUERY PLAN " + q))
-        assert "landings_path" in plan, (q, plan)
+        assert "landings_path" in plan(q), (q, plan(q))
+    walks = [q for q in seen[purge:] if q.split(None, 1)[0] in ("SELECT", "UPDATE", "DELETE")
+             and "SCAN landings" in plan(q)]
+    assert len(walks) == 2, walks
     assert all(r.source_path != "p5.md" for r in log_rows(cat))
