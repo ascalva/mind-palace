@@ -271,3 +271,39 @@ def test_a_ledger_this_process_cannot_write_opens_and_answers_from_the_records(
         store.close()
     finally:
         os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+
+
+def test_a_ledger_whose_migration_fails_opens_and_answers_from_the_records(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A full file (SQLite refuses its next page, as a full disk refuses a write): the migration
+    is rolled back, the ledger opens and answers every lookup from the records, as the old code
+    did, and does not try the migration again until it is opened again; an append fails, as any
+    write to a full file does. The next open makes the table."""
+    path = tmp_path / "att.sqlite"
+    atts = _old_ledger(path, OLD)
+    connect = sqlite3.connect
+
+    def full(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        conn = connect(*args, **kwargs)
+        (pages,) = conn.execute("PRAGMA page_count").fetchone()
+        conn.execute(f"PRAGMA max_page_count = {pages}")         # not one page more
+        return conn
+
+    monkeypatch.setattr(sqlite3, "connect", full)
+    store = AttestationStore(path)
+    assert not store._has_outputs() and not store._conn.in_transaction
+    ran: list[str] = []
+    store._conn.set_trace_callback(ran.append)
+    assert store.producers_of({"h2"}) == {atts[0].id, atts[1].id}
+    assert_lookups_agree(store)
+    assert not any("BEGIN IMMEDIATE" in s for s in ran)        # not tried again
+    store._conn.set_trace_callback(None)
+    with pytest.raises(sqlite3.OperationalError, match="full"):
+        store.append(_att("capture", [f"x{i}" for i in range(2000)], ["h1"], 0))
+    assert not store._has_outputs() and store.count() == len(OLD)
+    store.close()
+    monkeypatch.undo()
+    again = AttestationStore(path)
+    assert again._has_outputs() and table(again) == scan(again)
+    assert_lookups_agree(again)
+    again.close()

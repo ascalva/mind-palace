@@ -15,11 +15,13 @@ action, keyed by the hash: a lookup is an index seek, where it was a decode of e
 table is written by a trigger on the ledger, so every append writes its rows in its own statement
 and transaction, whatever process appends, and a rolled-back append leaves none. A ledger written
 before the table existed gets it on its first open, filled from the records in one transaction.
-That migration does not wait for the file's write lock: a process that opens the ledger while
-another holds the lock, or one that cannot write the file, opens at once and answers the lookups
-by one pass over the records, as the ledger answered them before the table, until the table
-exists. The table is derived from the records and changes no record: the ledger stays
-append-only.
+No open or lookup fails because of that migration. It does not wait for the file's write lock: a
+process that opens the ledger while another holds the lock opens at once and answers the lookups
+by one pass over the records, as the ledger answered them before the table, until a lookup finds
+the lock free and makes the table. A migration that fails for any other reason (a file the
+process cannot write, a full disk) is rolled back, and the lookups pass over the records until
+the ledger is opened again. The table is derived from the records and changes no record: the
+ledger stays append-only.
 """
 
 from __future__ import annotations
@@ -65,8 +67,7 @@ _OUTPUTS = (
 )
 _BATCH = 400
 _TIMEOUT_S = 5.0          # how long a statement waits for another connection's lock
-# a lock another connection holds, or a file this process cannot write
-_UNWRITABLE = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED, sqlite3.SQLITE_READONLY)
+_LOCKED = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)     # a lock another connection holds
 
 
 @dataclass(frozen=True)
@@ -119,6 +120,7 @@ class AttestationStore:
         with self._lock:
             self._conn.executescript(_DDL)
             self._conn.commit()
+            self._migration_failed = False   # failed but for the lock: not tried again here
             self._indexed = self._migrate()
 
     def _has_outputs(self) -> bool:
@@ -128,15 +130,19 @@ class AttestationStore:
     def _migrate(self) -> bool:
         """Give a ledger written before the output-hash side table its table, its rows and its
         trigger, in one transaction (another process may have done it first: checked again
-        inside); True once the table exists. The migration does not wait for the write lock:
-        while another connection holds it, or when this process cannot write the file, nothing is
-        written and the answer is False, and the lookups pass over the records until a later
-        open or lookup finds the table or makes it. A crash midway leaves the ledger as it was,
-        to be migrated at the next open."""
+        inside); True once the table exists. Only the open and the lookups call it, and it never
+        fails them. The migration does not wait for the write lock: while another connection
+        holds it nothing is written, the answer is False, and the lookups pass over the records
+        until a later lookup finds the table or makes it. Any other failure (a file this process
+        cannot write, a full disk, an I/O error) is rolled back and answers False, and this store
+        does not try again; its next open does. A crash midway leaves the ledger as it was, to be
+        migrated at the next open."""
         if self._has_outputs():
             return True
         conn = self._conn
         if conn.in_transaction:         # inside a deferred block: its appends are not ours to end
+            return False
+        if self._migration_failed:
             return False
         try:
             conn.execute("PRAGMA busy_timeout = 0")
@@ -148,11 +154,10 @@ class AttestationStore:
                 for statement in _OUTPUTS:
                     conn.execute(statement)
             conn.commit()
-        except sqlite3.OperationalError as exc:
+        except sqlite3.Error as exc:
             conn.rollback()
-            if (getattr(exc, "sqlite_errorcode", 0) & 0xFF) in _UNWRITABLE:
-                return False
-            raise
+            self._migration_failed = (getattr(exc, "sqlite_errorcode", 0) & 0xFF) not in _LOCKED
+            return False
         except BaseException:
             conn.rollback()
             raise
