@@ -25,6 +25,8 @@
     - the `ouroboros` role account exists and owns the vault + data/ (data/logs must be
       ouroboros-writable — StandardOut/Err sink there);
     - the unseal keychain item + Syncthing have migrated to `ouroboros`;
+    - the landing-log-key item is in `ouroboros`'s keychain, with the value the catalog's log was
+      written with (the log refuses another; docs/runbooks/plane-migration.md §7);
     - `/Users/ascalva` is traversable by `ouroboros` so it can reach the repo + ~/.mind-palace.
   ExitTimeOut gives the drain time to finish before launchd escalates to SIGKILL. Adjust the
   absolute paths if your checkout is elsewhere.
@@ -42,6 +44,12 @@
 
 	<key>ProgramArguments</key>
 	<array>
+		<!-- The secrets wrapper first, as in the gui agent: the daemon writes the catalog, and every
+		     write that appends a row to its landing log, the genesis included, needs the
+		     landing-log secret (docs/runbook.md §0). Run as ouroboros, the wrapper reads
+		     ouroboros's keychain, where the item is placed as the unseal key is
+		     (docs/runbooks/plane-migration.md §7). -->
+		<string>/Users/ascalva/mind-palace/scripts/run_with_secrets.sh</string>
 		<!-- uv owns env resolution (CONVENTIONS §Language); absolute path — launchd PATH is minimal -->
 		<string>/opt/homebrew/bin/uv</string>
 		<string>run</string>

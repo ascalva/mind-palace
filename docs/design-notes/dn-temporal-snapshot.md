@@ -2157,9 +2157,12 @@ property-testing the transcription against the Lean statements; the laws a stage
   the owner's to decide before SN-1 is deployed:
   the genesis written by a writer's first write, or by an owner-run migration, with an open that
   lacks the secret skipping it; or SN-1 stated as changing what the first open needs, with every
-  process, the daemon's plists included (`ops/lifecycle/com.mind-palace.palace.plist`, its daemon
-  twin), run with the secret in its environment. Until then the runbook's §0 makes the secret a
-  precondition of the deploy.
+  process that may open the catalog first run with the secret in its environment. Under either,
+  every writer needs the secret, the daemon first, and a deploy installs a committed plist that
+  changed (`ops/lifecycle/launcher.py:1071-1078`); so the two plists
+  (`ops/lifecycle/com.mind-palace.palace.plist`, its daemon twin) run the daemon under
+  `scripts/run_with_secrets.sh`, which carries the item, the twin, run as `ouroboros`, reading
+  it from that account's keychain. The runbook's §0 makes the item a precondition of the deploy.
 
   Tests, in `tests/property/test_landing_log.py`: SNP-1 to SNP-5 as §10 states them, over
   random sequences of catalog writes that include retires, renames, relabels and purges; the
