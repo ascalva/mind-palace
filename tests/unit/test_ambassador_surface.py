@@ -469,6 +469,33 @@ def test_a_reply_no_encoding_carries_is_written_as_ascii() -> None:
         assert json.loads(text) == {"sentence": sentence}
 
 
+def test_a_reply_is_utf8_on_a_stream_that_would_escape_a_surrogate() -> None:
+    """Python's UTF-8 mode gives stdout the `surrogateescape` handler, which does not refuse a
+    lone surrogate from U+DC80 to U+DCFF: it writes the byte the surrogate stands for, and that
+    byte is not UTF-8. A reply holding one is written as ASCII all the same, so every line the
+    client reads decodes as UTF-8 and is the same JSON."""
+    from agents.ambassador import mcp
+
+    class Echo:
+        def query(self, sentence: str) -> dict[str, Any]:
+            return {"sentence": sentence}
+
+    server = mcp.Server()
+    server._amb = Echo()  # type: ignore[assignment]
+    raw = io.BytesIO()
+    stream = io.TextIOWrapper(raw, encoding="utf-8", errors="surrogateescape")
+    hostile, plain = 'near "\udc80\udcff" over dialogue', 'near "café ∅"'
+    assert hostile.encode("utf-8", "surrogateescape") == b'near "\x80\xff" over dialogue'
+    mcp.serve(_calls(("query", {"sentence": hostile}), ("query", {"sentence": plain})), stream,
+              server)
+    first, second = raw.getvalue().decode("utf-8").splitlines()    # strict: every byte is UTF-8
+    assert first.isascii() and "\\udc80\\udcff" in first
+    assert "café ∅" in second                       # not escaped: readable as before
+    for line, sentence in ((first, hostile), (second, plain)):
+        text = json.loads(line)["result"]["content"][0]["text"]
+        assert json.loads(text) == {"sentence": sentence}
+
+
 def test_the_opencode_reader_keeps_text_parts_of_top_level_sessions(tmp_path: Path) -> None:
     from edge.opencode_sessions import export_sessions
 
