@@ -7,7 +7,8 @@ The manifest is a JSON array; each item is
 `{"source_path", "title", "body", "date", "supersedes"?}`. `date` is the musing's RECONSTRUCTED
 original date (required — undated is refused); `supersedes` is an earlier item's `source_path` this
 one revises (optional). Ingested through the steady-state path as AUTHORED_SOLO — the initial
-condition. Needs the live embedder (Ollama).
+condition. Needs the live embedder (Ollama). Refused while a reset of the instance is pending
+(`data/reset.pending`), before the manifest is read, as every writer is.
 
 This is CURATION, not training (founding-corpus.md §1): the weights never move. The founding set is
 deliberately biased-coherent and MUST NOT be reused as the Track-L control corpus (§2.3).
@@ -26,6 +27,14 @@ def main(argv: list[str]) -> int:
     if len(argv) != 1:
         print(__doc__)
         return 2
+    from config.loader import get_config
+    from ops.lifecycle.inventory import refusal
+
+    cfg = get_config()
+    pending = refusal(cfg, "the founding ingest")      # it lands; a pending reset refuses writers
+    if pending is not None:
+        print(pending)
+        return 1
     from core.ingest.founding import FoundingItem, build_and_ingest_founding
 
     data = json.loads(Path(argv[0]).read_text(encoding="utf-8"))
@@ -34,7 +43,7 @@ def main(argv: list[str]) -> int:
                      date=d["date"], supersedes=d.get("supersedes"))
         for d in data
     ]
-    print(build_and_ingest_founding(items))
+    print(build_and_ingest_founding(items, cfg))
     return 0
 
 

@@ -748,11 +748,33 @@ def test_p9_a_changed_embedder_while_a_reset_is_pending_names_the_way_out(
 # ── the scripts that write refuse while a reset is pending ──────────────────────────────────
 
 #: Each script that lands into an instance or writes a store the reset rebuilds, with the
-#: arguments of its writing run.
-WRITER_SCRIPTS = (("purge_raw", ["0" * 64, "--confirm"]), ("ingest_self_knowledge", None),
-                  ("mint_ids", ["--confirm"]), ("migrate_chunk_keys", ["--apply"]),
-                  ("migrate_provenance_split", ["--apply"]), ("reembed_bodyonly", ["--confirm"]),
-                  ("watch", None), ("corpus", ["embed"]))
+#: arguments of its writing run. A script that calls one of `WRITER_CALLS` must be here.
+WRITER_SCRIPTS: tuple[tuple[str, list[str] | None], ...] = (
+    ("purge_raw", ["0" * 64, "--confirm"]), ("ingest_self_knowledge", None),
+    ("mint_ids", ["--confirm"]), ("migrate_chunk_keys", ["--apply"]),
+    ("migrate_provenance_split", ["--apply"]), ("reembed_bodyonly", ["--confirm"]),
+    ("watch", None), ("corpus", ["embed"]), ("ingest", None),
+    ("ingest_founding", ["founding.json"]), ("snapshot_code", None), ("sense_self", None),
+    ("verdict", ["submit", "{}"]), ("review", []), ("talk", []))
+
+#: The calls by which a script lands into an instance or writes a store the reset rebuilds: the
+#: ingress and its stores, the vault's, the founding set's and the curated set's landings, a
+#: purge, the drains, the sensors and projectors of the derived stores, the verdict receiver,
+#: and the conversation runtime, which lands what the inbox kept when no daemon is live.
+WRITER_CALLS = frozenset({
+    "run_library", "build_stores", "run_ingest", "build_and_ingest_founding",
+    "build_and_ingest_curated", "purge_raw", "build_vault_sync", "build_code_corpus_sync",
+    "drain", "derive_lexical", "dialogue_sync", "build_code_sensor", "build_self_sensor",
+    "build_chat_sensor", "build_chat_event_projector", "build_integrator",
+    "build_relation_detector", "build_verdict_receiver", "build_conversation_runtime"})
+
+#: The builders some scripts reach once past the marker, each replaced in the test below by one
+#: that fails it at once: a script that does not refuse would otherwise go on to write, and the
+#: sensors would sync the whole history of the repository the test runs in.
+PAST_THE_MARKER = ("ops.code_sensor.build_code_sensor", "ops.self_sensor.build_self_sensor",
+                   "core.ingest.founding.build_and_ingest_founding",
+                   "core.verdict.apply.build_verdict_receiver",
+                   "scheduler.interface.build_conversation_runtime")
 
 
 @pytest.mark.parametrize(("script", "argv"), WRITER_SCRIPTS, ids=[s for s, _ in WRITER_SCRIPTS])
@@ -764,6 +786,9 @@ def test_p9_every_writing_script_refuses_while_a_reset_is_pending(
     import argparse
     import importlib
 
+    def past(*_a: Any, **_kw: Any) -> Any:
+        raise AssertionError(f"{script} went past a pending reset's marker")
+
     root = home / ".mind-palace" / "instances" / "t"
     monkeypatch.setenv(loader.OVERLAY_ENV, str(_lexical_overlay(tmp_path, "t", root, repo)))
     loader.get_config.cache_clear()
@@ -772,6 +797,9 @@ def test_p9_every_writing_script_refuses_while_a_reset_is_pending(
     (Path(cfg.paths.data_dir) / "reset.pending").write_text('{"stores": []}')
     module = importlib.import_module(f"scripts.{script}")
     monkeypatch.setattr(module, "seal", lambda: None, raising=False)    # process-wide otherwise
+    for target in PAST_THE_MARKER:
+        monkeypatch.setattr(target, past)
+        monkeypatch.setattr(module, target.rsplit(".", 1)[1], past, raising=False)
     if script == "corpus":
         monkeypatch.setattr(module, "corpus_config", lambda: cfg)
         with pytest.raises(SystemExit) as refused:
@@ -783,6 +811,54 @@ def test_p9_every_writing_script_refuses_while_a_reset_is_pending(
     assert "a reset of this instance is pending" in out
     assert sorted(str(p.relative_to(root)) for p in root.rglob("*")) == \
         ["data", "data/reset.pending"]
+
+
+def test_p9_every_script_that_calls_a_writer_is_run_under_the_marker() -> None:
+    """LCF-5, kept whole: every script under scripts/ that calls one of `WRITER_CALLS` is in
+    `WRITER_SCRIPTS`, so the test above runs it while the marker stands and sees it refuse before
+    it opens anything. A new script that lands or writes a derived store fails here until it reads
+    the marker and is listed."""
+    import ast
+
+    calling: set[str] = set()
+    for path in sorted((Path(loader.REPO_ROOT) / "scripts").glob("*.py")):
+        called = set()
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Call):
+                f = node.func
+                called.add(f.id if isinstance(f, ast.Name) else getattr(f, "attr", ""))
+        if called & WRITER_CALLS:
+            calling.add(path.stem)
+    listed = {s for s, _ in WRITER_SCRIPTS}
+    assert {"ingest_founding", "snapshot_code", "sense_self", "verdict", "talk"} <= calling
+    assert calling <= listed, sorted(calling - listed)
+
+
+@pytest.mark.parametrize("module", ["plane_migrate", "float16_migrate"])
+def test_p9_the_plane_migrations_refuse_to_swap_while_a_reset_is_pending(
+        module: str, palace: Built, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """The two migrations of the plane's store run for the default instance only (DI-2) and swap
+    the store a reset's plane step rebuilds: while the marker stands each refuses before it builds
+    anything; its dry run, which builds beside the store and swaps nothing, still runs."""
+    import importlib
+    from types import SimpleNamespace
+
+    mod = importlib.import_module(f"ops.{module}")
+    calls: list[bool] = []
+
+    def migrate(_path: Path, *, dry_run: bool, **_kw: Any) -> Any:
+        calls.append(dry_run)
+        return SimpleNamespace(verified=True)
+
+    monkeypatch.setattr(mod, "migrate", migrate)          # nothing is built, swapped or archived
+    monkeypatch.setattr("core.kernel.config.get_config", lambda: palace.cfg)
+    (Path(palace.cfg.paths.data_dir) / "reset.pending").write_text('{"stores": []}')
+    assert mod.main(["--store", "vectors"]) == 1
+    assert "a reset of this instance is pending" in capsys.readouterr().out
+    assert calls == []
+    assert mod.main(["--store", "vectors", "--dry-run"]) == 0
+    assert calls == [True]
 
 
 # ── the chat sensor's retention ledger ──────────────────────────────────────────────────────

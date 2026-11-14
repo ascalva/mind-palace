@@ -22,7 +22,9 @@ One store at a time, and nothing is deleted:
    `~/mind-palace-archive/<store>-pre-a3-<UTC>` and the build renamed into its place.
 
 Run it with writers stopped (`mind-palace stack down`, or at least `palace tick pause`): the
-long-running servers keep the old store's handles open until they restart.
+long-running servers keep the old store's handles open until they restart. A run that swaps is
+refused while a reset of the instance is pending (`data/reset.pending`), whose rebuild writes the
+plane; the dry run, which swaps nothing, is not.
 """
 
 from __future__ import annotations
@@ -228,8 +230,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="build and verify beside the live store; swap nothing")
     a = ap.parse_args(argv)
     from core.kernel.config import get_config
+    from ops.lifecycle.inventory import refusal
 
     cfg = get_config()
+    pending = None if a.dry_run else refusal(cfg, "the plane migration")   # the swap writes it
+    if pending is not None:
+        print(pending)
+        return 1
     targets = {"vectors": cfg.paths.vector_store, "curated": cfg.paths.curated_store}
     names = list(targets) if a.store == "all" else [a.store]
     ok = True

@@ -10,7 +10,9 @@ Ed25519 signature over the verdict — the artifact a transport carries. `submit
 it verifies against the owner PUBLIC key (`ops/attestation/owner.pub`), appends to the append-only
 store (monotonic seq), and applies the disposition (a `wrong`/`noise` verdict retracts its subject
 from the active projection; weight promotion is parked). The Ambassador is transport only (§4); this
-CLI is the owner's direct surface. Zone A, no network.
+CLI is the owner's direct surface. Zone A, no network. `submit` is refused while a reset of the
+instance is pending (`data/reset.pending`): the dispositions it applies are a store the reset
+rebuilds.
 """
 
 from __future__ import annotations
@@ -62,7 +64,12 @@ def cmd_sign(subject_id: str, verdict: str, seq: int | None) -> int:
 def cmd_submit(blob: str) -> int:
     from core.verdict import SignedVerdict
     from core.verdict.apply import build_verdict_receiver, effect_of
+    from ops.lifecycle.inventory import refusal
 
+    pending = refusal(_cfg(), "a verdict")      # it applies a disposition, which a reset rebuilds
+    if pending is not None:
+        print(pending)
+        return 1
     try:
         signed = SignedVerdict.from_dict(json.loads(blob))
     except (ValueError, KeyError) as e:
