@@ -290,6 +290,19 @@ def build_palace(root: Path, repo: Path, *, named: str | None = None) -> Built:
     return b
 
 
+def close_stores(b: Built) -> None:
+    """Close every store the fixture holds open, as an instance at rest has them: SQLite then
+    checkpoints each database and removes its `-wal` and `-shm`. They are closed by hand and not
+    left to the garbage collector: a connection the collector finalizes keeps its two files, as a
+    run under coverage showed."""
+    s = b.stores
+    plane = getattr(s.plane, "plane", None)          # the vector store's plane; NoPlane has none
+    for store in (s.catalog, s.lexical, s.versions, s.edges, getattr(s.attestor, "store", None),
+                  plane):
+        if store is not None and hasattr(store, "close"):
+            store.close()
+
+
 def write_kept_stores(cfg: Any) -> None:
     """One row or more in each kept store a reset must leave as it was (§3.5, §3.7): an
     interpreted artifact (decision D4), a queued job carrying a request (D7), a dream run and its

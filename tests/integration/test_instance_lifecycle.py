@@ -794,12 +794,11 @@ def test_p11_the_destroy_dry_run_writes_nothing(named: Built, home: Path) -> Non
     """On an instance at rest: its stores closed, so no SQLite file but the launcher's own run
     ledger has a `-wal` or `-shm` beside it, and a reader that opened one `mode=ro` would create
     them."""
-    import gc
+    from tests.fixtures.lifecycle import close_stores
 
     lau, _ = launcher_for(named, cache=home / ".mind-palace" / "cache")
     before = dump(named.cfg)
-    named.stores = None  # type: ignore[assignment]  # the fixture's stores, closed as they go
-    gc.collect()
+    close_stores(named)
     before_files = _files(home)
     assert [f for f in before_files if f.endswith(("-wal", "-shm"))
             and not f.endswith(("runs.sqlite-wal", "runs.sqlite-shm"))] == []
