@@ -19,8 +19,9 @@ tool_use`), a STRUCTURAL `ref` (sha|path|artifact-id|turn_index — never verbat
 chatlog's `transcript_digest` and re-extracts iff that digest changed (`replace_session`).
 
 Sibling-store convention (`code_observations.py`/`chatlog.py`): SQLite, no dedicated cfg path —
-`data/chat_events.sqlite` beside the chatlog. A corpus-side derived layer, so it joins
-`reset_targets()` (launcher) as a wipe target, rebuilt by re-projection from the immutable rawstore.
+`data/chat_events.sqlite` beside the chatlog. Derived, step 8 of the class table in
+`ops/lifecycle/inventory.py`: a reset clears it and re-projects it from the chat log and the raw
+store.
 """
 
 from __future__ import annotations
@@ -114,8 +115,8 @@ class ChatEventStore:
 
 def open_chat_event_store(config: Config | None = None) -> ChatEventStore:
     """`data/chat_events.sqlite` beside the chatlog (the sibling-store convention; no dedicated cfg
-    path). Registered in `reset_targets()` as a corpus-side wipe target — rebuilt by re-projection
-    from the immutable rawstore (the orchestrator's post-merge step)."""
+    path). Derived in the class table of `ops/lifecycle/inventory.py`: a reset clears it and
+    re-projects it from the chat log and the raw store."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

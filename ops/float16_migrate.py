@@ -20,7 +20,9 @@ column, in A3's shape — nothing is deleted:
 
 Run it with writers stopped (`mind-palace stack down`): the long-running servers keep the old
 store's handles open until they restart. A store already in float16 is left alone; a store not yet
-on the shared plane must take `ops.plane_migrate` first.
+on the shared plane must take `ops.plane_migrate` first. A run that swaps is refused while a reset
+of the instance is pending (`data/reset.pending`), whose rebuild writes the plane; the dry run,
+which swaps nothing, is not.
 """
 
 from __future__ import annotations
@@ -187,8 +189,13 @@ def main(argv: list[str] | None = None) -> int:
                     help="build and verify beside the live store; swap nothing")
     a = ap.parse_args(argv)
     from core.kernel.config import get_config
+    from ops.lifecycle.inventory import refusal
 
     cfg = get_config()
+    pending = None if a.dry_run else refusal(cfg, "the float16 migration")   # the swap writes it
+    if pending is not None:
+        print(pending)
+        return 1
     targets = {"vectors": cfg.paths.vector_store, "curated": cfg.paths.curated_store}
     names = list(targets) if a.store == "all" else [a.store]
     ok = True

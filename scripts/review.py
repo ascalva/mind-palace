@@ -16,7 +16,8 @@ The REPL is **model-free** (Invariant: the model advises, code acts) — display
 signing only, no model in the path. The verdict store is append-only (a correction is a new,
 higher-seq verdict, never an edit). Fail-closed on a missing owner key (refuse, as
 `scripts/verdict.py:43-47`). Verdicts + probes are operational ground truth, ∉ `MIRROR_READABLE`.
-Zone A, no network.
+Zone A, no network. Refused while a reset of the instance is pending (`data/reset.pending`), as
+`verdict.py submit` is: each verdict applies a disposition, a store the reset rebuilds.
 
 A/B is NATIVE: `RunLedger.runs()` maps `run_id → pipeline` ("phase7" | "dream_v2"); interleaving
 claims labeled by their run's pipeline IS the A/B — precision splits fall out of a verdict ×
@@ -255,8 +256,13 @@ def main(argv: list[str]) -> int:
 
     from config.loader import get_config, get_secret
     from core.stores.runledger import open_run_ledger
+    from ops.lifecycle.inventory import refusal
 
     cfg = get_config()
+    pending = refusal(cfg, "the review")       # each verdict applies a disposition a reset rebuilds
+    if pending is not None:
+        print(pending)
+        return 1
     seed = get_secret(cfg.attestation.owner_key_secret)
     if not seed:  # fail closed — exactly scripts/verdict.py:43-47
         print(f"error: no owner signing key at get_secret({cfg.attestation.owner_key_secret!r}); "

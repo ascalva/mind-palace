@@ -14,14 +14,22 @@ Two gates, both fail-closed:
 
 On success it drops derived rows, removes the raw blob, and deletes the tombstoned catalog
 rows for that digest. `scripts/purge_raw.py` is the owner-facing entry.
+
+A purge reaches the shared cache too (dn-instance-lifecycle §6.6), so the cache is no way around
+erasure: before the raw object is deleted its chunks are derived again, as the landing derived
+them, and the cache loses the raw object and the vector of every atom of those chunks under every
+embedder key; the digest is recorded there, so no later fill or destroy puts it back.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
+from core.kernel.ingest.pipeline import derive_chunks
 from core.kernel.stores.rawstore import RawStore
 from core.stores.catalog import VaultCatalog
+from core.stores.plane import atom_id
 from core.stores.vectorstore import VectorStore
 
 
@@ -34,6 +42,8 @@ class PurgeResult:
     digest: str
     raw_removed: bool
     paths_removed: tuple[str, ...]
+    cache_raw_removed: bool = False
+    cache_vectors_removed: int = 0
 
 
 def purge_raw(
@@ -43,6 +53,7 @@ def purge_raw(
     store: VectorStore,
     catalog: VaultCatalog,
     confirm: bool = False,
+    cache: Any = None,
 ) -> PurgeResult:
     """Permanently remove a note's raw bytes + derived rows. Owner-gated; see module docstring."""
     if not confirm:
@@ -56,7 +67,16 @@ def purge_raw(
         )
 
     paths = tuple(catalog.paths_for_digest(digest))   # all tombstoned at this point
+    forgot = None
+    if cache is not None:
+        # the shared cache first, while the bytes that name its atoms are still here: the atoms of
+        # the chunks the landing derived (`derive_chunks`, the one raw→chunks derivation)
+        data = raw.get(digest) if raw.exists(digest) else cache.raw(digest)
+        atoms = [atom_id(c.text) for c in derive_chunks(data)] if data is not None else []
+        forgot = cache.forget(digest, atoms)
     store.delete(digest=digest)                        # derived (idempotent; usually already gone)
     raw_removed = raw.delete(digest)                   # the irreversible step
     catalog.remove_digest(digest)
-    return PurgeResult(digest=digest, raw_removed=raw_removed, paths_removed=paths)
+    return PurgeResult(digest=digest, raw_removed=raw_removed, paths_removed=paths,
+                       cache_raw_removed=bool(forgot and forgot.raw_removed),
+                       cache_vectors_removed=forgot.vectors_removed if forgot else 0)

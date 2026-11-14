@@ -35,8 +35,14 @@ def main(argv: list[str]) -> int:
     from config.loader import get_config
     from core.ingest.index import rekey_preview, rekey_store
     from core.stores.vectorstore import open_vector_store
+    from ops.lifecycle.inventory import refusal
 
-    store = open_vector_store(get_config())
+    cfg = get_config()
+    pending = refusal(cfg, "the re-key") if apply else None    # a pending reset refuses writers
+    if pending is not None:
+        print(pending)
+        return 1
+    store = open_vector_store(cfg)
     total, changing = rekey_preview(store)
     print(f"note rows: {total}; ids to re-key: {changing}")
     if not apply:

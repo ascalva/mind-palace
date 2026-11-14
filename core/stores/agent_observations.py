@@ -36,13 +36,12 @@ HONESTY NOTE (finding-0020 class, code-store precedent): no consumer reads these
 write-side only; the live first projection over history is bp-020's, deliberately deferred.
 
 Engine: SQLite (plan Q6) — an identity-keyed append-style ledger, the runs/versions/
-snapshots convention, not the DuckDB telemetry lane. Reset semantics (plan §6(h)): this
-store is CORPUS-side (the observed stratum) and joins `reset_targets()` — wiped with the
-corpus, unlike the snapshot LEDGER pattern. That corpus-side call covers current READINGS
-only, which rebuild by re-projection from git; the worldview HISTORY — generations
-superseded when a bumped interpreter re-projects — lives in the ledger-class, reset-guarded
-sidecar (`core/stores/observation_history.py`, discriminator `store='agent'`;
-dn-self-sensing §2.5 ruling).
+snapshots convention, not the DuckDB telemetry lane. Reset semantics: this store is derived,
+step 4 of the class table in `ops/lifecycle/inventory.py`. A reset clears the current readings
+and re-projects them from git's history, without the attestor. The worldview history, the
+generations superseded when a bumped interpreter re-projects, is a ledger the reset keeps
+(`core/stores/observation_history.py`, discriminator `store='agent'`; dn-self-sensing §2.5
+ruling).
 """
 
 from __future__ import annotations
@@ -284,8 +283,8 @@ class AgentObservationStore:
 
 def open_agent_observation_store(config: Config | None = None) -> AgentObservationStore:
     """The `open_*` helper: `data/agent_observations.sqlite` (plan §6(b) — the sibling-store
-    convention beside `code_observations`, no dedicated cfg path; registered in
-    `reset_targets()` as a corpus-side wipe target, plan §6(h))."""
+    convention beside `code_observations`, no dedicated cfg path). Derived in the class table
+    of `ops/lifecycle/inventory.py`: a reset clears it and re-projects git's history."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

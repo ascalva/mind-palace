@@ -35,10 +35,14 @@ Open-session handling (Q4): `active_session_id` (this process's own transcript a
 still excluded — the daemon does not ingest its own live session. Cut-time exclusion of open
 sessions is bp-064's certificate concern.
 
-Spine-invisible in v1: NO chain written, NO stratum registered (bp-064, CS-4). The
-`reset_targets()` registration of `data/chatlog.sqlite` (corpus-side wipe target; rebuilds
-by re-ingest from the IMMUTABLE rawstore, which is NOT reset) is the ORCHESTRATOR's
-post-merge step (`ops/lifecycle/launcher.py` is outside this plan's write_scope).
+Spine-invisible in v1: NO chain written, NO stratum registered (bp-064, CS-4).
+
+The retention ledger (dn-instance-lifecycle §3.4): the sensor records each transcript it retains,
+in order, before it extracts anything (`core/stores/chat_retention.py`), and a transcript is
+extracted when the ledger did not hold its digest. The chat log is a derived store: a reset clears
+it and `rebuild` replays the ledger, reading each transcript's bytes back from the raw store, which
+a reset keeps, so the chat log comes back even for a transcript the CLI has pruned from its
+directory.
 
 The sole future reader is the ratified cross-strata correlator (CS-5 — its own scoped
 grant, surfacing-only); this plan wires NO reader.
@@ -58,6 +62,7 @@ from config.loader import Config
 from core.kernel.agent_scope import sensor_scope
 from core.kernel.scope import Stratum
 from core.kernel.stores.rawstore import RawStore
+from core.stores.chat_retention import RetentionLedger, open_retention_ledger
 from core.stores.chatlog import ChatlogStore, ChatUtterance, open_chatlog_store
 
 # role → speaker (CS-3 metadata mapping). NEVER a provenance input (CS-2 firewall).
@@ -243,12 +248,15 @@ class ChatSyncReport:
     empty: list[str] = field(default_factory=list)              # parsed to 0 utterances
     unparseable: list[str] = field(default_factory=list)        # every line failed to decode
     skipped_active: str | None = None    # the excluded open session (Q4), if present
+    # a rebuild's replay only: a retained transcript whose raw object a purge erased, skipped (the
+    # erasure stands, and the chat log comes back without it; dn-instance-lifecycle §6.6)
+    purged: list[str] = field(default_factory=list)
 
     def total_accounted(self) -> int:
         """The sum of the mutually-exclusive buckets — equals `files_seen` iff nothing skipped."""
         return (self.sessions_ingested + self.sessions_grown
                 + len(self.refused_sessions) + len(self.unchanged)
-                + len(self.empty) + len(self.unparseable)
+                + len(self.empty) + len(self.unparseable) + len(self.purged)
                 + (1 if self.skipped_active else 0))
 
     def is_fully_accounted(self) -> bool:
@@ -262,7 +270,8 @@ class ChatSyncReport:
                 f"retained={self.transcripts_retained} unchanged={len(self.unchanged)} "
                 f"refused={len(self.refused_sessions)} empty={len(self.empty)} "
                 f"unparseable={len(self.unparseable)} "
-                f"active_skipped={'yes' if self.skipped_active else 'no'} "
+                + (f"purged={len(self.purged)} " if self.purged else "")
+                + f"active_skipped={'yes' if self.skipped_active else 'no'} "
                 f"accounted={'ok' if self.is_fully_accounted() else 'BROKEN'}")
 
 
@@ -279,6 +288,9 @@ class ChatSensor:
     store: ChatlogStore
     guard: ChatSecretGuard
     active_session_id: str | None = None      # the open session to EXCLUDE (Q4)
+    # Which raw objects are transcripts, in retention order (dn-instance-lifecycle §3.4). None
+    # keeps the raw store's `is_new` as the change signal (the tests that build a bare sensor).
+    retention: RetentionLedger | None = None
 
     def _transcript_paths(self) -> list[Path]:
         """The session transcripts on disk, in a stable (name-sorted) order — deterministic."""
@@ -303,15 +315,28 @@ class ChatSensor:
         tuning recovers it), and the session is NAMED."""
         session_id = path.stem
         text = path.read_text(encoding="utf-8")
-        # CS-1: byte-verbatim retention BEFORE any extraction. `is_new` is the growth signal — an
-        # unchanged transcript hashes identically (skip, no churn); a grown one hashes anew (its
-        # tail re-ingests). Retention is unconditional — even a refused/unparseable session's raw
-        # is kept (the archive never depends on extraction succeeding).
-        _digest, is_new = self.rawstore.add_text(text)
-        if not is_new:
+        # CS-1: byte-verbatim retention BEFORE any extraction. The growth signal is whether these
+        # bytes were retained before: an unchanged transcript hashes identically (skip, no churn);
+        # a grown one hashes anew (its tail re-ingests). Retention is unconditional: even a
+        # refused/unparseable session's raw is kept (the archive never depends on extraction
+        # succeeding). With the retention ledger, the ledger's row is the signal, written here
+        # before extraction: a crash between the raw write and the row leaves the transcript to
+        # extract on the next pass, but an extraction cut short after the row is skipped as
+        # unchanged by the next sync, and only a reset's replay of the ledger recovers it.
+        digest, is_new = self.rawstore.add_text(text)
+        if is_new:
+            report.transcripts_retained += 1
+        fresh = self.retention.append(digest, session_id) if self.retention is not None \
+            else is_new
+        if not fresh:
             report.unchanged.append(session_id)           # content-identical — nothing to do
             return
-        report.transcripts_retained += 1
+        self._extract(session_id, text, report, known)
+
+    def _extract(self, session_id: str, text: str, report: ChatSyncReport,
+                 known: set[str]) -> None:
+        """Parse, guard and land one retained transcript's text (CS-3 → CS-2), bucketing it.
+        The one extraction both a sync and a rebuild run."""
         outcome = _parse_lines(text)
         for u in outcome.utterances:                      # CS-3 guard, fail-closed, whole-session
             if self.guard.scan(u.text):
@@ -364,6 +389,31 @@ class ChatSensor:
         `sync()`, kept as a named entry for the D2 semantics and the existing call sites."""
         return self.sync()
 
+    def rebuild(self) -> ChatSyncReport:
+        """Replay the retention ledger into the chat log (dn-instance-lifecycle §3.4): each
+        retained transcript in retention order, its bytes read back from the raw store, through the
+        same parse, guard and landing a sync runs. Reads no transcript directory, so it gives back
+        the chat log a reset cleared even for transcripts the CLI has pruned. Idempotent: a replay
+        over a chat log that holds every turn adds none."""
+        report = ChatSyncReport()
+        if self.retention is None:
+            return report
+        known = set(self.store.sessions())
+        for row in self.retention.rows():
+            report.files_seen += 1
+            try:
+                data = self.rawstore.get(row.digest)
+            except FileNotFoundError:
+                report.purged.append(row.file)            # erased by a purge: nothing to replay
+                continue
+            text = data.decode("utf-8")
+            try:
+                self._extract(row.file, text, report, known)
+            except SecretInUtteranceError:
+                continue                                  # named in report.refused_sessions
+            known |= set(self.store.sessions())
+        return report
+
 
 def _default_transcripts_dir() -> Path:
     """The local Claude Code transcript dir for this repo — the CLI's cwd→dir mangling
@@ -388,10 +438,14 @@ def build_chat_sensor(config: Config | None = None, *,
     from config.loader import get_config
 
     cfg = config or get_config()
+    store = open_chatlog_store(cfg)
+    retention = open_retention_ledger(cfg)
+    retention.seed_from(store.path)       # once, for a chat log that predates the ledger
     return ChatSensor(
         transcripts_dir=cfg.ingestion.transcripts.transcripts_dir or _default_transcripts_dir(),
         rawstore=RawStore(cfg.paths.raw_store),
-        store=open_chatlog_store(cfg),
+        store=store,
         guard=ChatSecretGuard(),
         active_session_id=active_session_id,
+        retention=retention,
     )

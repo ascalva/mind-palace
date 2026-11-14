@@ -5,7 +5,8 @@ git commit → reconcile the corpus (a catch-up vault sync; rebuilds an empty ca
 supervisor + watcher with a **graceful shutdown hook** (SIGTERM/SIGINT → stop claiming new work,
 let the in-flight job finish at its boundary — the scheduler is already cooperative — then mark
 the run CLEAN). `stop` signals the live run's pid. `status` shows preflight + the last runs.
-`reset` is the surgical fresh-start wipe.
+`reset` clears the derived stores and rebuilds them from the ledgers; `destroy` removes a named
+instance and leaves its open content in the shared cache (dn-instance-lifecycle).
 
 Recovery (nervous-system-and-ambassador.md §1): if the *previous* run never marked itself stopped
 (crash / kill -9 / power loss), `start` comes up in **recovery mode** — scheduler halted, watcher
@@ -30,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from config.loader import InstanceConfig, namespaces_of
-from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
+from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld, held_elsewhere
 from ops.lifecycle.preflight import Preflight, run_preflight
 from ops.lifecycle.runs import RunLedger, RunRecord, git_state
 
@@ -104,18 +105,6 @@ class ChildLike(Protocol):
     def start(self) -> None: ...
     def alive(self) -> bool: ...
     def stop(self) -> None: ...
-
-# Data files/dirs the reset wipe must NEVER touch: the production Vault Raft store, the run +
-# self-mod ledgers, telemetry history, the live backup staging, and logs. The corpus targets are
-# computed from cfg.paths; this guard is defense-in-depth so a path mistake can't nuke Vault.
-_RESET_GUARD = ("vault", "runs.sqlite", "selfmod_ledger.sqlite", "telemetry.duckdb",
-                "code_snapshots.sqlite",
-                # Observation worldview HISTORY (bp-018, dn-self-sensing §2.5 split):
-                # current READINGS are corpus-side and wiped (code_observations.sqlite
-                # stays a reset target — rebuilt by re-projection from git); superseded
-                # generations do NOT rebuild (their interpreters no longer exist at HEAD).
-                "observation_history.sqlite",
-                "backup-staging", "logs")
 
 # Default cadence for the trough housekeeping passes (dream + curate). They only actually run
 # when the foreground gate is clear (the supervisor's HEAVY_TIERS check), so this is a ceiling.
@@ -797,6 +786,10 @@ class Launcher:
     # W for the status rate block. Field, not config: `core/config/loader.py` is schema'd and
     # drops unknown sections, so a `[status]` key would be inert (bp-102 §11 / finding-0174).
     status_window_minutes: float = _STATUS_WINDOW_MINUTES
+    # The reset's embedder, built only when a rebuilt atom is missing from the atom table; and the
+    # shared cache's location (`~/.mind-palace/cache` when None). Both injectable for the tests.
+    embedder_factory: Callable[[Config], Any] | None = None
+    cache_root: Path | None = None
     _stopping: bool = field(default=False, init=False)
     _run_id: int | None = field(default=None, init=False)
     _run: RunRecord | None = field(default=None, init=False)  # the active RunRecord (for snapshots)
@@ -841,6 +834,11 @@ class Launcher:
         # Ahead of preflight deliberately — an unrunnable state should not first cost the operator
         # preflight's uncosted 120 s Ollama probe (finding-0195). Same shape as `reset()`'s guard
         # (:1124), with liveness identity-checked so a recycled pid cannot brick start forever.
+        from ops.lifecycle.inventory import refusal
+        pending = refusal(self.cfg, "to start")
+        if pending is not None:
+            print(pending)
+            return 1
         if not self.cfg.embedding.enabled:
             # the lite profile (dn-palace-lite): the daemon wires the embedder's consumers (the
             # librarian, the code embed lane, the airlock's ranking), and an instance that embeds
@@ -1600,7 +1598,13 @@ class Launcher:
         return run if run is not None and run.active and _pid_alive(run.pid) else None
 
     def _refuse_if_live(self, what: str) -> bool:
-        """A live daemon is the single writer; an on-demand pass beside it would be a second."""
+        """A live daemon is the single writer; an on-demand pass beside it would be a second. A
+        pending reset refuses too: its derived stores are half rebuilt (dn-instance-lifecycle)."""
+        from ops.lifecycle.inventory import refusal
+        pending = refusal(self.cfg, what)
+        if pending is not None:
+            print(pending)
+            return True
         run = self.live_run()
         if run is not None:
             print(f"refusing {what} — run #{run.id} (pid {run.pid}) is live; it owns the stores. "
@@ -1793,8 +1797,9 @@ class Launcher:
             return 1
         from core.ingest import ingress
         from core.ingest.derive import derive_lexical, drain
+        from core.stores.cache import Cache, cache_home, with_cache
         cfg = self.cfg
-        stores = ingress.build_stores(cfg)
+        stores = with_cache(ingress.build_stores(cfg), cfg, Cache(self.cache_root or cache_home()))
         lexical = derive_lexical(stores)       # a changed tokenizer re-derives the index first
         if lexical.items or lexical.rederived:
             print(f"lexical: {lexical}")
@@ -1806,97 +1811,244 @@ class Launcher:
         print(f"embed: {report}")
         return 0
 
-    # --- reset (the fresh-start wipe) -------------------------------------------------------
-    def reset_targets(self) -> list[Path]:
-        """The corpus + its derived/chain layer + the stale queue. Computed from cfg.paths;
-        each is asserted to be under data/ and outside the guard set (never the Vault Raft)."""
-        p = self.cfg.paths
-        candidates = [
-            p.raw_store, p.vector_store, p.vault_catalog, p.derived_store, p.attestation_store,
-            p.data_dir / "queue.sqlite",
-            # Sibling stores opened via `derived_store.parent / <name>` (no dedicated cfg path).
-            # All four are corpus/derived-chain provenance: left behind, their rows reference
-            # wiped artifacts — orphaned history that would pollute a fresh graph's record.
-            p.data_dir / "versions.sqlite",                 # note-version supersession history
-            p.data_dir / "authored_supersessions.sqlite",   # owner-declared K₀↔K₀ (founding)
-            p.data_dir / "verdicts.sqlite",                 # verdict ledger over derived artifacts
-            p.data_dir / "verdict_dispositions.sqlite",     # dispositions derived from verdicts
-            # Code observations are CORPUS-side (the observed stratum, ratified
-            # code-observation-projection.md §2.4) — wiped with the corpus, unlike the
-            # snapshot LEDGER (build history, in _RESET_GUARD above). bp-012 Item 4 / Q4.
-            p.data_dir / "code_observations.sqlite",
-            # Lane-1 reference edges are CORPUS-side too (cross-stratum doc↔code refs minted
-            # at projection time, ratified §2.5) — their rows reference wiped corpus/code
-            # endpoints, so they orphan on reset like the observations. bp-013 Q4 (parked to
-            # the orchestrator; launcher.py was outside the builder's write_scope).
-            p.data_dir / "reference_edges.sqlite",
-            # Agent (self-sensing) observations are CORPUS-side too — the third stream's
-            # READINGS (dn-self-sensing §2.5 ruling): wiped with the corpus, rebuilt by
-            # re-projection from git's build-plan `cost:` history. The worldview HISTORY
-            # (superseded generations) rides the guarded `observation_history.sqlite`
-            # sidecar above, unaffected by this reset. bp-019 Item 8 / §6(h).
-            p.data_dir / "agent_observations.sqlite",
-            # Chat utterances are CORPUS-side too — the observed chat stratum's READINGS
-            # (ratified dn-chat-sensor CS-2). Wiped with the corpus and rebuilt by re-ingest
-            # from the IMMUTABLE rawstore (p.raw_store, above — the verbatim archive is NOT a
-            # reset target; raw is sacred). bp-063 Q6 (parked to the orchestrator; launcher.py
-            # was outside the builder's write_scope).
-            p.data_dir / "chatlog.sqlite",
-            # The L1 action log is CORPUS-side too — the dialogue stratum's DERIVED layer (bp-069
-            # Item 3): wiped with the corpus and rebuilt by re-projection from the rawstore-backed
-            # chatlog (the raw archive is NOT a reset target). It holds only structural refs.
-            p.data_dir / "chat_events.sqlite",
-            # The C-fiber causal edges are CORPUS-side too — the integrator's DERIVED output
-            # (bp-071): a pure function of retained L1 + the ledger (the floor invariant), so wiped
-            # with the corpus and rebuilt by re-integration. Structural refs only; no content.
-            p.data_dir / "causal_edges.sqlite",
-            # The membership relation M ⊆ V × O is CORPUS-side too (bp-152): every row is an
-            # occupancy of a vector-plane atom, so left behind it would point into a wiped plane.
-            p.data_dir / "memberships.sqlite",
-        ]
-        out: list[Path] = []
-        for c in candidates:
-            assert p.data_dir in c.parents or c.parent == p.data_dir, f"target {c} not under data/"
-            assert c.name not in _RESET_GUARD and c.name != "vault", f"refusing to wipe guarded {c}"
-            out.append(c)
-        return out
+    # --- reset: clear the derived stores and rebuild them (dn-instance-lifecycle §4) -----------
+    def _cache(self) -> Any:
+        from core.stores.cache import Cache, cache_home
+        return Cache(self.cache_root or cache_home())
+
+    def _embedder(self, cfg: Config) -> Any:
+        if self.embedder_factory is not None:
+            return self.embedder_factory(cfg)
+        from core.ingest.embed import build_embedder
+        return build_embedder(cfg)
+
+    def _live_supervisor(self) -> RunRecord | None:
+        run = self.runs.last()
+        return run if run is not None and run.active and _supervisor_alive(run) else None
 
     def reset(self, *, confirm: bool) -> int:
-        import shutil
-        run = self.runs.last()
-        if run is not None and run.active and _pid_alive(run.pid):
+        """Clear the instance's derived stores and rebuild them from the raw store and the
+        ledgers, keeping every ledger, declaration, model output and operational store as it was
+        (dn-instance-lifecycle §4; the class table is `ops/lifecycle/inventory.py`). A dry run
+        unless confirmed. Refused beside a live daemon, while another writer holds the supervisor
+        lock, and when the configured embedder is not the plane's geometry; each refusal writes
+        nothing, and neither does the dry run. Runs under the supervisor lock, which the daemon,
+        `repo-sync`, `scripts/ingest.py` and the corpus runner take as well, behind a marker that
+        makes the daemon's start and every command that lands or writes a derived store refuse
+        until the last step has run; run again, it finishes an interrupted reset. A writer reads
+        the marker when it starts, so one that takes no lock and started before the reset is not
+        excluded from it (the note's open question 7). Whatever would stop a rebuild the same way
+        on every run (a derived store outside the data directory, a ledgered commit the
+        repository no longer holds, the landing log's secret when the catalog's first open would
+        write the log's genesis) refuses before anything is written, the marker included. The
+        catalog's file is kept whole, its landing log with it; no step appends to the log, and on
+        a catalog with rows and no log yet the rebuild's first open writes its genesis."""
+        from ops.lifecycle import rebuild
+        from ops.lifecycle.inventory import reset_pending
+
+        run = self._live_supervisor()
+        if run is not None:
             print(f"refusing reset — run #{run.id} (pid {run.pid}) is live. `palace stop` first.")
             return 1
-        targets = self.reset_targets()
-        print("fresh-start reset will remove the corpus + derived layer:")
-        for t in targets:
-            print(f"  - {t}  (+ -wal/-shm if present)")
-        vault_raft = self.cfg.paths.data_dir / "vault"
-        print(f"GUARDED (never touched): production Vault Raft ({vault_raft}), "
-              "run/self-mod ledgers, telemetry, backups, logs.")
+        stores = rebuild.found(self.cfg)
+        why = (rebuild.geometry_mismatch(self.cfg)
+               if any(s.clear == "relations" for s in stores) else None)
+        if why is not None and reset_pending(self.cfg) is not None:
+            # `reembed` refuses while the marker stands, so naming it here would send the owner
+            # back and forth between the two refusals
+            print(f"refusing reset — {why}, and a reset of this instance is pending. Finish it "
+                  "under the embedder the plane was built with: restore that embedder in the "
+                  "configuration and run `palace reset --confirm` again; change the embedder "
+                  "after it, with `palace reembed --confirm`. Nothing was written.")
+            return 1
+        if why is not None:
+            print(f"refusing reset — {why}. A reset keeps the atoms of one geometry; a change of "
+                  "embedder is `palace reembed --confirm`. Nothing was written.")
+            return 1
+        missing = rebuild.missing_inputs(self.cfg, self.repo_root, stores)
+        if missing:
+            for m in missing:
+                print(f"refusing reset — {m}. Nothing was written.")
+            return 1
+        pending = reset_pending(self.cfg)
+        print(("finishing an interrupted reset" if pending is not None else "reset")
+              + f" of instance {self.cfg.instance.id!r} ({self.cfg.paths.data_dir}):")
+        for line in rebuild.describe(self.cfg, stores):
+            print(line)
         if not confirm:
-            print("\nDRY RUN — nothing removed. Re-run with --confirm. Your restic snapshot is the "
-                  "safety net; a fresh re-ingest re-tags everything authored-solo (mooting the "
-                  "provenance migration).")
+            print("\nDRY RUN — nothing written. Re-run with --confirm.")
             return 0
-        removed = 0
-        for t in targets:
-            for path in (t, Path(str(t) + "-wal"), Path(str(t) + "-shm")):
-                if path.is_dir():
-                    shutil.rmtree(path)
-                    removed += 1
-                elif path.exists():
-                    path.unlink()
-                    removed += 1
-        print(f"\nremoved {removed} path(s). Re-export notes into the vault, then `palace start` "
-              "(it will re-ingest as authored-solo).")
+        lock = SupervisorLock(namespaces_of(self.cfg).supervisor_lock)
+        try:
+            lock.acquire()
+        except SupervisorLockHeld:
+            print(f"refusing reset — another writer holds the supervisor lock ({lock.path}).")
+            return 1
+        try:
+            ctx = rebuild.Context(cfg=self.cfg, repo=self.repo_root,
+                                  embedder_factory=self._embedder, cache=self._cache())
+            print("\nrebuilding:")
+            rebuild.run(ctx, stores)
+        finally:
+            lock.release()
+        print(f"\nreset done: {len(stores)} derived store(s) rebuilt; every other store kept.")
+        return 0
+
+    # --- destroy: a named instance, leaving its open content in the cache (§6) -----------------
+    def _agent_installed(self) -> bool:
+        return self.installed_plist.exists() or \
+            self.domain.installed_plist(self.launchd_label).exists()
+
+    def destroy(self, *, confirm: bool) -> int:
+        """Remove a named instance's root, after filling the shared cache with its open content
+        (raw objects by digest, vectors by embedder and atom, downloaded source files). A dry run
+        unless confirmed. Refuses the default instance, a live run, the supervisor lock held, a
+        pending reset, an installed LaunchAgent, a root inside a git working tree or holding or
+        inside the cache or the home root itself, a root at, inside or around another declared
+        instance's, a root that holds a git repository or anything that is not the instance's own
+        state, a symbolic link out of the root, a source file the cache would take that is a link,
+        a configured embedder that is not the plane's geometry, and a cache volume without room;
+        each refusal writes nothing, the dry run included. Leaves the sources the instance read
+        outside its root, its overlay, and its Keychain items, which it names for the owner; the
+        sources inside the root go with it, and of them the cache keeps the stream files alone."""
+        from ops.lifecycle import destroy as d
+        from ops.lifecycle.inventory import refusal
+
+        cfg = self.cfg
+        cache = self._cache()
+        why = d.refusals(cfg, cache, installed=self._agent_installed())
+        if why:
+            for w in why:
+                print(f"refusing destroy — {w}.")
+            return 1
+        # a reset interrupted after its clearing leaves the plane without the occupancies the fill
+        # selects vectors by, so a destroy then would keep none of them: it refuses, as a fill does
+        pending = refusal(cfg, "destroy")
+        if pending is not None:
+            print(pending)
+            return 1
+        run = self._live_supervisor()
+        if run is not None:
+            print(f"refusing destroy — run #{run.id} (pid {run.pid}) is live. `palace stop` first.")
+            return 1
+        root = cfg.instance.root
+        lock = SupervisorLock(namespaces_of(cfg).supervisor_lock)
+        if not confirm:
+            # the dry run writes nothing, so it probes the lock without taking it (or creating it)
+            if held_elsewhere(lock.path):
+                print(f"refusing destroy — another writer holds the supervisor lock ({lock.path}).")
+                return 1
+            plan = d.plan_fill(cfg, cache)
+            if self._print_destroy(cache, plan) is None:
+                return 1
+            print("\nDRY RUN — nothing written. Re-run with --confirm.")
+            return 0
+        if root.exists():
+            try:
+                lock.acquire()
+            except SupervisorLockHeld:
+                print(f"refusing destroy — another writer holds the supervisor lock ({lock.path}).")
+                return 1
+        try:
+            plan = d.plan_fill(cfg, cache)
+            if self._print_destroy(cache, plan) is None:
+                return 1
+            report = d.fill(cfg, cache, plan)
+            if root.exists():
+                d.remove_root(root)
+        finally:
+            lock.release()
+        print(f"\ndestroyed {cfg.instance.id!r}: the cache took {report}.")
+        return 0
+
+    def _print_destroy(self, cache: Any, plan: Any) -> Any:
+        """Print what a destroy would do; None (with the refusal printed) when the cache's volume
+        cannot take the fill."""
+        from ops.lifecycle import destroy as d
+
+        cfg = self.cfg
+        short = d.room(cache, plan)
+        if short is not None:
+            print(f"refusing destroy — {short}.")
+            return None
+        root = cfg.instance.root
+        outside, inside = d.left_behind(cfg)
+        print(f"destroy instance {cfg.instance.id!r} at {root}:")
+        print(f"  the cache ({cache.root}) takes: {plan}")
+        print(f"  removed: {root}, holding " + (", ".join(d.top_entries(root)) or "nothing")
+              + ("" if root.exists() else " (it does not exist)"))
+        if inside:
+            files, size = d.uncached_source_files(cfg)
+            print("  sources inside the root, removed with it: "
+                  + ", ".join(str(p) for p in inside)
+                  + f"; the cache keeps their stream files above and none of their other {files:,} "
+                  f"file(s) ({size:,} bytes): whole downloads, cursors and state")
+        print("  left: the sources it read outside its root ("
+              + (", ".join(str(p) for p in outside) or "none") + "), its overlay in "
+              "config/instances/, and its Keychain items: "
+              + (", ".join(d.keychain_items(cfg)) or "(none)"))
+        return plan
+
+    # --- the shared cache (§6.3 to §6.5) ------------------------------------------------------
+    def cache_report(self) -> int:
+        cache = self._cache()
+        if not cache.exists:
+            print(f"cache: {cache.root} does not exist yet")
+            return 0
+        print(f"cache: {cache.root}")
+        for name, size in sorted(cache.sizes().items()):
+            print(f"  {name}: {size.entries:,} entr(ies), {size.bytes:,} bytes")
+        print(f"  purged digests recorded: {len(cache.purged()):,}")
+        return 0
+
+    def cache_fill(self, *, confirm: bool) -> int:
+        """Copy this instance's open content into the cache by destroy's selection, removing
+        nothing: how the corpus shares its vectors and objects with the instances that draw on
+        it. A dry run unless confirmed."""
+        from ops.lifecycle import destroy as d
+
+        if self._refuse_if_live("cache fill"):
+            return 1
+        cache = self._cache()
+        for why in (d.link_refusal(self.cfg), d.geometry_refusal(self.cfg)):
+            if why is not None:
+                print(f"refusing cache fill — {why}.")
+                return 1
+        plan = d.plan_fill(self.cfg, cache)
+        print(f"cache fill from {self.cfg.instance.id!r} into {cache.root}: {plan}")
+        short = d.room(cache, plan)
+        if short is not None:
+            print(f"refusing cache fill — {short}.")
+            return 1
+        if not confirm:
+            print("DRY RUN — nothing written. Re-run with --confirm.")
+            return 0
+        print(f"cache fill: {d.fill(self.cfg, cache, plan)}")
+        return 0
+
+    def cache_prune(self, *, confirm: bool) -> int:
+        """Remove the cache's entries not put or taken for the retention period (180 days). A
+        dry run unless confirmed."""
+        from core.stores.cache import RETENTION_DAYS
+
+        cache = self._cache()
+        stale = cache.stale(days=RETENTION_DAYS)
+        n = sum(len(v) for v in stale.values())
+        print(f"cache prune: {n} entr(ies) not taken for {RETENTION_DAYS} days in {cache.root}")
+        if not confirm:
+            print("DRY RUN — nothing removed. Re-run with --confirm.")
+            return 0
+        print(f"cache prune: removed {cache.prune(days=RETENTION_DAYS)}")
         return 0
 
 
 def build_launcher(config: Config | None = None, **kw) -> Launcher:
     from config.loader import REPO_ROOT, get_config
-    from ops.lifecycle.runs import open_run_ledger
+    from ops.lifecycle.runs import LazyRunLedger
 
     cfg = config or get_config()
     kw.setdefault("launchd_label", cfg.instance.label("palace"))   # this instance's job, DI-2
-    return Launcher(cfg=cfg, runs=open_run_ledger(cfg), repo_root=REPO_ROOT, **kw)
+    # the ledger is opened at its first write, so a command that only asks whether a run is live
+    # (the dry runs and refusals of reset, destroy and cache fill) creates no file
+    return Launcher(cfg=cfg, runs=LazyRunLedger(cfg.paths.data_dir / "runs.sqlite"),
+                    repo_root=REPO_ROOT, **kw)

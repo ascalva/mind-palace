@@ -25,8 +25,9 @@ commit ledger stores the full tree, not the diff, so fanning would be an inferre
 falsifier). Composing action→commit with commit→file is Δ's `ComposedGraph` job (C≠D composition).
 
 Sibling-store convention (`chat_events.py`/`reference_edges.py`): SQLite, no dedicated cfg path —
-`data/causal_edges.sqlite` beside the L1 store. A corpus-side derived layer (a pure function of
-retained raw + the ledger), so it joins `reset_targets()` and rebuilds by re-integration.
+`data/causal_edges.sqlite` beside the L1 store. Derived, step 9 of the class table in
+`ops/lifecycle/inventory.py`: a reset clears it and integrates it again over the chat events and
+the commit ledger (decision D6 of dn-instance-lifecycle).
 """
 
 from __future__ import annotations
@@ -194,8 +195,8 @@ class CausalEdgeStore:
 
 def open_causal_edge_store(config: Config | None = None) -> CausalEdgeStore:
     """`data/causal_edges.sqlite` beside the L1 store (the sibling-store convention; no dedicated
-    cfg path). Registered in `reset_targets()` as a corpus-side wipe target — rebuilt by
-    re-integration from the immutable rawstore-backed L1 + the commit ledger."""
+    cfg path). Derived in the class table of `ops/lifecycle/inventory.py`: a reset clears it and
+    integrates it again over the chat events and the commit ledger."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

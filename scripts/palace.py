@@ -9,7 +9,13 @@
     uv run scripts/palace.py status         # preflight + recent runs + system snapshot
     uv run scripts/palace.py queue          # read-only: waiting jobs, grouped by kind
     uv run scripts/palace.py query "<s>"    # read-only: a query sentence; --log = the sensor
-    uv run scripts/palace.py reset --confirm # fresh-start wipe of the corpus layer
+    uv run scripts/palace.py reset          # dry run: what a reset clears and rebuilds
+    uv run scripts/palace.py reset --confirm  # clear the derived stores, rebuild them from raw
+    uv run scripts/palace.py destroy        # dry run: remove a named instance, cache its content
+    uv run scripts/palace.py destroy --confirm  # (the default instance is refused)
+    uv run scripts/palace.py cache          # the shared cache's size by namespace
+    uv run scripts/palace.py cache fill [--confirm]   # copy this instance's open content into it
+    uv run scripts/palace.py cache prune [--confirm]  # remove entries not taken for 180 days
     uv run scripts/palace.py deploy         # promotion gate: cycle the live run onto HEAD
     uv run scripts/palace.py ingest-chat    # on-demand: ingest the local Claude Code transcripts
     uv run scripts/palace.py code-seed      # on-demand: seed the code embed lane (HEAD .py blobs)
@@ -55,7 +61,8 @@ from core.sealing import seal
 _ROOT = Path(__file__).resolve().parent.parent  # repo root, for the bless path resolution
 
 USAGE = ("usage: palace.py "
-         "{start|stop|down|up|restart|status|queue|query|reset|deploy|ingest-chat|code-seed|"
+         "{start|stop|down|up|restart|status|queue|query|reset|destroy|cache|deploy|ingest-chat|"
+         "code-seed|"
          "code-backfill|code-rebuild|dream|vault-sync|embed|repo-sync|dialogue-sync|relate|lanes|"
          "reembed|"
          "tick|bless} "
@@ -269,6 +276,18 @@ def main(argv: list[str]) -> int:
         return launcher.status()
     if cmd == "reset":
         return launcher.reset(confirm="--confirm" in flags)
+    if cmd == "destroy":
+        return launcher.destroy(confirm="--confirm" in flags)
+    if cmd == "cache":
+        sub = [a for a in argv[1:] if not a.startswith("-")]
+        if not sub:
+            return launcher.cache_report()
+        if sub == ["fill"]:
+            return launcher.cache_fill(confirm="--confirm" in flags)
+        if sub == ["prune"]:
+            return launcher.cache_prune(confirm="--confirm" in flags)
+        print("usage: palace.py cache [fill|prune] [--confirm]", file=sys.stderr)
+        return 2
     if cmd == "deploy":
         return launcher.deploy(skip_tests="--skip-tests" in flags)
     if cmd == "ingest-chat":

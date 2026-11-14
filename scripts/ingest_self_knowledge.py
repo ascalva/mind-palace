@@ -25,9 +25,15 @@ def main() -> int:
     seal()  # structural egress guard first (Invariant 1) — local stores + local Ollama only
     from config.loader import get_config
     from core.ingest import ingress
+    from ops.lifecycle.inventory import refusal
 
+    cfg = get_config()
+    pending = refusal(cfg, "ingest-self-knowledge")     # nothing lands into a half-rebuilt instance
+    if pending is not None:
+        print(pending)
+        return 1
     # the docs' library script through the writer, as the daemon lands it (dn-ingress-language §E8)
-    print(ingress.run_library(get_config(), "sync_docs")["effects"])
+    print(ingress.run_library(cfg, "sync_docs")["effects"])
     return 0
 
 

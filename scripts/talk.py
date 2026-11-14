@@ -16,6 +16,10 @@ LIVE needs Ollama running + an ingested vault (scripts/ingest.py) and the curate
 graph (scripts/ingest_self_knowledge.py). OFFLINE uses a hashing embedder + a deterministic
 responder over a throwaway temp store seeded with a few sample notes + the real design docs, so
 the full loop (retrieve / explain / status / task→deferred / capture) runs with no Ollama.
+
+LIVE is refused while a reset of the instance is pending (`data/reset.pending`): with no daemon
+live it lands what the inbox kept, and a verdict the Ambassador carries applies a disposition, so
+it is a writer, and a writer does not start beside a half-rebuilt instance.
 """
 
 from __future__ import annotations
@@ -130,6 +134,13 @@ def main(argv: list[str]) -> int:
         runtime = _offline_runtime()
         print("mind-palace (OFFLINE demo — deterministic, throwaway store).")
     else:
+        from config.loader import get_config
+        from ops.lifecycle.inventory import refusal
+
+        pending = refusal(get_config(), "to talk")   # it lands the inbox's record with no daemon
+        if pending is not None:
+            print(pending)
+            return 1
         from ops.lifecycle.launcher import build_launcher
         from scheduler.interface import build_conversation_runtime
         runtime = build_conversation_runtime()

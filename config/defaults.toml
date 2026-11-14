@@ -131,8 +131,10 @@ overlap_chars = 150
 # ingress's table, a stream of items its edge reader (`edge/corpus/`) writes under `root/<name>/`
 # and `sync_corpus.palace` lands a batch at a time, observed, at `corpus/<name>/<id>`. Off for the
 # default instance, which declares no source; a named instance turns it on in its own overlay.
-# `root` resolves against the instance's root (a named instance's may not leave it). `batch` is
-# the items one request lands; the runner sizes it, the script takes it as its argument.
+# `root` resolves against the instance's root (a named instance's may not leave it; the corpus
+# instance's root is `~/.mind-palace/instances/corpus`, so its streams are under
+# `~/.mind-palace/instances/corpus/sources`). `batch` is the items one request lands; the runner
+# sizes it, the script takes it as its argument.
 enabled = false
 root = "data/corpus"
 sources = []

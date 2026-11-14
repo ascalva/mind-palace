@@ -72,9 +72,11 @@ via a content-derived edge_id; INSERT OR IGNORE — the first reading of an iden
 is never mutated (re-projection of the same commit is a no-op; a φ_code upgrade is a
 versioned re-interpretation, §2.2, never an in-place overwrite).
 
-**Reset semantics (v1 Q4, unchanged).** Corpus-layer, like `code_observations.sqlite`: wiped
-with the corpus via `reset_targets()` (registration is the orchestrator's post-merge step,
-oq-0013 concurrence), unlike the snapshot LEDGER (build history, reset-guarded).
+**Reset semantics.** A ledger in the class table of `ops/lifecycle/inventory.py`, kept by a
+reset (decision D3 of dn-instance-lifecycle): a commit's reading is the union of every projection
+so far, and the rows carry no extractor version, so a re-projection under today's extractor would
+not give them back. A reset's re-projection of the code observations mints edges this store
+already holds, and `INSERT OR IGNORE` drops them.
 
 Consumers: the detangling instruments, the parked s(C,D) external-corroboration feature
 (finding-0021), and (bp-026's warrant) the dn-core-query-protocol algebra's `references_to`
@@ -413,8 +415,8 @@ class ReferenceEdgeStore:
 
 def open_reference_edge_store(config: Config | None = None) -> ReferenceEdgeStore:
     """The `open_*` helper: `data/reference_edges.sqlite` — the sibling-store convention
-    beside `code_observations.sqlite`. Corpus-layer (Q4): a `reset_targets()` wipe target
-    (registered by the orchestrator post-merge, oq-0013 concurrence)."""
+    beside `code_observations.sqlite`. A ledger in the class table of
+    `ops/lifecycle/inventory.py`, kept by a reset (decision D3)."""
     from core.kernel.config import get_config
 
     cfg = config or get_config()

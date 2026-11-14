@@ -15,6 +15,9 @@ links:
 
 # Corpus stage 1: about a gigabyte of open text in a named instance
 
+> Where the data lives now: `~/.mind-palace/instances/corpus` (moved 2026-11-11; the
+> `instances/corpus` this report names is a symbolic link to it; dn-instance-lifecycle §7).
+
 **Question.** dn-corpus-instance §6 asks stage 1 two things: whether the sources connect, and
 whether crowding is real at a million chunks; and it names the measurements that answer them and
 the falsifiers that would say no. This report gives what was built, what was ingested, and every

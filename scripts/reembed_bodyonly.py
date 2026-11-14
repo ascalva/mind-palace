@@ -130,9 +130,15 @@ def main(argv: list[str]) -> int:
     from core.dreaming import build_dreamer
     from core.ingest.run import run_ingest
     from core.stores.derived import open_derived_store
+    from ops.lifecycle.inventory import refusal
     from ops.lifecycle.runs import open_run_ledger
 
     cfg = get_config()
+    if "--confirm" in argv:
+        pending = refusal(cfg, "the re-embed")             # a pending reset refuses writers
+        if pending is not None:
+            print(pending)
+            return 1
     derived = open_derived_store(cfg)
 
     if "--confirm" not in argv:                          # dry-run is the default (fail-safe)

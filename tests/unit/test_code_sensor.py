@@ -152,31 +152,11 @@ def test_version_bump_makes_backfill_reproject_and_archive(repo, tmp_path, monke
 
 
 def test_reset_wipes_readings_but_refuses_the_worldview_history(tmp_path):
-    """Pins §6(f): `reset_targets()` still lists the readings store (corpus-side, wiped,
-    rebuilt by re-projection) and the history sidecar is NOT a target — it sits in
-    `_RESET_GUARD`, where the launcher's target assertion refuses it outright."""
-    from typing import cast
+    """Pins §6(f), now in the class table (dn-instance-lifecycle §3): the readings store is a
+    derived store a reset clears and rebuilds by re-projection, and the history sidecar is a
+    ledger it keeps."""
+    from ops.lifecycle.inventory import STORES, Kind
 
-    from config.loader import Config
-    from ops.lifecycle.launcher import _RESET_GUARD, Launcher
-    from ops.lifecycle.runs import RunLedger
-
-    class _Paths:
-        def __init__(self, d: Path) -> None:
-            self.data_dir = d
-            self.raw_store = d / "raw.sqlite"
-            self.vector_store = d / "vectors.lance"
-            self.vault_catalog = d / "vault_catalog.sqlite"
-            self.derived_store = d / "derived.sqlite"
-            self.attestation_store = d / "attestations.sqlite"
-
-    class _Cfg:
-        def __init__(self, d: Path) -> None:
-            self.paths = _Paths(d)
-
-    launcher = Launcher(cfg=cast(Config, _Cfg(tmp_path / "data")),
-                        runs=cast(RunLedger, None), repo_root=tmp_path)
-    names = {t.name for t in launcher.reset_targets()}
-    assert "code_observations.sqlite" in names           # readings: corpus-side, wiped
-    assert "observation_history.sqlite" not in names     # the worldview ledger is NOT a target…
-    assert "observation_history.sqlite" in _RESET_GUARD  # …and the guard refuses it structurally
+    kind = {s.name: s.kind for s in STORES}
+    assert kind["code_observations.sqlite"] is Kind.DERIVED       # readings: rebuilt
+    assert kind["observation_history.sqlite"] is Kind.LEDGER      # the worldview ledger: kept

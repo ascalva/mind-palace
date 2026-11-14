@@ -208,7 +208,10 @@ hypothesis the instance tests is that `ρ_b` on these six sources is well below 
 
 The instance's id is `corpus`. Under DI-2 everything it holds is derived from that id and disjoint
 from the default instance by construction: its root is `instances/corpus/` (gitignored, one
-directory to mount or archive), its stores, spool, lock and levers under it, its Keychain items
+directory to mount or archive) [banner: amended 2026-11-12, dn-instance-lifecycle §7: the root is
+declared, `~/.mind-palace/instances/corpus`, outside every checkout; the data moved there on
+2026-11-11 and `instances/corpus` in the corpus stage-1 worktree is a symbolic link to it], its
+stores, spool, lock and levers under it, its Keychain items
 `corpus.<name>`, its launchd labels `com.mind-palace.corpus.<role>`, its exhaust lane inside its
 root. It declares no vault, no transcripts and no code agent, so it reads none of the default
 instance's sources; the loader refuses an overlay that could reach anything another instance
@@ -219,6 +222,7 @@ writes, and the property test over generated ids checks the invariant. `[ESTABLI
 # config/instances/corpus.toml: the open-corpus instance (dn-corpus-instance).
 [instance]
 id = "corpus"
+root = "~/.mind-palace/instances/corpus"   # added 2026-11-12 (dn-instance-lifecycle §7)
 
 [runtime]
 embedding_backend = "llamacpp"
@@ -242,7 +246,7 @@ enabled = false
 enabled = false
 
 [ingestion.corpus]                  # the sources of §7, each a line of the ingress's table (§5.2)
-root = "instances/corpus/sources"   # dumps and stream checkpoints land here, under the instance's root
+root = "sources"                    # dumps and stream checkpoints land here, under the instance's root
 ```
 
 The `[ingestion.corpus]` section does not exist in the schema today; it is the one config change
@@ -598,7 +602,8 @@ and held locally and never republished; the 2024-04-02 archive and the API for S
   default is withdrawn.
 - **CIF-4 (the compact graph is not compact):** an occupancy row above 300 B or an edge above 24 B
   measured at stage 1. Then §4.3's 31 GB is 60 or more and the cap bites at 100 GB.
-- **CIF-5 (the instance reaches outside):** a write under anything but `instances/corpus/`, or a
+- **CIF-5 (the instance reaches outside):** a write under anything but its root
+  (`~/.mind-palace/instances/corpus/` since 2026-11-12; `instances/corpus/` before), or a
   read of the default instance's sources. SAF-5; the loader's refusal is the guard.
 - **CIF-6 (a batch does not converge):** a batch interrupted and re-run that lands a different
   state. ING-11 says it cannot; a difference is a transcription defect in the lander.

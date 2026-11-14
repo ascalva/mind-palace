@@ -80,11 +80,12 @@ class DrainReport:
     left: int = 0
     seconds: float = 0.0
     cut: int = 0             # texts the embedder took only a prefix of (`embed_fitting`)
+    cached: int = 0          # atoms taken from the shared cache instead of the embedder
 
     def __str__(self) -> str:
         return (f"{self.items} item(s), {self.chunks} chunk(s), {self.embedded} embedded, "
-                f"{self.reused} reused, {self.empty} empty, {self.left} left pending, "
-                f"{self.cut} cut, {self.seconds:.1f}s")
+                f"{self.reused} reused, {self.cached} cached, {self.empty} empty, "
+                f"{self.left} left pending, {self.cut} cut, {self.seconds:.1f}s")
 
 
 def pending(catalog: Any, plane: Any, *, lexical: Any | None = None,
@@ -144,17 +145,28 @@ def canonical_chunks(record: IngestRecord) -> list[Chunk]:
 
 
 def embed_missing(plane: Any, embedder: Any, texts: Sequence[str], *, batch: int = 64,
-                  streams: int = 1) -> tuple[dict[str, list[float]], int, int]:
+                  streams: int = 1, cache: Any = None,
+                  ) -> tuple[dict[str, list[float]], int, int, int]:
     """Embed the distinct texts whose atoms the plane does not hold, `batch` a request and
     `streams` requests in flight at once, a text the server refuses for its length cut to fit
     (`embed_fitting`, which the embedder applies to every request; it is applied again here for an
-    embedder object that does not). Returns `{atom id: vector}`, how many atoms the plane held
-    already, and how many texts were cut, by either."""
+    embedder object that does not). An atom the plane lacks is first looked up in the shared
+    cache under the instance's embedder key (`cache`, a `VectorCache`; dn-instance-lifecycle
+    §6.5) and taken from it when found. Returns `{atom id: vector}`, how many atoms the plane held
+    already, how many texts were cut, by either, and how many vectors the cache gave."""
     wanted = {plane_atom_id(t): t for t in dict.fromkeys(texts)}
     known = set(plane.known_atoms(list(wanted)))
     todo = [(a, t) for a, t in wanted.items() if a not in known]
     if not todo:
-        return {}, len(known), 0
+        return {}, len(known), 0, 0
+    found: dict[str, list[float]] = cache.vectors([a for a, _ in todo]) if cache is not None \
+        else {}
+    dim = getattr(plane, "dim", None)
+    if isinstance(dim, int):          # a vector of another width is not this plane's geometry
+        found = {a: v for a, v in found.items() if len(v) == dim}
+    todo = [(a, t) for a, t in todo if a not in found]
+    if not todo:
+        return dict(found), len(known), 0, len(found)
     groups = [todo[i:i + batch] for i in range(0, len(todo), batch)]
 
     before = getattr(embedder, "cut", None)
@@ -177,7 +189,8 @@ def embed_missing(plane: Any, embedder: Any, texts: Sequence[str], *, batch: int
             cut += n
     if isinstance(before, int):
         cut += int(getattr(embedder, "cut", before)) - before      # the embedder's own cuts
-    return out, len(known), cut
+    out.update(found)
+    return out, len(known), cut, len(found)
 
 
 def drain(stores: Any, *, batch: int = 64, streams: int = 1, max_items: int | None = None,
@@ -212,23 +225,25 @@ def derive_entries(stores: Any, entries: Iterable[CatalogEntry], *, batch: int =
     again, which the plane's landing reconciles to nothing, and one with no chunk is counted
     empty."""
     start = clock()
-    items = chunks = embedded = reused = empty = cut = 0
+    items = chunks = embedded = reused = empty = cut = cached = 0
     group: list[tuple[IngestRecord, list[Chunk]]] = []
     size = 0
     target = max(1, batch * max(1, streams))
+    vcache = getattr(stores, "cache", None)
 
     def flush() -> None:
-        nonlocal items, chunks, embedded, reused, cut, group, size
+        nonlocal items, chunks, embedded, reused, cut, cached, group, size
         if not group:
             return
         texts = [c.text for _, cs in group for c in cs]
-        fresh, held, n_cut = embed_missing(stores.plane, stores.embedder, texts, batch=batch,
-                                           streams=streams)
+        fresh, held, n_cut, n_cached = embed_missing(stores.plane, stores.embedder, texts,
+                                                     batch=batch, streams=streams, cache=vcache)
         rows = [_chunk_row(r, c, fresh.get(plane_atom_id(c.text))) for r, cs in group for c in cs]
         stores.plane.add(rows)                                    # the key: the occupancy, last
         items += len(group)
         chunks += len(rows)
-        embedded += len(fresh)
+        embedded += len(fresh) - n_cached
+        cached += n_cached
         reused += held
         cut += n_cut
         if landed is not None:
@@ -247,7 +262,7 @@ def derive_entries(stores: Any, entries: Iterable[CatalogEntry], *, batch: int =
             flush()
     flush()
     return DrainReport(items=items, chunks=chunks, embedded=embedded, reused=reused, empty=empty,
-                       seconds=clock() - start, cut=cut)
+                       seconds=clock() - start, cut=cut, cached=cached)
 
 
 # ── the lexical index's own backfill ───────────────────────────────────────────────────────────

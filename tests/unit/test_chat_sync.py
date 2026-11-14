@@ -10,6 +10,7 @@ finding-0108). scheduler never imports core/ops at runtime here (the sensor is i
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 from typing import Any, cast
@@ -97,10 +98,21 @@ def test_secret_bearing_session_is_refused_whole(tmp_path: Path) -> None:
 
 
 # --- the REUSED builder is the wiring path (no duplicate — finding-0108 G1) ---------------------
-def test_build_chat_sensor_is_reused_from_ops_and_wires_the_handles() -> None:
-    sensor = build_chat_sensor(get_config())
+def test_build_chat_sensor_is_reused_from_ops_and_wires_the_handles(tmp_path: Path) -> None:
+    """The default configuration with its data under `tmp_path`: the builder opens the chat log,
+    the retention ledger, which it seeds from the chat log once, and the raw store, so on the
+    checkout's own data directory it would write them there, and the deploy gate runs this tier in
+    the checkout of the running instance."""
+    base = get_config()
+    data = tmp_path / "data"
+    cfg = dataclasses.replace(base, paths=dataclasses.replace(base.paths, data_dir=data,
+                                                              raw_store=data / "raw"))
+    sensor = build_chat_sensor(cfg)
     assert isinstance(sensor, ChatSensor)
     # transcripts dir is config-derived (REPO_ROOT slug under ~/.claude/projects), not hard-coded
     assert "/.claude/projects/" in str(sensor.transcripts_dir)
     assert isinstance(sensor.guard, ChatSecretGuard)
     assert sensor.active_session_id is None           # the daemon is not a live CLI session (Q2)
+    assert sensor.retention is not None
+    for opened in (sensor.store.path, sensor.retention.path, sensor.rawstore.root):
+        assert data in Path(opened).parents, opened              # nothing of the checkout's

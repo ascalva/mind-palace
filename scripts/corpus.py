@@ -123,6 +123,11 @@ def isolation(cfg: Config, live: list[Path]) -> dict[str, Any]:
 
 def cmd_isolation(a: argparse.Namespace) -> int:
     cfg = corpus_config()
+    from ops.lifecycle.inventory import refusal
+
+    pending = refusal(cfg, "ingest")
+    if pending is not None:
+        raise SystemExit(pending)
     proof = isolation(cfg, [Path(p).resolve() for p in a.live])
     root = cfg.instance.root
     root.mkdir(parents=True, exist_ok=True)
@@ -138,6 +143,14 @@ def cmd_fetch(a: argparse.Namespace) -> int:
                          f"{', '.join(cfg.ingestion.corpus.sources)}")
     out = cfg.ingestion.corpus.root / a.source
     out.mkdir(parents=True, exist_ok=True)
+    # the shared cache first (dn-instance-lifecycle §6.5): a stream another instance left there is
+    # copied in, each file checked against its manifest row, and the reader resumes after it
+    from core.stores.cache import Cache, cache_home
+
+    if not (out / "stream" / "manifest.json").exists():
+        taken = Cache(cache_home()).take_source(a.source, out)
+        if taken:
+            print(f"fetch {a.source}: {taken} file(s) taken from the shared cache")
     argv = [sys.executable, "-m", f"edge.corpus.{a.source}", "--out", str(out), *a.rest]
     return subprocess.call(argv, cwd=Path(__file__).resolve().parent.parent)
 
@@ -194,6 +207,11 @@ def cmd_ingest(a: argparse.Namespace) -> int:
     from ops.lifecycle.lock import SupervisorLock, SupervisorLockHeld
 
     cfg = corpus_config()
+    from ops.lifecycle.inventory import refusal
+
+    pending = refusal(cfg, "ingest")
+    if pending is not None:
+        raise SystemExit(pending)
     proof = isolation(cfg, [Path(p).resolve() for p in a.live])
     if not proof["isolated"]:
         print(json.dumps(proof["checks"], indent=1), file=sys.stderr)
@@ -215,7 +233,9 @@ def cmd_ingest(a: argparse.Namespace) -> int:
     signal.signal(signal.SIGTERM, on_signal)
     signal.signal(signal.SIGINT, on_signal)
     stop_file = root / "STOP"
-    stores = build_stores(cfg)
+    from core.stores.cache import with_cache
+
+    stores = with_cache(build_stores(cfg), cfg)
     gate = Gate(chat_port=a.chat_port, embed_port=cfg.runtime.port_for("embedding") or 8081,
                 log=root / "gate.log")
     stores.embedder = GatedEmbedder(stores.embedder, gate, streams=a.streams, batch=a.embed_batch)
@@ -399,6 +419,11 @@ def cmd_embed(a: argparse.Namespace) -> int:
     from ops.corpus.embedder import EmbedderStopped, Gate, GatedEmbedder
 
     cfg = corpus_config()
+    from ops.lifecycle.inventory import refusal
+
+    pending = refusal(cfg, "embed")
+    if pending is not None:
+        raise SystemExit(pending)
     root = cfg.instance.root
     lock = _writer_lock(cfg)
     stopping = {"why": ""}
