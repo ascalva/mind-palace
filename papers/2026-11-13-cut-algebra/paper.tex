@@ -50,8 +50,8 @@ contents is not the union on positions: it holds both versions of an edited note
 agree exactly on rows that are never closed. Seven laws are proved in Lean~4, 110 theorems with
 six controls among them, and a property test checks the code against a fold of the log. On a
 copy of the corpus catalog, every head counts in 66~ms and reads as three columns in 0.22~s, and
-the signed difference over a thousand positions takes 2.5~ms against 3.6 to 3.8~s for two full
-reads and a set difference.
+the signed difference over a thousand positions is counted in 2.5~ms and read and sorted in 2.7
+to 2.9~ms, against 3.6 to 3.8~s for two full reads and a set difference.
 \end{abstract}
 
 \section{Introduction}
@@ -65,16 +65,16 @@ the transaction of the catalog's own row, and a row stores the position of its p
 when that event lands, its closing stamp. A cut is one position a chain, about a dozen integers
 for an instance.
 
-That stage's read of every version a cut holds returned a list of row objects: 3.5 to 3.9~$\mu$s
-a head beyond the walk, so the read passed a tenth of a second near 27{,}000 heads. Before a
-later stage builds the store's graph at a cut on this read, its shape had to change. The
-requirements the design takes as given are these. A cut is a value that stands for the store's
-graph as of it, and nothing is read until an operation needs it. Two cuts act on each other by a
-difference, a union and an intersection, any operation can run on one cut, and a family of cuts
-can be operated on. Union and intersection are kept in both meanings, on positions and on
-contents. An operation that names no cut uses the current one, as the top of a stack is the
-implicit operand. And a change to a node makes a new version of the node, of which a cut holds
-the one alive at it.
+That stage's read of every version a cut holds returned a list of row objects: 3.5 to 3.9~$\mu$s a
+head beyond the walk, so the read passed a tenth of a second near 27{,}000 heads. Before a later
+stage builds the store's graph at a cut on this read, its shape had to change. The design takes
+five requirements as given. The value a cut names is the store's graph at its positions, evaluated
+lazily, so that holding a cut reads nothing. Operators take one cut with another, a difference, a
+union and an intersection among them, and operations of any kind apply to one cut or to a family of
+cuts. Each of the two set operations has two forms, one of positions and one of contents, and both
+are kept. An operation given no cut works on the current one, the way a stack operation takes the
+value on top. And editing a node gives it a new version while it stays the same node, so that a cut
+holds each node in the version alive there.
 
 The contributions:
 \begin{enumerate}
@@ -100,7 +100,9 @@ each process; Chandy and Lamport recorded consistent global states with markers
 and intersection, with vector time as its coordinates \cite{mattern1989virtual}. Down-sets of a
 partial order form a distributive lattice \cite{davey2002lattices}. Each chain here is one append
 order, so a cut is a down-set of a disjoint union of chains, the lattice is the product of the
-chains' positions, and every frontier of chains that read no other chain is consistent.
+chains' positions, and every frontier of chains that read no other chain is consistent. The log's
+chains read no other chain but for a change of class, which writes a row in each of two chains in
+one transaction (\cref{sec:limits}).
 
 \paragraph{Temporal data.} Transaction-time databases keep each version of a record with the
 interval of time it was current, and a survey compares the access methods for such data
@@ -189,10 +191,12 @@ every chain, in either direction,
 \gone(a,c) &= \gone(a,b) \cup (\gone(b,c) \setminus \come(a,b)),
 \end{align*}
 and a row that came and went on the way is on neither side. A sum over the rows at $b$ is the
-sum at $a$ less the rows gone, with the rows come. The rows sort by key into removed, added and
-replaced, each in one class, and every key of the difference is one the events between name.
-(\lean{Held.has_cut_eq_apply}, \lean{Held.has_come_trans}, \lean{Held.has_gone_trans},
-\lean{Held.sum_rows_delta}, \lean{mem_gone_iff}, \lean{key_mem_of_mem_delta}.)
+sum at $a$ less the rows gone, with the rows come. Sorted by key, each row gone is removed or the
+first of a replaced pair and not both, each row come is added or the second of one, and every key
+of the difference is one the events between name. (\lean{Held.has_cut_eq_apply},
+\lean{Held.has_come_trans}, \lean{Held.has_gone_trans}, \lean{Held.sum_rows_delta},
+\lean{mem_gone_iff}, \lean{not_replacedOf_of_removedOf}, \lean{mem_come_iff},
+\lean{key_mem_of_mem_delta}.)
 \end{theorem}
 
 Through a cut outside the two the composition fails (\lean{Witness.delta_through_outside}). The
@@ -343,8 +347,11 @@ $M^{\top}(1 - M)$, whose entry $(i,j)$ counts what $i$ holds and $j$ does not.
 \paragraph{The tool.} One tool of the store's protocol for agents, \texttt{cut}, takes an operator
 and its operands: each a cut's name (\texttt{head}, \texttt{bottom}, or positions written
 \texttt{land.<chain>@<seq>}) or a call written as an object, whose result is the operand. So a
-call is one expression, read when its outermost operator needs it. A set given where a cut is
-expected is refused by its type, and the refusal names what was given and what is taken. A
+call is one expression: it reads the heads when it starts, a chain's horizon once for a position
+named under the chain's head, and then what its outermost operator needs. The server opens the
+catalog's file to only read, and a call's sets name at most 256 cuts, counted each time their
+statement names one. A set given where a cut is expected is refused by its type, and the refusal
+names what was given and what is taken. A
 position under a chain's horizon, inside the block that opens a chain and is not history, is read
 at the chain's empty prefix, and the answer's note says so. Every answer names the cuts it read
 by their positions and says that it is of versions only: edges and graph mathematics at a cut
@@ -358,7 +365,7 @@ each chain and at random frontiers over several chains, ordered and not.
 
 \section{Evaluation}\label{sec:eval}
 
-The deterministic tier of the repository's tests passes at 3{,}751 tests with the algebra's 30.
+The deterministic tier of the repository's tests passes at 3{,}757 tests with the algebra's 36.
 The measurements are of the code as built, on two copy-on-write clones of a corpus instance's
 catalog: 400{,}274 items of one class, so one chain whose genesis ends at position 400{,}276, then
 200{,}000 writes after it (100{,}000 new versions of held paths, 50{,}000 retires, 50{,}000 new
@@ -408,10 +415,12 @@ Three columns pass the bar near 180{,}000 heads on a chain whose events are its 
 size at which the design keeps heads at recorded cuts or walks the differences from a first read,
 and the corpus chain is over it.
 
-\paragraph{The difference.} It costs what changed: 0.02~ms for one position, 2.5~ms for a
-thousand, 0.28 to 0.31~s for 100{,}000 and 0.56 to 0.60~s for the whole history, against 3.6 to
-3.8~s for two reads of every head and a set difference at every span. The planner took the
-primary key for the rows come and the index of closing stamps for the rows gone, unprompted. The
+\paragraph{The difference.} Counted, it costs what changed: 0.02~ms for one position, 2.5~ms for
+a thousand (2.7 to 2.9~ms read and sorted), 0.28 to 0.31~s for 100{,}000 and 0.56 to 0.60~s for
+the whole history, against 3.6 to 3.8~s for two reads of every head and a set difference at every
+span that ends at the head from inside the history, and 1.8 to 1.9~s from the bottom, where one
+of the two reads is empty. The planner took the primary key for the rows come and the index of
+closing stamps for the rows gone, unprompted. The
 rows gone cost 2.9 to 3.2~$\mu$s a row against 0.57 for the rows come, since each is found on the
 index and then read from the table by its position, where the rows come are one run of the
 primary key.
@@ -421,7 +430,7 @@ took 0.43 to 0.49~s against 0.79 to 0.83~s for ten counts, and equalled them; wh
 through all took 64~ms, one walk to the least position; what existed in any 99~ms; and the
 pairwise table 0.32~s, equal to the hundred differences' sizes.
 
-\section{Limitations}
+\section{Limitations}\label{sec:limits}
 
 The model states the laws over lists, and the statements the code runs are not in it: that each
 runs as its predicate is the property test's, not a theorem's. Every head as columns is over the
@@ -430,8 +439,12 @@ differences. The rows gone are read through an index and the table, five times t
 the rows come. The measurements are of one chain of one class, so a difference between two cuts
 neither of which is under the other was tested and not measured, and the history purged nothing.
 A position named under a chain's head is checked against the chain's horizon by a walk back to
-the horizon's row, since no index finds it. And this is not yet the graph: the edges by species
-and the graph's quantities at a cut are the next stage's.
+the horizon's row, once a call for each chain, since no index finds it. A change of class writes
+a row in each of two chains in one transaction, and a frontier can hold one without the other,
+so that the path is in both classes or in neither; such a frontier is read as asked and the tool
+says so, and whether the pair becomes a reference the resolver follows is left to the next
+stage. And this is not yet the graph: the edges by species and the graph's quantities at a cut
+are the next stage's.
 
 \section{Future work}
 
