@@ -248,20 +248,21 @@ def test_every_lexical_read_the_guest_causes_names_classes_its_grant_reads(
     from core.stores.lexical import LexicalStore
 
     asked: list[frozenset[str] | None] = []
-    score, count = LexicalStore._score_units, LexicalStore.count
+    score, count = LexicalStore._ranked, LexicalStore.count
 
     def named(classes: Any) -> frozenset[str] | None:
         return None if classes is None else frozenset(str(c) for c in classes)
 
-    def scored(self: LexicalStore, query: str, *, classes: Any, paths: Any) -> dict[int, float]:
+    def scored(self: LexicalStore, query: str, *, classes: Any, paths: Any, k: int | None,
+               per_path: bool) -> list[Any]:
         asked.append(named(classes))
-        return score(self, query, classes=classes, paths=paths)
+        return score(self, query, classes=classes, paths=paths, k=k, per_path=per_path)
 
     def counted(self: LexicalStore, *, classes: Any = None) -> int:
         asked.append(named(classes))
         return count(self, classes=classes)
 
-    monkeypatch.setattr(LexicalStore, "_score_units", scored)
+    monkeypatch.setattr(LexicalStore, "_ranked", scored)
     monkeypatch.setattr(LexicalStore, "count", counted)
     a, _ = lite
     guest = _server(a, "guest")
