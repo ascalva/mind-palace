@@ -1,21 +1,28 @@
 """The `cut` tool's handler, called as the MCP server calls it (dn-temporal-snapshot §7.5, SN-1b).
 
-The server decodes a call's arguments from JSON and passes them to the handler, and writes the
-answer back as JSON (`agents/ambassador/mcp.py`, `Server.handle`); `ask` does the same around
+The server opens the catalog's file to only read, decodes a call's arguments from JSON and passes
+both to the handler, and writes the answer back as JSON (`agents/ambassador/mcp.py`,
+`Ambassador.cut`, `Server.handle`); `ask` does the same around
 `agents/ambassador/cut_tool.py::cut`. The property, the tenth of §12's list for SN-1b: every
-operator answers by its name; an operand may be a call, and the whole call is one expression read
-when the outermost operator needs it; a set, a signed difference or a number given where a cut is
-expected is refused by its type; a position past a chain's head is refused with the head; a chain
-the grant does not read is refused in the words used for one that does not exist; and the note
-says that the head was read where no cut was named, which chain was read below the position
-asked, how many rows of the ranges read are holes, and that edges and graph mathematics at a cut
-arrive with SN-4. The registration in the server is `tests/unit/test_ambassador_surface.py`'s.
+operator answers by its name; an operand may be a call, and the whole call is one expression,
+which reads the heads when it starts, the horizon of a chain once when a position under its head
+is named, and then one statement for its outermost operator; the head is read once a call, so
+writes that land while a call runs change nothing in its answer; a set, a signed difference or a
+number given where a cut is expected is refused by its type; a call whose sets would name more
+than `TERMS` cuts is refused before any statement is written, and a nested symmetric difference
+grows the statement by its operands only; a position past a chain's head is refused with the
+head; a chain the grant does not read is refused in the words used for one that does not exist;
+and the note says that the head was read where no cut was named, which chain was read below each
+position asked, that a cut can split a change of class, how many rows of the ranges read are
+holes, and that edges and graph mathematics at a cut arrive with SN-4. The registration in the
+server is `tests/unit/test_ambassador_surface.py`'s.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+import re
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -24,26 +31,37 @@ import pytest
 from agents.ambassador import cut_tool
 from core.kernel.provenance import Provenance
 from core.stores.catalog import VaultCatalog
-from core.stores.cuts import CutError
+from core.stores.cuts import CutError, Evaluation, read_only
 
 SOLO, CURATED = Provenance.AUTHORED_SOLO, Provenance.CURATED
 BOTH = ["authored-solo", "curated"]
+START = "SELECT chain, class, (SELECT max(seq) FROM landings"      # the heads, when a call starts
 
 
-def ask(cat: VaultCatalog, classes: Iterable[str] = BOTH, **arguments: Any) -> dict[str, Any]:
-    """A call as the server makes it: the arguments through JSON, the answer back through it."""
-    answer = cut_tool.cut(cat, classes, json.loads(json.dumps(arguments)))
+def ask(cat: VaultCatalog, classes: Iterable[str] = BOTH, seen: list[str] | None = None,
+        **arguments: Any) -> dict[str, Any]:
+    """A call as the server makes it: over a connection that only reads the catalog's file, the
+    arguments through JSON, the answer back through it. `seen` collects the statements the call
+    runs."""
+    conn = read_only(cat.path)
+    if seen is not None:
+        conn.set_trace_callback(seen.append)
+    try:
+        answer = cut_tool.cut(conn, classes, json.loads(json.dumps(arguments)))
+    finally:
+        conn.close()
     text = json.dumps(answer, ensure_ascii=False)            # plain JSON: no default needed
     out: dict[str, Any] = json.loads(text)
     return out
 
 
 @pytest.fixture
-def cat() -> Iterable[VaultCatalog]:
-    """A chain of authored-solo notes, land.1, and one of curated papers, land.2. land.1: the
-    genesis and the horizon at 1 and 2, a.md and b.md at 3 and 4; then a.md edited at 5, b.md
-    retired at 6 and c.md landed at 7. land.2: x.md at 3."""
-    c = VaultCatalog(Path(":memory:"))
+def cat(tmp_path: Path) -> Iterator[VaultCatalog]:
+    """A chain of authored-solo notes, land.1, and one of curated papers, land.2, in a file the
+    calls read through their own connection. land.1: the genesis and the horizon at 1 and 2, a.md
+    and b.md at 3 and 4; then a.md edited at 5, b.md retired at 6 and c.md landed at 7. land.2:
+    x.md at 3."""
+    c = VaultCatalog(tmp_path / "catalog.sqlite")
     c.record("a.md", "d1", "A", provenance=SOLO)
     c.record("b.md", "d2", "B", provenance=SOLO)
     c.record("x.md", "dx", "X", provenance=CURATED)
@@ -95,6 +113,12 @@ def test_every_operator_answers_by_its_name(cat: VaultCatalog) -> None:
     assert [(r["path"], r["digest"], r["cuts_holding"]) for r in counted["rows"]] == [
         ("a.md", "d1", 1), ("b.md", "d2", 2), ("a.md", "d3", 2), ("c.md", "d4", 1)]
     assert counted["held_by_every_cut"] == 0
+    seen: list[str] = []
+    first = ask(cat, seen=seen, op="in_how_many", cuts=["land.1@5", "head"],
+                a={"op": "existed", "cuts": ["land.1@5", "head"]}, limit=1, **SOLO_ONLY)
+    assert [(r["digest"], r["cuts_holding"]) for r in first["rows"]] == [("d2", 1)]
+    assert (first["count"], first["truncated"], first["held_by_every_cut"]) == (3, True, 1)
+    assert sum(q.endswith("LIMIT 1)") for q in seen) == 1            # the rows listed, and no more
     series = ask(cat, op="measure", cuts=["bottom", A, "head"], of="count", **SOLO_ONLY)
     assert [(s["cut"], s["value"]) for s in series["series"]] == [
         ("land.1@0", 0), ("land.1@4", 2), ("land.1@7", 2)]
@@ -117,19 +141,93 @@ def test_the_two_meanings_of_union_differ_by_name_and_type(cat: VaultCatalog) ->
     assert united["type"] == "set"
 
 
-def test_an_operand_may_be_a_call_and_nothing_is_read_before_the_outermost_needs_it(
+def test_a_call_reads_the_heads_a_horizon_once_and_one_statement_for_its_result(
         cat: VaultCatalog) -> None:
     """The union of two differences is one call with a `difference` in `a` and another in `b`:
-    the whole is one expression, and it is read by one statement when its count is asked."""
+    the whole is one expression. Every statement the call runs, in order: the heads, when it
+    starts; the horizon of land.1, once though land.1@4 is named twice, since a position under a
+    chain's head is served from the chain's horizon on (§7.1); and the one statement that counts
+    the union. An operator on positions reads what its names need and nothing more, and `head`
+    and `bottom` need nothing."""
     seen: list[str] = []
-    cat._conn.set_trace_callback(seen.append)
-    answer = ask(cat, op="union", a={"op": "difference", "a": "head", "b": A},
+    answer = ask(cat, seen=seen, op="union", a={"op": "difference", "a": "head", "b": A},
                  b={"op": "difference", "a": A, "b": "head"}, **SOLO_ONLY)
-    cat._conn.set_trace_callback(None)
     assert answer["count"] == 4
-    reads = [q for q in seen if "count(salt)" in q]
-    assert len(reads) == 1
     assert [c["read"] for c in answer["cuts"]] == ["land.1@7", "land.1@4"]
+    assert len(seen) == 3, seen
+    assert seen[0].startswith(START)
+    assert "kind = 'horizon'" in seen[1] and "seq <= 4 " in seen[1]
+    assert re.match(r"SELECT coalesce\(sum\(n\), 0\), coalesce\(sum\(h\), 0\) FROM", seen[2])
+    for args, n in (({"op": "order", "a": A, "b": "land.1@5"}, 2),
+                    ({"op": "join", "a": A, "b": "land.1@3"}, 2),
+                    ({"op": "order", "a": "head", "b": "bottom"}, 1)):
+        seen.clear()
+        ask(cat, seen=seen, **args, **SOLO_ONLY)
+        assert len(seen) == n and seen[0].startswith(START), (args, seen)
+
+
+def test_the_head_is_read_once_a_call_whatever_lands_while_it_runs(
+        cat: VaultCatalog, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Writes that land after a call has read the heads change nothing in its answer: an operand
+    left out is the head the call read when it started, in a signed difference, a set and a join
+    alike, and the answer's cuts, its note and its counts are those of that head (D27, SNF-19).
+    The writes land from the catalog's own connection right after the call's evaluation reads the
+    heads, two a call."""
+
+    class Racing(Evaluation):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            n = cat.head(1)
+            cat.record("d.md", f"d{n}", "D")
+            cat.record("a.md", f"e{n}", "A")
+
+    monkeypatch.setattr(cut_tool, "Evaluation", Racing)
+
+    def said(head: str) -> str:
+        return f"No cut was named for an operand, so the head was read, once for the whole " \
+               f"call: {head}."
+
+    delta = ask(cat, op="delta", a="bottom", **SOLO_ONLY)          # read at 7; 8 and 9 land
+    assert (delta["removed"], delta["added"], delta["replaced"]) == (0, 2, 0)
+    assert delta["cuts"] == [{"read": "land.1@0"}, {"read": "land.1@7"}]
+    assert delta["note"].startswith(said("land.1@7"))
+    held = ask(cat, op="held", list=True, **SOLO_ONLY)             # read at 9; 10 and 11 land
+    assert [(r["seq"], r["digest"]) for r in held["rows"]] == [(7, "d4"), (8, "d7"), (9, "e7")]
+    assert held["cuts"] == [{"read": "land.1@9"}] and held["note"].startswith(said("land.1@9"))
+    joined = ask(cat, op="join", a=A, **SOLO_ONLY)                 # read at 11; 12 and 13 land
+    assert joined["cut"] == "land.1@11" and joined["note"].startswith(said("land.1@11"))
+    assert joined["cuts"] == [{"read": "land.1@4"}, {"read": "land.1@11"}]
+    assert cat.head(1) == 13
+
+
+def test_a_call_is_bounded_by_the_cuts_its_statement_names(cat: VaultCatalog) -> None:
+    """A symmetric difference names each operand once, so thirty-one nested in one call make a
+    statement that names thirty-two cuts, where writing each as two differences would double it
+    at every level. A call whose sets would name more than `TERMS` cuts, counted each time the
+    statement names one, is refused with the bound, and nothing but the heads is read."""
+    names = [A, "land.1@5", "head"]
+    nested: dict[str, Any] = {"op": "held", "a": names[0]}
+    for i in range(1, cut_tool.DEPTH):
+        nested = {"op": "symmetric_difference", "a": nested, "b": names[i % 3]}
+    rows = {n: {(r["chain"], r["seq"]) for r in
+                ask(cat, op="held", a=n, list=True, **SOLO_ONLY)["rows"]} for n in names}
+    want = rows[names[0]]
+    for i in range(1, cut_tool.DEPTH):
+        want = want ^ rows[names[i % 3]]
+    seen: list[str] = []
+    answer = ask(cat, seen=seen, op="count", a=nested, **SOLO_ONLY)
+    assert answer["value"] == len(want)
+    assert seen[-1].count("closed_at IS NULL OR closed_at >") <= cut_tool.DEPTH + 1
+    family = ["head"] * cut_tool.FAMILY
+    big: dict[str, Any] = {"op": "existed", "cuts": family}
+    for _ in range(cut_tool.TERMS // cut_tool.FAMILY):
+        big = {"op": "union", "a": big, "b": {"op": "existed", "cuts": family}}
+    seen.clear()
+    with pytest.raises(CutError, match=rf"a call's sets name at most {cut_tool.TERMS} cuts, "
+                                       rf".* and this call's name "
+                                       rf"{cut_tool.TERMS + cut_tool.FAMILY}$"):
+        ask(cat, seen=seen, op="count", a=big, **SOLO_ONLY)
+    assert len(seen) == 1 and seen[0].startswith(START)
 
 
 def test_a_set_or_a_difference_or_a_number_where_a_cut_is_expected_is_refused_by_type(
@@ -209,6 +307,11 @@ def test_the_note_says_the_head_the_horizon_the_holes_and_what_waits_for_sn4(
            "horizon are its genesis" in under["note"]
     assert ask(cat, ["authored-solo"], op="held", a="land.1@4")["count"] == 2
     assert "No row of the ranges read is a hole." in under["note"]
+    both = ask(cat, ["authored-solo"], op="union", a="land.1@2", b="land.1@3")
+    assert both["cuts"] == [{"read": "land.1@0", "asked": "land.1@2"},
+                            {"read": "land.1@0", "asked": "land.1@3"}]
+    assert "below the position asked, 2:" in both["note"]
+    assert "below the position asked, 3:" in both["note"]
     assert cat.active_refs("da") == 0
     cat.remove_digest("da")                 # v/a.md's first version, a hole from now on
     purged = ask(cat, ["authored-solo"], op="held", a="land.1@4")
@@ -217,6 +320,32 @@ def test_the_note_says_the_head_the_horizon_the_holes_and_what_waits_for_sn4(
         in purged["note"]
     for a in (ask(cat, ["authored-solo"], op=op) for op in ("head", "between", "measure")):
         assert a["note"].endswith(cut_tool.GRAPH)
+    cat.close()
+
+
+def test_a_cut_that_splits_a_change_of_class_is_read_as_asked_and_the_note_says_so(
+        tmp_path: Path) -> None:
+    """A change of class writes a `leave` in the chain the path leaves and then a `store` in the
+    chain of its new class. A cut that holds the `store` and not the `leave` holds the path in
+    both chains, and one that holds the `leave` and not the `store` in neither; no reference of
+    §3.5 lowers either, so each is read as asked, and the note says that such a cut can split a
+    change of class (§7.5). The head, a cut of one chain and an answer that reads no contents
+    say nothing of it."""
+    cat = VaultCatalog(tmp_path / "catalog.sqlite")
+    cat.record("a.md", "d1", "A", provenance=SOLO)       # land.1: genesis, horizon, a.md at 3
+    cat.record("b.md", "d2", "B", provenance=CURATED)    # land.2: genesis, horizon, b.md at 3
+    cat.record("a.md", "d1", "A", provenance=CURATED)    # land.1@4 its leave, land.2@4 a.md
+    twice = ask(cat, op="held", a="land.1@3 land.2@4", list=True)
+    assert [(r["chain"], r["path"]) for r in twice["rows"]] == [
+        (1, "a.md"), (2, "b.md"), (2, "a.md")]
+    assert twice["cuts"] == [{"read": "land.1@3 land.2@4"}]
+    assert cut_tool.SPLIT in twice["note"]
+    neither = ask(cat, op="held", a="land.1@4 land.2@3", list=True)
+    assert [r["path"] for r in neither["rows"]] == ["b.md"]
+    assert cut_tool.SPLIT in neither["note"]
+    for quiet in (ask(cat, op="held"), ask(cat, ["curated"], op="held", a="land.2@3"),
+                  ask(cat, op="join", a="land.1@3 land.2@4", b="bottom")):
+        assert cut_tool.SPLIT not in quiet["note"]
     cat.close()
 
 

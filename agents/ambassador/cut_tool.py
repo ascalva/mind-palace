@@ -3,13 +3,15 @@
 One tool, `cut`, over the engine (`core/stores/cuts.py`). A call names an operator, `op`, and its
 operands: `a` and `b`, each a cut's name or a call of the tool written as an object with its own
 `op`, whose result is the operand, and `cuts`, a family of them. So a result is an operand again,
-and a whole call composes to one expression; nothing is read before the outermost operator needs
-it. A cut is named `head`, `bottom`, or by its positions, `land.<chain>@<seq>` one a chain,
-separated by spaces, a chain left out standing at 0; every answer prints the cuts it read that
-way, so a cut is copied from an answer into a question. An operand left out is the head, read once
-when the call starts, and every operand that is the head is that one cut (D27). `over` names the
-provenance classes whose chains are read, every class the asker's grant reads by default; `list`
-returns the rows beside the counts, the first `limit` of them.
+and a whole call composes to one expression. What a call reads, in order: the heads of the chains
+when it starts; the horizon of a chain, once, when a position under the chain's head is named on
+it (§7.1); and then what its outermost operator needs, a set of any depth by one statement. A cut
+is named `head`, `bottom`, or by its positions, `land.<chain>@<seq>` one a chain, separated by
+spaces, a chain left out standing at 0; every answer prints the cuts it read that way, so a cut is
+copied from an answer into a question. An operand left out is the head, read once when the call
+starts, and every operand that is the head is that one cut (D27). `over` names the provenance
+classes whose chains are read, every class the asker's grant reads by default; `list` returns the
+rows beside the counts, the first `limit` of them.
 
 Union and intersection have both meanings under different names (D22, D26): `join` and `meet`
 take cuts and return a cut, `union` and `intersection` take sets and return a set. A cut given
@@ -17,27 +19,29 @@ where a set is expected is the set it holds; a set, a signed difference or a num
 cut is expected is refused, and the refusal names what was given and what the operator takes.
 
 The answer is one object: `op` and `type`, `cuts` (every cut the call read, in the order the
-expression names them, each by its positions on the chains read, with the cut asked beside it
-where the two differ), the result, `rows` when `list` is set, and `note`. A position past a chain's
-head is refused with the head; a chain the grant does not read is refused in the words used for a
-chain that does not exist; a position under a chain's horizon is read at the chain's empty prefix,
-and the note says so. The tool reads; it writes nothing. It is not yet the graph: edges and graph
-mathematics at a cut arrive with SN-4.
+expression names them, each by its positions on the chains read, and once beside each cut asked
+for it where the two differ), the result, `rows` when `list` is set, and `note`. A position past a
+chain's head is refused with the head; a chain the grant does not read is refused in the words used
+for a chain that does not exist; a position under a chain's horizon is read at the chain's empty
+prefix, and the note says so. A cut over two chains or more that is neither the head nor the
+bottom can split a change of class, which writes a `leave` in one chain and the `store` in
+another, and the note says that too (§3.5). A call's sets name at most `TERMS` cuts, counted each
+time their statement names one, so a short call cannot ask for a statement of any size. The
+handler reads through the connection it is given, which the server opens to only read
+(`core.stores.cuts.read_only`): it takes no lock and writes nothing. It is not yet the graph: edges
+and graph mathematics at a cut arrive with SN-4.
 """
 
 from __future__ import annotations
 
+import sqlite3
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-import numpy as np
-
-from core.stores.catalog import VaultCatalog
 from core.stores.cuts import (
     BOTTOM,
     Columns,
-    Counted,
     Cut,
     CutError,
     Delta,
@@ -71,9 +75,21 @@ MEASURES = ("count",)                     # SN-4 adds the measures of a graph
 DEPTH = 32                                # calls nested in one call, at most
 FAMILY = 64                               # cuts in a family, at most
 LIMIT = 1000                              # rows listed, at most
+# Cuts a call's sets name, counted each time their statement names one (`Versions.terms`), at
+# most: the bound on the statement's size, which DEPTH does not give, since an operator that
+# repeats an operand, as a composition of differences does, makes the expression larger than the
+# call that asks for it.
+TERMS = 256
 LISTED = ("source_path", "doc_id", "digest", "title", "version")
 GRAPH = ("The result is of the versions the landing log holds. It is not yet the graph: edges "
          "and graph mathematics at a cut arrive with SN-4.")
+# Said when a result of what cuts hold read two chains or more at a cut that is neither the head
+# nor the bottom (dn-temporal-snapshot §3.5, §7.5): such a cut is read as asked, and it can split
+# the two rows a change of class writes.
+SPLIT = ("A cut that is neither the head nor the bottom can split a change of class, which "
+         "writes a leave in the chain a path leaves and then a store in the chain of its new "
+         "class: read at such a cut, a path that changed class there is held in both chains or "
+         "in neither.")
 
 _OPERAND = {"type": ["string", "object"],
             "description": "a cut: head, bottom, or land.<chain>@<seq> one a chain; or a call "
@@ -115,13 +131,16 @@ class _Call:
     answer says of the cuts it read."""
 
     ev: Evaluation
-    read: dict[Cut, Cut | None] = field(default_factory=dict)   # cut read -> cut asked, if other
+    # each cut read, in the order the expression names them, with every cut asked for it that
+    # is not the cut itself: two names lowered to one cut are both kept
+    read: dict[Cut, list[Cut]] = field(default_factory=dict)
     lowered: list[tuple[int, int]] = field(default_factory=list)
     headed: bool = False                                          # an operand was left out
 
     def saw(self, c: Cut, asked: Cut | None = None) -> Cut:
-        if c not in self.read or self.read[c] is None:
-            self.read[c] = asked if asked is not None and asked != c else None
+        names = self.read.setdefault(c, [])
+        if asked is not None and asked != c and asked not in names:
+            names.append(asked)
         return c
 
 
@@ -134,10 +153,29 @@ class _Count:
 
 @dataclass(frozen=True)
 class _Counted:
-    """The rows of a set counted over a family, with the set they were read from."""
+    """In how many cuts of a family each row of a set is held, asked and not yet read: the rows
+    are read when the answer is written, the first `limit` of them."""
 
-    counted: Counted
     of: Versions
+    cuts: tuple[Cut, ...]
+
+
+def _bounded(v: object) -> object:
+    """`v`, refused when its sets name more than `TERMS` cuts: checked on every value a call
+    builds, before a statement is written."""
+    match v:
+        case Versions():
+            n = v.terms
+        case Delta():
+            n = v.gone.terms + v.come.terms
+        case _Count() | _Counted():
+            n = v.of.terms
+        case _:
+            return v
+    if n > TERMS:
+        raise CutError(f"a call's sets name at most {TERMS} cuts, counted each time the statement "
+                       f"they run as names one, and this call's name {n}")
+    return v
 
 
 def _kind(v: object) -> str:
@@ -202,7 +240,12 @@ def _delta(op: str, which: str, v: object) -> Delta:
 
 
 def _evaluate(call: _Call, args: Mapping[str, Any], depth: int = 0) -> object:
-    """One call's result, lazy where it is a cut, a set, a signed difference or events."""
+    """One call's result, lazy where it is a cut, a set, a signed difference or events, and
+    refused when its sets name more than `TERMS` cuts."""
+    return _bounded(_value(call, args, depth))
+
+
+def _value(call: _Call, args: Mapping[str, Any], depth: int) -> object:
     if depth > DEPTH:
         raise CutError(f"a call nests at most {DEPTH} calls")
     op = args.get("op")
@@ -239,8 +282,7 @@ def _evaluate(call: _Call, args: Mapping[str, Any], depth: int = 0) -> object:
                 raise CutError(f"the one measure at this stage is count, not {of!r}; the "
                                "measures of a graph arrive with SN-4")
             return call.ev.count_series(fam)
-        s = _set(call, op, "a", _operand(call, args.get("a"), depth))
-        return _Counted(call.ev.in_how_many(s, fam, names=LISTED), s)
+        return _Counted(_set(call, op, "a", _operand(call, args.get("a"), depth)), tuple(fam))
     a = _operand(call, args.get("a"), depth)
     if op == "held":
         return call.ev.held(_cut(op, "a", a))
@@ -334,11 +376,11 @@ def _answer(call: _Call, value: object, listing: bool,
         out["type"] = "rows"
         n, holes = value.of.tally()
         out["count"] = n
-        held_by = value.counted.counts
-        out["rows"] = [{**_row(value.counted.rows, i), "cuts_holding": int(held_by[i])}
-                       for i in range(min(n, limit))]
+        counted = call.ev.in_how_many(value.of, value.cuts, names=LISTED, limit=limit)
+        out["rows"] = [{**_row(counted.rows, i), "cuts_holding": int(counted.counts[i])}
+                       for i in range(len(counted.rows))]
         out["truncated"] = n > limit
-        out["held_by_every_cut"] = int(np.sum(held_by == len(value.counted.cuts)))
+        out["held_by_every_cut"] = (value.of & call.ev.persisted(value.cuts)).count()
     elif isinstance(value, Series):
         out["type"] = "series"
         out["series"] = [{"cut": c.name(chains), "value": v}
@@ -352,10 +394,16 @@ def _answer(call: _Call, value: object, listing: bool,
     return out, holes
 
 
-def cut(catalog: VaultCatalog, classes: Iterable[str], arguments: Mapping[str, Any]
+# The results that read what cuts hold, and so can show a change of class split (SPLIT).
+CONTENTS = (Versions, Delta, _Count, _Counted, Series, Table)
+
+
+def cut(conn: sqlite3.Connection, classes: Iterable[str], arguments: Mapping[str, Any]
         ) -> dict[str, Any]:
-    """The `cut` tool's answer to one call, read under a grant that reads `classes`: the
-    arguments as the server's dispatch passes them, decoded from the call's JSON."""
+    """The `cut` tool's answer to one call, read through `conn`, a connection to the catalog's
+    file that the server opens to only read (`core.stores.cuts.read_only`), under a grant that
+    reads `classes`: the arguments as the server's dispatch passes them, decoded from the call's
+    JSON."""
     unknown = [k for k in arguments if k not in ARGUMENTS]
     if unknown:
         raise CutError(f"no argument {', '.join(map(str, unknown))}; the tool takes "
@@ -377,14 +425,14 @@ def cut(catalog: VaultCatalog, classes: Iterable[str], arguments: Mapping[str, A
     if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= LIMIT:
         raise CutError(f"limit is a whole number from 1 to {LIMIT}")
     op = str(arguments.get("op"))
-    call = _Call(catalog.cuts(over))
+    call = _Call(Evaluation(conn, over))
     value = _evaluate(call, arguments)
     result, holes = _answer(call, value, listing, limit)
     chains = call.ev.chains
     answer: dict[str, Any] = {
         "op": op, "type": result.pop("type"),
         "cuts": [{"read": c.name(chains), **({"asked": a.name(chains)} if a is not None else {})}
-                 for c, a in call.read.items()],
+                 for c, asked in call.read.items() for a in (asked or (None,))],
         **result,
     }
     note = []
@@ -395,6 +443,9 @@ def cut(catalog: VaultCatalog, classes: Iterable[str], arguments: Mapping[str, A
         note.append(f"land.{k} was read at 0, below the position asked, {p}: the positions under "
                     "a chain's horizon are its genesis, which is not history, and are not "
                     "served.")
+    if (len(chains) > 1 and isinstance(value, CONTENTS)
+            and any(c not in (call.ev.head, BOTTOM) for c in call.read)):
+        note.append(SPLIT)
     if holes is not None:
         note.append("No row of the ranges read is a hole." if holes == 0 else
                     f"{holes} {'row' if holes == 1 else 'rows'} of the ranges read "
