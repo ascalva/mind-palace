@@ -974,8 +974,8 @@ def _palace(env: dict[str, str], *argv: str) -> Any:
 def test_p11_the_commands_dry_runs_create_and_touch_no_file(
         tmp_path: Path, repo: Path, home: Path) -> None:
     """`palace destroy`, `palace reset` and `palace cache fill`, each run as a shell runs it under
-    a named instance's overlay, on an instance at rest whose catalog has an empty `-wal` and a
-    `-shm` beside it, as a `mode=ro` reader leaves them (the corpus's catalog has both): no file
+    a named instance's overlay, on an instance at rest whose catalog has an empty `-wal` beside
+    it, as a `mode=ro` reader leaves it with a `-shm` (the corpus's catalog has both): no file
     under the home is created, removed or touched, the launcher's run ledger included. On a root
     that does not exist, none of the three creates it."""
     from tests.conftest import LANDING_LOG_TEST_KEY
@@ -993,7 +993,10 @@ def test_p11_the_commands_dry_runs_create_and_touch_no_file(
     con = sqlite3.connect(f"file:{catalog}?mode=ro", uri=True)   # it leaves an empty -wal, a -shm
     con.execute("SELECT count(*) FROM vault_files").fetchone()
     con.close()
-    assert Path(f"{catalog}-wal").stat().st_size == 0 and Path(f"{catalog}-shm").is_file()
+    wal = Path(f"{catalog}-wal")
+    if not wal.exists():                # a platform whose reader leaves none: one left by hand
+        wal.write_bytes(b"")
+    assert wal.stat().st_size == 0
     before = _files(home)
     for argv in (["destroy"], ["reset"], ["cache", "fill"]):
         done = _palace(env, *argv)
