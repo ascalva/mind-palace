@@ -37,9 +37,9 @@ bold and is stated in `formal/Spec/SnapshotAlgebra.lean`.
 * SNP-13, the signed difference: its two sides are range reads (`Held.has_come`,
   `Held.has_gone`); applied to what the first cut holds it gives what the second holds
   (`Held.has_cut_eq_apply`); differences compose along cuts in order, a row that came and went
-  on the way cancelling, and their sizes obey the triangle inequality (`Held.has_come_trans`,
-  `Held.has_gone_trans`, `Held.has_trans_of_transient`, `Held.has_gone_triangle`); a measure
-  that is a sum over the rows, a count among them, walks the difference
+  on the way cancelling, and a row gone across two steps is gone in one of them
+  (`Held.has_come_trans`, `Held.has_gone_trans`, `Held.has_trans_of_transient`,
+  `Held.has_gone_triangle`); a sum over the rows, a count among them, walks the difference
   (`Held.sum_rows_delta`, `Held.length_rows_delta`); its rows sort by key into removed, added
   and replaced (`mem_gone_iff`, `not_replacedOf_of_removedOf`, `mem_come_iff`); and every row
   of it belongs to a key the events between the two cuts name (`key_mem_of_mem_delta`). The
@@ -61,7 +61,7 @@ bold and is stated in `formal/Spec/SnapshotAlgebra.lean`.
   (`Witness.complement_grows`).
 * SNP-15, contents against positions: what either of two cuts holds is what their join holds
   with the rows closed between their meet and their join, and what both hold is what their meet
-  holds less those rows (`Gen.aliveAt_or_eq_sup`, `Gen.aliveAt_and_eq_inf_sup`,
+  and their join both hold (`Gen.aliveAt_or_eq_sup`, `Gen.aliveAt_and_eq_inf_sup`,
   `Held.has_union_cut`, `Held.has_inter_cut`); for a row that is never closed the two meanings
   agree (`Gen.aliveAt_sup_of_open`, `Gen.aliveAt_inf_of_open`). The control is one key written
   twice (`Witness.union_ne_join`).
@@ -481,8 +481,8 @@ theorem has_trans_of_transient {a b c : γ} {r : Gen κ β} (h1 : (come a b).has
   simp only [gone, come, has]
   cases r.aliveAt (pos a) <;> cases r.aliveAt (pos b) <;> cases r.aliveAt (pos c) <;> simp
 
-/-- **SNP-13** The sizes of the differences obey the triangle inequality: a row gone from `a` to `c`
-is gone from `a` to `b` or from `b` to `c`, whatever `b`. -/
+/-- **SNP-13** A row gone from `a` to `c` is gone from `a` to `b` or from `b` to `c`, whatever `b`:
+the inclusion the triangle inequality of the differences' sizes follows from. -/
 theorem has_gone_triangle (a b c : γ) {r : Gen κ β} (h : (gone a c).has pos r = true) :
     (gone a b).has pos r = true ∨ (gone b c).has pos r = true := by
   revert h
@@ -1043,8 +1043,8 @@ theorem Held.has_union_cut (a b : Cut K) (k : K) (r : Gen κ β) :
       = ((Held.cut (a ⊔ b)).union (Held.gone (a ⊓ b) (a ⊔ b))).has (fun c ↦ c k) r :=
   Gen.aliveAt_or_eq_sup r (a k) (b k)
 
-/-- **SNP-15** And what both hold is what their meet and their join both hold: what their meet
-holds, less the rows closed between the two. -/
+/-- **SNP-15** And what both hold is what their meet and their join both hold, the two cuts taken
+chain by chain in their order. -/
 theorem Held.has_inter_cut (a b : Cut K) (k : K) (r : Gen κ β) :
     ((Held.cut a).inter (Held.cut b)).has (fun c ↦ c k) r
       = (Held.kept (a ⊓ b) (a ⊔ b)).has (fun c ↦ c k) r :=

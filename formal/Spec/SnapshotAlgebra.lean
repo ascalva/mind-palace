@@ -224,8 +224,8 @@ theorem has_trans_of_transient {a b c : γ} {r : Gen κ β} (h1 : (come a b).has
     (come a c).has pos r = false ∧ (gone a c).has pos r = false :=
   sorry
 
-/-- **SNP-13** The sizes of the differences obey the triangle inequality: a row gone from `a` to `c`
-is gone from `a` to `b` or from `b` to `c`, whatever `b`. -/
+/-- **SNP-13** A row gone from `a` to `c` is gone from `a` to `b` or from `b` to `c`, whatever `b`:
+the inclusion the triangle inequality of the differences' sizes follows from. -/
 theorem has_gone_triangle (a b c : γ) {r : Gen κ β} (h : (gone a c).has pos r = true) :
     (gone a b).has pos r = true ∨ (gone b c).has pos r = true :=
   sorry
@@ -456,8 +456,8 @@ theorem Held.has_union_cut (a b : Cut K) (k : K) (r : Gen κ β) :
       = ((Held.cut (a ⊔ b)).union (Held.gone (a ⊓ b) (a ⊔ b))).has (fun c ↦ c k) r :=
   sorry
 
-/-- **SNP-15** And what both hold is what their meet and their join both hold: what their meet
-holds, less the rows closed between the two. -/
+/-- **SNP-15** And what both hold is what their meet and their join both hold, the two cuts taken
+chain by chain in their order. -/
 theorem Held.has_inter_cut (a b : Cut K) (k : K) (r : Gen κ β) :
     ((Held.cut a).inter (Held.cut b)).has (fun c ↦ c k) r
       = (Held.kept (a ⊓ b) (a ⊔ b)).has (fun c ↦ c k) r :=
