@@ -862,7 +862,7 @@ def test_a_cut_can_split_a_change_of_class_and_is_read_as_asked() -> None:
     assert [r.kind for r in cat.read_at(solo, cat.head(solo))][-2:] == ["store", "leave"]
     ev = cat.cuts(ALL)
 
-    def paths(c: Cut) -> list[str | None]:
+    def paths(c: Cut) -> list[str]:
         text = ev.held(c).columns("source_path")["source_path"]
         assert isinstance(text, Text)
         return sorted(str(text[i]) for i in range(len(text)))
