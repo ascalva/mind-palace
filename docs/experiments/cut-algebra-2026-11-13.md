@@ -21,7 +21,10 @@ the corpus chain of 400,274 heads, against SN-1's rows and against SNF-6's bar o
 second? Does the signed difference of two cuts cost what changed between them, and what does it
 cost against two reads of every head and a set difference? And what do the operations over a
 family of cuts cost? The design measured these on synthetic chains only (dn-temporal-snapshot
-§11); these are the figures of the code as built, on a copy of a real catalog.
+§11); these are the figures of the code as built, on a copy of a real catalog. What the stage
+delivers is the cut as a value, the contents of a cut and their algebra over the landing log,
+and the cut tool's handler with its registration for the Ambassador. It is not yet the graph:
+edges and graph mathematics at a cut arrive with SN-4.
 
 ## Method
 
@@ -136,6 +139,11 @@ intervals, and the bounds are what it takes.
 - **The laws held on the corpus's sizes.** Every side of every difference was the set difference
   of the baseline's rows, the walked counts were the counts read, the pairwise table was the
   hundred differences' sizes, and the columns were the rows.
+
+The review of SN-1b, after these runs, repaired the engine and the tool (dn-temporal-snapshot
+§12, SN-1b). No statement the harness times changed: the symmetric difference, now one node
+whose statement names each operand once, is not among them, and neither is the walk that finds
+a chain's horizon, now made once a call for each chain.
 
 ## Not measured
 
