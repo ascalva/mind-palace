@@ -12,12 +12,14 @@ pattern with a structured payload:
     requests/<id>.json   = {"id", "name", "arguments", "ts"}
     responses/<id>.json  = {"id", "text", "is_error", "ts"}
 
-The web client gets a narrower tool set than OpenCode's: every read, plus capture and the two
-syncs — never `dream`/`relate` (long synthesis-model jobs) or `link` (interpreted edges) from a
-chat window. `WEB_TOOLS` is enforced HERE; the edge's advertised list is a copy for the client,
-not the gate. `query` reads, and since the ingress (dn-ingress) it can also speak a command
-(`do …`): from the web client it may speak only the commands its tools already allow
-(`web_admits`), so the narrowing holds whatever tool carries the sentence.
+The web client gets a narrower tool set than OpenCode's: `query` and `overview`, capture, the two
+syncs and the loop's bookkeeping (status, the tasks, the reminders). It never gets `dream` or
+`relate` (long synthesis-model jobs) or `link` (interpreted edges) from a chat window, nor `cut`,
+the algebra of cuts, which only the Ambassador's MCP server serves. `WEB_TOOLS` is enforced HERE;
+the edge's advertised list is a copy for the client, not the gate. `query` reads, and since the
+ingress (dn-ingress) it can also speak a command (`do …`): from the web client it may speak only
+the commands its tools already allow (`web_admits`), so the narrowing holds whatever tool carries
+the sentence.
 One responder runs at a time (`responder.lock`, which is also how the edge sees it is up); it exits
 after `idle_exit_s` with no calls, and the edge starts it again on the next one.
 """

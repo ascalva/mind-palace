@@ -293,10 +293,11 @@ class AmbassadorConfig:
 @dataclass(frozen=True)
 class QueryConfig:
     """The query sentence algebra's surface (dn-query-sentence-algebra §4, QL-3). The Ambassador's
-    MCP server speaks one command, `query` — a sentence under the Ambassador's grant — and
-    `palace query` is the owner's hand. `hypotheticals` is the owner's grant of the overlay
-    (2026-11-04, §4 d): on, `assume` sentences are admitted and answered as `Hyp`, never `Inv`;
-    off, they are refused as ill-scoped."""
+    MCP server speaks one command, `query`, a sentence under the Ambassador's grant, and
+    `palace query` is the owner's hand. Since SN-1b the server has a second read beside it, `cut`,
+    the algebra of cuts (dn-temporal-snapshot §7.5, D28), which takes no sentence.
+    `hypotheticals` is the owner's grant of the overlay (2026-11-04, §4 d): on, `assume` sentences
+    are admitted and answered as `Hyp`, never `Inv`; off, they are refused as ill-scoped."""
 
     hypotheticals: bool = True
 
