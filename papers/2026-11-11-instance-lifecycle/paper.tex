@@ -29,7 +29,7 @@
 \newcommand{\corpusentries}{389{,}745}
 \newcommand{\lexsec}{17.4}
 \newcommand{\lexload}{2.84}
-\newcommand{\ntests}{48}
+\newcommand{\ntests}{62}
 
 \title{Reset, Destroy and a Shared Cache: the Lifecycle of a Knowledge-Store Instance}
 \author{Alberto Serrano-Calva}
@@ -82,7 +82,7 @@ operation computes is defined once and is the same in every instance.
 
 The contributions are: a class table of every store an instance writes (\cref{sec:inventory}); a
 reset that rebuilds the derived stores in an order where each step reads only ledgers and earlier
-steps, with a marker that refuses every writer until it finishes (\cref{sec:reset}); a retention
+steps, with a marker that refuses every writer that starts before it finishes (\cref{sec:reset}); a retention
 ledger that makes the chat log a fold of retained transcripts and a lexical repair inside the
 writer (\cref{sec:gaps}); a shared, content-addressed cache with an allow-list of open content and
 erasure that reaches it (\cref{sec:destroy}); and tests of each property (\cref{sec:eval}).
@@ -159,8 +159,9 @@ the chat log, replayed from the retention ledger; the chat events; the causal ed
 dispositions, by applying every verdict in sequence order.
 
 \begin{proposition}[No embedder call]\label{prop:noembed}
-Let the plane's atom table map $\mathrm{id}(t) = (\ell, \mathrm{sha256}(t))$ to the embedder's
-vector of text $t$ under the recorded geometry $g$. If a reset keeps the table and the configured
+Let the plane's atom table map $\mathrm{id}(t) = (\ell, \mathrm{sha256}(t))$, where $\ell$ is the
+atom's layer (prose, for a note's chunk), to the embedder's vector of text $t$ under the recorded
+geometry $g$. If a reset keeps the table and the configured
 geometry equals $g$, the rebuild calls the embedder only for texts whose atom the table lacks.
 \end{proposition}
 \begin{proof}[Sketch]
@@ -182,9 +183,10 @@ work. The causal edges resolve commits against the
 commit ledger as it stands at each pass, so they equal a fresh integration over the present inputs;
 a second reset gives the same edges.
 
-\paragraph{The landing log.} Three steps open the catalog (the lexical index, the plane and the
-authored edges), and none writes it: each reads its active rows. The one write a reset can cause
-there is the catalog's own. The first open of a catalog that holds rows and no log writes the
+\paragraph{The landing log.} Two steps open the catalog (the lexical index and the authored
+edges), and neither writes it: each reads its active rows. The plane's step reads no row of it,
+since it rebuilds from raw what the plane held, and does not open it. The one write a reset can
+cause there is the catalog's own. The first open of a catalog that holds rows and no log writes the
 log's genesis, keyed by the instance's secret, as any first open does; without the secret that
 open refuses, but only after creating the log's two empty tables. So the reset reads the catalog
 read only before it writes its marker and refuses, naming the secret's item, rather than stopping
@@ -193,12 +195,16 @@ and every chain's head hash are what they were.
 
 The marker makes the reset recoverable: every clear and every step is idempotent, the marker names
 every store found, and a second confirmed reset clears and rebuilds them all, including a store
-whose file the first had already removed. While the marker exists the daemon's start, every
-on-demand writer and the corpus runner refuse. A rerun finishes only if no step fails the same way
-every time, so an input a step needs is checked before the clearing or tolerated by the step: a
-commit the commit ledger holds that the repository has pruned refuses the reset with nothing
-written, and a retained transcript whose raw object a purge erased is skipped by the replay and
-counted, so the erasure stands.
+whose file the first had already removed. While the marker exists the daemon's start and every
+command that lands or writes a derived store refuse. Each reads the marker when it starts, so it
+does not exclude a writer already running; the lock does, for the writers that take it, and the
+on-demand writers that take none are not excluded, which is left open. A rerun finishes only if no
+step fails the same way every time, so whatever would stop a step that way is found before the
+marker is written or tolerated by the step: a derived store outside the data directory, and a
+commit the commit ledger holds that the repository has pruned, refuse the reset with nothing
+written; a retained transcript whose raw object a purge erased is skipped by the replay and
+counted, and so is a version the plane held that a purge erased while the reset was pending, so
+the erasure stands.
 
 \section{Two gaps closed}\label{sec:gaps}
 
@@ -226,12 +232,14 @@ test reproduces the stuck state and shows the sync landing.
 \section{Destroy and the shared cache}\label{sec:destroy}
 
 A destroy applies to a named instance only and is a dry run unless confirmed; the dry run takes no
-lock and writes no file, reading each SQLite file at rest with \code{immutable=1}, since a
-read-only connection to a WAL database creates its \code{-wal} and \code{-shm} files. A destroy
-reads the catalog read only and removes it whole, its landing log with it, so it needs no secret.
-It refuses a live run, a held lock, an installed agent, a root inside a git
-working tree, a root that is the home root, holds the cache, or contains a symbolic link out of
-itself, and a cache volume without room. Since it removes the whole root, it also refuses a root
+lock and writes no file, reading each SQLite file at rest (no \code{-wal}, or an empty one) with
+\code{immutable=1}, since a read-only connection to a WAL database creates its \code{-wal} and
+\code{-shm} files, and asking the run ledger whether a run is live without opening it, so it
+creates no root that does not exist. A destroy reads the catalog read only and removes it whole,
+its landing log with it, so it needs no secret. It refuses a live run, a held lock, an installed
+agent, a root inside a git working tree, a root that is the home root, holds the cache, or
+contains a symbolic link out of itself, a source file the cache would take that is a link, and a
+cache volume without room. Since it removes the whole root, it also refuses a root
 that holds anything but the instance's own state: a top-level entry no namespace of the instance
 names, an unclassified entry of its data directory, a git repository below it, or another declared
 instance's root. It fills the cache, then removes the root. A fill refuses unless the configured
@@ -248,8 +256,10 @@ An item is \emph{open} when its catalog path lies in an open-corpus source's spa
 (\code{corpus/<name>/}) or a repository source's (\code{code/<name>/}), or its class is curated. A
 raw object enters the cache when a catalog row at an open path names its digest; a vector enters
 when an open item's occupancy holds its atom; a source file enters when it is a named part, manifest
-or metadata file of an open-corpus stream. Nothing else enters: no digest a purge recorded, no row
-of the catalog or of its landing log, and no part of the log's secret.
+or metadata file of an open-corpus stream and a plain file of its source: not a symbolic link, not
+a file with another hard link, not one that resolves out of the source. Nothing else enters: no
+digest a purge recorded, no row of the catalog or of its landing log, and no part of the log's
+secret.
 \end{definition}
 
 \begin{remark}
@@ -279,12 +289,19 @@ byte for byte and every kept store row for row, the attestation ledger unchanged
 equal to the head before, the chat log rebuilt from raw alone, and no embedder built. Two resets
 equal one; a fresh integration adds no causal edge. The rebuilt atom table holds exactly the atoms
 the rebuilt rows name. On a lazy instance with a backlog the reset builds no embedder and the
-backlog stays. A purged transcript is skipped and the reset finishes. The dry run writes nothing and
-names each store. A live run, a held lock, a changed geometry and a pruned ledgered commit each
-refuse with every byte unchanged. A failure injected at each of the nine steps leaves the marker,
-the daemon and the repository sync refuse, and a second reset converges. A destroy's refusals each
-write nothing, a root holding a repository, a foreign file or another instance among them, and its
-dry run leaves every file's size and modification time as they were. With a dialogue turn, a
+backlog stays. A purged transcript is skipped and the reset finishes. The dry run writes nothing,
+on an instance at rest not even a file's modification time, and names each store. A live run, a
+held lock, a changed geometry, a pruned ledgered commit and a derived store outside the data
+directory each refuse with every byte unchanged and no marker written. A failure injected at each
+of the nine steps leaves the marker, the daemon and the repository sync refuse, and a second reset
+converges; a held version purged before the rerun is skipped by it, a changed embedder while the
+reset is pending is refused with the way out, and every script that writes refuses while the
+marker stands. A destroy's refusals each write nothing, a root holding a repository, a foreign file
+or another instance among them, and its dry run leaves every file's size and modification time as
+they were. Run as commands in processes of their own, on a root at rest whose catalog has an empty
+\code{-wal} beside it, the dry runs of destroy, reset and fill change no file, and on a root that
+does not exist they create none. A stream part linked to the catalog's file, by a symbolic or a
+hard link, or to a note, is refused by the destroy, the fill and the cache. With a dialogue turn, a
 model's reply, an inbox item and a curated item added, a confirmed destroy leaves exactly the open
 digests, the atoms open items held, and the stream's downloaded files in the cache, and no note,
 dialogue, inbox item, transcript or vector only a private item held. A new instance takes a cached vector with no embedder
@@ -295,10 +312,10 @@ instance still holding it does not restore them.
 The landing log is checked on the same fixtures. A reset keeps every row of the log and each
 chain's head hash, and so do two resets, a reset interrupted and finished, and a sync that heals a
 stale index, whose one new row is its own landing. The steps that open the catalog are recorded at
-every open and are exactly the three named. On a catalog with rows and no log, a reset without the
+every open and are exactly the two named. On a catalog with rows and no log, a reset without the
 secret refuses, its dry run too, with every row unchanged and no log table created; with the
-secret it writes the genesis at its first open, one \code{store} row for each catalog row and
-nothing more, and every chain verifies. Under a named instance loaded through its configuration
+secret its dry run still writes nothing, and the reset writes the genesis at its first open, one
+\code{store} row for each catalog row and nothing more, and every chain verifies. Under a named instance loaded through its configuration
 overlay, the instance's own item is the one read and the default instance's does not serve; a
 reset of a catalog that has its log needs no secret; a destroy needs none, names the item among
 those it leaves, and no file of the filled cache holds a value of the log. A destroy's dry run on
@@ -310,7 +327,7 @@ on the tree with the landing log in its base (SQLite opened \code{immutable=1}, 
 only read, the catalog never opened through its class) resolved the root to the declared
 directory \code{instances/corpus} under the home root, counted \corpusitems{} active catalog items,
 \corpusunits{} current lexical units and \corpusrows{} vector rows, and answered one lexical query
-(\emph{superconductivity phase transition}, top hit the Wikipedia article of that name) in
+(\emph{superconductivity phase transition}, top hit the Wikipedia article Superconductivity) in
 \lexsec{}~s at a one-minute load average of \lexload{} on a shared machine, scored under the legacy
 tokenizer: the index has no recorded tokenizer, so by the store's own rule it is the legacy one's,
 and the next corpus landing will re-derive the whole index first. The corpus's catalog has no
@@ -326,14 +343,18 @@ corpus root and changed no row.
 A reset rebuilds current versions only, and keeps the catalog's rows rather than folding them from
 the landing log. A replay of the log would rebuild every version landed since its chain began, and
 the fold needs a catalog write outside its logging methods; both are follow-ups, and the versions
-superseded before a catalog's genesis are in no ledger but the version chains. The reset's dry run
-opens the plane through the vector store, which on an instance at rest creates the plane's
-\code{-wal} and \code{-shm} files and writes no row. The vector key
+superseded before a catalog's genesis are in no ledger but the version chains. A reset excludes a
+writer that starts after it and one that holds the supervisor lock, but not an on-demand writer
+that takes no lock and started before it; closing that needs a lock every writer holds for its
+whole run, a decision left open. The vector key
 names the model but not the model file, so a requantized file under one name would share a key; a
 measurement would say whether to add its digest. Code membership vectors do not enter the cache,
 because no reader takes them back yet. The cost of a full reset of the corpus instance, and of the
-lexical re-derivation its next landing will run, is not measured here, nor is a fill of the cache
-from the corpus, which would copy its raw store and about 8.2~GB of vectors. A pruned ledgered commit
+lexical re-derivation its next landing will run, is not measured here, nor is the time of a fill
+of the cache from the corpus, whose plan counts 1.0~GB of raw objects, 1.4~GB of source files and
+8.2~GB of vectors. A destroy of the corpus refuses as its root stands: its tooling writes files at
+the root that no namespace of the instance names, and whether they are the instance's state is
+left open. A pruned ledgered commit
 refuses every reset of its instance until a way to accept that loss is designed. The plane does not
 record the embedder's backend, so a change of backend alone is not caught before a fill; catching
 it needs the plane to record the backend beside its geometry, a schema change left open. The class
