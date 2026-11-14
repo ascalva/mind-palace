@@ -419,10 +419,42 @@ def _unchanged(b: Built, act: Any) -> None:
     assert dump(b.cfg) == before and heads(b.cfg) == before_heads
 
 
+def _live_elsewhere(b: Built) -> RunLedger:
+    """A live run opened through a ledger of its own, as the daemon holds the run ledger: a
+    launcher's ledger, opened at its first write, reads the run from the file (`last_run`)."""
+    holder = RunLedger(Path(b.cfg.paths.data_dir) / "runs.sqlite")
+    holder.open_run(commit_sha="x", dirty=False, pid=os.getpid())
+    return holder
+
+
+def _refuses_while_live(b: Built, holder: RunLedger, act: Any, *,
+                        cache: Path | None = None) -> None:
+    """`act(launcher)` refuses beside the holder's live run, with the run's frames in the `-wal`
+    and again after a checkpoint has emptied it; each launcher reads the run from the file and
+    never opens its own ledger, and a fresh launcher's on-demand verb refuses the same way."""
+    for checkpoint in (False, True):
+        if checkpoint:
+            holder._conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            assert Path(f"{holder.path}-wal").stat().st_size == 0
+        lau, _ = launcher_for(b, cache=cache)
+        _unchanged(b, lambda lau=lau: act(lau))
+        fresh, _ = launcher_for(b)
+        assert fresh._refuse_if_live("embed")
+        assert "_conn" not in lau.runs.__dict__ and "_conn" not in fresh.runs.__dict__
+
+
 def test_p7_a_live_run_refuses(palace: Built) -> None:
-    lau, _ = launcher_for(palace)
-    lau.runs.open_run(commit_sha="x", dirty=False, pid=os.getpid())
-    _unchanged(palace, lambda: lau.reset(confirm=True))
+    """The run is held by another ledger, as by the daemon, so the refusal rests on the read of
+    the file each command makes (`LazyRunLedger.last`); once the run stops, nothing refuses."""
+    holder = _live_elsewhere(palace)
+    try:
+        _refuses_while_live(palace, holder, lambda lau: lau.reset(confirm=True))
+        run = holder.last()
+        assert run is not None
+        holder.mark_stopped(run.id, clean=True)
+        assert not launcher_for(palace)[0]._refuse_if_live("embed")
+    finally:
+        holder.close()
 
 
 def test_p7_the_lock_held_refuses(palace: Built) -> None:
@@ -960,8 +992,13 @@ def test_p11_destroy_refuses_a_live_run_and_the_lock_held(named: Built, home: Pa
         _unchanged(named, lambda: lau.destroy(confirm=True))
     finally:
         lock.release()
-    lau.runs.open_run(commit_sha="x", dirty=False, pid=os.getpid())
-    _unchanged(named, lambda: lau.destroy(confirm=True))
+    holder = _live_elsewhere(named)           # the run held by another ledger, as by the daemon
+    try:
+        for confirm in (True, False):
+            _refuses_while_live(named, holder, lambda lau, c=confirm: lau.destroy(confirm=c),
+                                cache=home / ".mind-palace" / "cache")
+    finally:
+        holder.close()
     assert not (home / ".mind-palace" / "cache").exists()
 
 
@@ -1296,6 +1333,57 @@ def test_p12_a_source_file_that_is_a_link_enters_no_cache(
     part.unlink()
     part.write_bytes(original)
     assert lau.destroy(confirm=False) == 0                  # a plain stream again: it proceeds
+
+
+def test_p12_a_stream_reached_out_of_its_source_enters_no_cache(
+        named: Built, home: Path, tmp_path: Path) -> None:
+    """A file reached through a directory link that stays inside the root, or through a manifest
+    part that climbs out of the stream, is a regular file with one link, and destroy's scan
+    follows no link out of the root: what refuses it is that it resolves out of its source
+    (`plain_file`). The stream directory linked to the data directory, whose manifest names the
+    catalog's file: a fill refuses, writing nothing, and the cache's writer refuses the file. A
+    part of the real manifest that climbs to the catalog's file: a fill and a destroy refuse
+    before writing anything."""
+    import json
+    import os
+
+    from core.stores.cache import Cache
+    from ops.lifecycle import destroy as d
+
+    b = named
+    base = Path(b.cfg.ingestion.corpus.root) / CORPUS_SOURCE
+    stream, aside = base / "stream", base / "stream.aside"
+    catalog = Path(b.cfg.paths.vault_catalog)
+    data = Path(b.cfg.paths.data_dir)
+    cache_root = home / ".mind-palace" / "cache"
+    lau, _ = launcher_for(b, cache=cache_root)
+    stream.rename(aside)
+    stream.symlink_to(data, target_is_directory=True)
+    (data / "manifest.json").write_text(json.dumps({"parts": [{"file": catalog.name}]}))
+    assert stream / catalog.name in d.linked_source_files(b.cfg)
+    assert d.link_out(b.root) is None                       # the link stays inside the root
+    _unchanged(b, lambda: lau.cache_fill(confirm=True))
+    _unchanged(b, lambda: lau.cache_fill(confirm=False))
+    _unchanged(b, lambda: lau.destroy(confirm=True))
+    with pytest.raises(ValueError, match="not a plain file"):
+        Cache(tmp_path / "direct").put_source_files(CORPUS_SOURCE, base,
+                                                    [f"stream/{catalog.name}"])
+    assert not (tmp_path / "direct").exists() and not cache_root.exists()
+    stream.unlink()
+    aside.rename(stream)
+    (data / "manifest.json").unlink()
+    manifest_path = stream / "manifest.json"
+    original = manifest_path.read_text()
+    manifest = json.loads(original)
+    manifest["parts"].append({"file": os.path.relpath(catalog, stream)})
+    manifest_path.write_text(json.dumps(manifest))
+    assert [p.resolve() for p in d.linked_source_files(b.cfg)] == [catalog.resolve()]
+    for act in (lambda: lau.cache_fill(confirm=True), lambda: lau.destroy(confirm=True),
+                lambda: lau.destroy(confirm=False)):
+        _unchanged(b, act)
+    assert not cache_root.exists() and b.root.exists()
+    manifest_path.write_text(original)
+    assert lau.destroy(confirm=False) == 0                  # its own stream again: it proceeds
 
 
 def test_a_fill_streams_its_vectors_in_batches(
