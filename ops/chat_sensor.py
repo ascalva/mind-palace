@@ -317,7 +317,7 @@ class ChatSensor:
         text = path.read_text(encoding="utf-8")
         # CS-1: byte-verbatim retention BEFORE any extraction. The growth signal is whether these
         # bytes were retained before: an unchanged transcript hashes identically (skip, no churn);
-        # a grown one hashes anew (its tail re-ingests). Retention is unconditional — even a
+        # a grown one hashes anew (its tail re-ingests). Retention is unconditional: even a
         # refused/unparseable session's raw is kept (the archive never depends on extraction
         # succeeding). With the retention ledger, the ledger's row is the signal, written here
         # before extraction: a crash between the raw write and the row leaves the transcript to

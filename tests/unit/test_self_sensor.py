@@ -401,7 +401,7 @@ def test_the_class_table_rebuilds_agent_observations_and_keeps_the_history_sidec
 ) -> None:
     """Pins §6(h), now in the class table (dn-instance-lifecycle §3): the readings store is a
     derived store a reset clears and rebuilds by re-projection, and the shared history sidecar is
-    a ledger it keeps. A reset that kept the readings would let them survive a rebuild — the
+    a ledger it keeps. A reset that kept the readings would let them survive a rebuild: the
     falsifier named in the plan (§2.5 violated in the corpus-class direction)."""
     from ops.lifecycle.inventory import STORES, Kind
 
