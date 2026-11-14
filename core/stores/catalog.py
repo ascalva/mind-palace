@@ -35,7 +35,7 @@ path, `state_at` and `history_at`, need the secret.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -43,6 +43,7 @@ from pathlib import Path
 
 from core.kernel.provenance import Provenance
 from core.stores.authored_supersession import OwnerDeclaration, verify_owner_declaration
+from core.stores.cuts import Evaluation
 from core.stores.landings import (
     ChainCheck,
     Landing,
@@ -447,6 +448,13 @@ class VaultCatalog:
         """A chain's hashes recomputed from its first row, and every commitment that still has
         its salt: the first position where one fails, or none."""
         return self._log.verify(chain)
+
+    def cuts(self, provenances: Iterable[Provenance | str]) -> Evaluation:
+        """An evaluation of the algebra of cuts over the chains these classes hold now, the head
+        of each read once, now (`core/stores/cuts.py`, dn-temporal-snapshot §4.4): the cut as a
+        value, the versions a cut holds and the operators on them. It reads the log's rows as
+        they are and needs no secret."""
+        return Evaluation(self._conn, (str(p) for p in provenances))
 
     def close(self) -> None:
         self._conn.close()
