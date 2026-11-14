@@ -5,7 +5,7 @@ track: deployed-instances
 status: draft                  # provenance description, never a gate; the merge is ratification
 implementation: built          # part B built §3 to §8; §10 records where the build departs
 created: 2026-11-12
-updated: 2026-11-13
+updated: 2026-11-14
 links:
   - docs/design-notes/dn-temporal-snapshot.md          # §2.2 the inventory this note checks and extends; §2.3 item 7 the reset as it was; §3.2 the landing log (SN-1, merged with #92)
   - core/stores/landings.py                            # the landing log, in the catalog's file: kept whole by the reset, removed with the root by a destroy
@@ -35,10 +35,10 @@ warrant: null
 > `Writer.link`. This branch changes `writer.py`, and its heal of §5 moves every line after
 > `Writer.land` down by 23: at the branch's head the two key writes are at `:475-476` and
 > `:489-490`. The landing log, which #92 brought into the base, was read at `8d4dff3d`, and the
-> passages about it (§3.6, §4.4 to §4.7, §6.1, §6.2, §6.4, §7, §10 items 16 to 26) name functions
+> passages about it (§3.6, §4.4 to §4.7, §6.1, §6.2, §6.4, §7, §10 items 16 to 30) name functions
 > rather than lines. The note is as built: part B built §3 to §8, and §10 records where the build
 > departs from the design, the changes an audit of the build asked for among them, those part C
-> made with the landing log in the base, and those an audit of part C asked for. Grades:
+> made with the landing log in the base, and those two audits of part C asked for. Grades:
 > `[ESTABLISHED]` is a fact of the code at the lines cited or of a ratified note; `[DERIVED]` is
 > argued here from those; `[INFERENCE]` is a design call with a named falsifier; `[PROPOSED]` is
 > a choice this note makes and leaves to the owner (§9).
@@ -386,20 +386,27 @@ removes it when the last step has run. While the marker is there the daemon's st
 command that lands into the instance or writes a store the reset rebuilds refuse, naming the
 reset: the launcher's on-demand verbs, and the scripts that write (`scripts/ingest.py`,
 `scripts/corpus.py ingest` and `embed`, `watch`, `purge_raw`, `ingest_self_knowledge`,
-`mint_ids`, `migrate_chunk_keys`, `migrate_provenance_split`, `reembed_bodyonly`). So nothing
-starts to land into a half-rebuilt instance. Every step is idempotent, so `palace reset
---confirm` run again after an interruption clears the derived stores again and finishes.
-`[INFERENCE, falsifier LCF-5]`
+`mint_ids`, `migrate_chunk_keys`, `migrate_provenance_split`, `reembed_bodyonly`,
+`ingest_founding`, the code and self sensors' `snapshot_code` and `sense_self`, which the
+post-commit hook runs on every commit on main and whose failed sync it reports and lets the next
+one heal, `verdict.py submit` and `review`, which apply dispositions, `talk`, which lands what the
+inbox kept when no daemon is live, and the swap of the plane migrations `ops.plane_migrate` and
+`ops.float16_migrate`). `palace destroy` refuses too (§6.1). So nothing starts to land into a
+half-rebuilt instance. A test runs each of those scripts under the marker, and a scan of
+`scripts/` fails on a script that calls a builder of a landing or of a derived store and is not
+among them (§8, P9). Every step is idempotent, so `palace reset --confirm` run again after an
+interruption clears the derived stores again and finishes. `[INFERENCE, falsifier LCF-5]`
 
 A writer reads the marker when it starts, so the marker does not stop one that started before
 the reset. The lock stops those that take it: the daemon, `repo-sync`, `scripts/ingest.py`,
 `scripts/corpus.py ingest` and `embed`, and `watch`. The other writers take none (the launcher's
 `vault-sync`, `embed`, `dream`, `relate`, `lanes`, `reembed`, `ingest-chat`, `dialogue-sync` and
 `cache fill`, and `purge_raw`, `ingest_self_knowledge`, `mint_ids`, `migrate_chunk_keys`,
-`migrate_provenance_split` and `reembed_bodyonly`), so a reset confirmed while one of them runs
-is not excluded from it, and that writer goes on writing into the stores the reset clears and
-rebuilds. Whether they should hold the lock for their whole run is open question 7.
-`[ESTABLISHED]`
+`migrate_provenance_split`, `reembed_bodyonly`, `ingest_founding`, `snapshot_code`,
+`sense_self`, `verdict.py submit`, `review`, `talk` and the two plane migrations), so a reset
+confirmed while one of them runs is not excluded from it, and that writer goes on writing into the
+stores the reset clears and rebuilds. Whether they should hold the lock for their whole run is
+open question 7. `[ESTABLISHED]`
 
 A rerun finishes only if no step fails the same way every time, so whatever would stop a step
 that way is either found before anything is written, the marker included, or tolerated by the
@@ -550,11 +557,14 @@ instance's namespaces lies at or under (`namespaces_of(cfg).paths`), an entry of
 directory the class table does not name, a `.git` anywhere below it, a root at, inside or around
 another declared instance's root (a derived root inside the checkout excepted, §10 item 5), a
 source file the cache would take that is a link (§6.4), and a configured embedder that is not the
-plane's geometry (§6.5). The dry run lists the root's top-level entries, and it takes no lock: it
-probes the supervisor lock read only, reads the catalog's and the plane's SQLite files through
-`read_only`, and reads the launcher's run ledger without opening it (§4.6), so on an instance at
-rest it creates and touches no file, run as a command or in-process, and it creates no root that
-does not exist. The loader accepts such a root for a named instance; only destroy refuses it.
+plane's geometry (§6.5). It refuses while a reset of the instance is pending, as `cache fill`
+does: a reset interrupted after its clearing leaves the plane without the occupancies the fill
+selects vectors by, so a destroy then would keep none of the instance's vectors (§10 item 28).
+The dry run lists the root's top-level entries, and it takes no lock: it probes the supervisor
+lock read only, reads the catalog's and the plane's SQLite files through `read_only`, and reads
+the launcher's run ledger without opening it (§4.6), so on an instance at rest it creates and
+touches no file, run as a command or in-process, and it creates no root that does not exist. The
+loader accepts such a root for a named instance; only destroy refuses it.
 
 ### 6.2 What it removes, and what it leaves
 
@@ -790,7 +800,10 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   created, removed or touched (§4.6); it names every store it would clear.
 - **P7, the refusals.** A live run, the lock held, a changed embedder geometry, a ledgered commit
   the repository no longer has, a derived store outside the data directory: each refuses and
-  every byte is unchanged, and no marker is written.
+  every byte is unchanged, and no marker is written. The live run is held by a ledger of its own,
+  as the daemon holds it, so the reset and a fresh launcher's on-demand verb read it from the file
+  (`LazyRunLedger.last`), with its frames in the `-wal` and after a checkpoint, and neither opens
+  its own ledger; once the run stops, neither refuses.
 - **P8, no embedder call.** A reset of an instance whose atoms are held calls the embedder zero
   times.
 - **P9, an interrupted reset finishes.** A failure injected at each rebuild step leaves the
@@ -798,15 +811,20 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   holds. A purge, between the interruption and the rerun, of a version the marker names: the
   rerun skips it, counts it and finishes. A changed embedder while the reset is pending: the
   refusal names the way out, and the reset finishes once the embedder is restored. Every script
-  that writes refuses while the marker stands, before it opens anything.
+  that writes refuses while the marker stands, before it opens anything, run with the builders it
+  would reach past the marker replaced by ones that fail at once; a scan of `scripts/` finds every
+  script that calls a builder of a landing or of a derived store among them; and the two plane
+  migrations refuse their swap and run their dry run.
 - **P10, a sync heals a stale index.** A repository landed under the legacy tokenizer, its index
   then opened under the current one: `repo_sync_now` lands where it raised `TokenizerMismatch`
   before, and the index is no longer stale; the same through `Writer.land` for a vault plan. In
   both, the one row the sync adds to the landing log is its own landing's: the heal adds none.
-- **P11, destroy's refusals.** The default instance, a live run, the lock held, a root in a working
-  tree, a root that is or holds the cache, a symbolic link out of the root, a root holding a git
-  repository or a file not the instance's own, a root around another instance's, a changed embedder
-  geometry: each refuses and writes nothing; the dry run, on an instance at rest (every store
+- **P11, destroy's refusals.** The default instance, a live run (held by a ledger of its own, as in
+  P7), the lock held, a pending reset, a root in a working tree, a root that is or holds the cache,
+  a symbolic link out of the root, a root holding a git repository or a file not the instance's
+  own, a root around another instance's, a changed embedder geometry: each refuses and writes
+  nothing, and once the pending reset has finished the fill selects every vector the plane held
+  before it; the dry run, on an instance at rest (every store
   closed), creates, removes and touches no file, and names the sources it leaves and those it
   removes. Run as commands in a process of their own, on a root at rest whose catalog has an empty
   `-wal` and a `-shm` beside it, the dry runs of `destroy`, `reset` and `cache fill` create,
@@ -821,7 +839,10 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   chain's half of the key or its key check, a row's key of its path, commitment or hash), the
   secret, or a table of the catalog's file. A stream part that is a link (a symbolic link to the
   catalog's file, a hard link to it, a symbolic link to a note outside the root) refuses the
-  destroy and the fill, writing nothing, and the cache refuses to store it.
+  destroy and the fill, writing nothing, and the cache refuses to store it. So does a regular file
+  that resolves out of its source: the catalog's file reached through the stream directory linked
+  to the data directory, a link that stays inside the root, and through a manifest part that
+  climbs out of the stream.
 - **P13, a cached vector is reused without the embedder.** A new instance under the same key
   drains an item whose atoms are cached with zero embedder calls, and its vectors equal the cached
   ones byte for byte; under another key it calls the embedder.
@@ -1021,6 +1042,42 @@ An audit of part C found these, and the build was changed to match:
     take; it now names the sources it leaves outside the root, and those it removes with the count
     and bytes of their files the cache does not take. A reset pending under a changed embedder now
     refuses with the way out, since `palace reembed` refuses while the marker stands (§4.5).
+27. **Every command that lands or writes a derived store reads the marker (§4.3).** Item 23 left
+    out the founding ingest, the code and self sensors' syncs, which the post-commit hook runs on
+    every commit on main, and `verdict.py submit`; a search of every entry point under `scripts/`
+    and `ops/` found the review REPL, the live talk loop and the swap of the two plane migrations
+    as well. A founding item landed while the marker stood kept its active catalog row and lost its
+    vectors at the rerun, which re-occupies only the versions the marker names, and the code
+    sensor, run under the marker in a test, began syncing the repository's whole history. Each now
+    refuses while the marker stands, before it opens anything; the migrations' dry runs, which swap
+    nothing, still run. A test runs each script under the marker, with the builders it would reach
+    past it replaced by ones that fail at once, and a scan of `scripts/` fails on a script that
+    calls a builder of a landing or of a derived store and is not run that way. The scan reads
+    `scripts/` alone; the runnable modules under `ops/` were read, and of them only the two
+    migrations write a store the reset rebuilds.
+28. **A destroy refuses a pending reset (§6.1).** It did not read the marker, so after a reset
+    interrupted past its clearing it filled the cache with no vector, the plane holding no
+    occupancy, and removed the root, neither its dry run nor its result saying why. It now refuses
+    while the marker stands, as `cache fill` does, and once the reset has finished the fill selects
+    every vector again.
+29. **Two guards had no test (§4.6, §6.4).** The commands' run ledger, read from the file until a
+    write opens it, is the live-daemon check of every command that only asks, and the live-run
+    tests opened the run through the launcher's own ledger, so they read it through that
+    connection; the run is now held by a ledger of its own, as by the daemon. A source file is
+    refused when it resolves out of its source, which is the one guard against a regular file
+    reached through a directory link inside the root, which destroy's scan allows, or through a
+    manifest part that climbs out of the stream; P12 now reaches the catalog's file both ways. Each
+    guard was removed in turn, and a test failed.
+30. **A test of the tier wrote the checkout's data directory (§3.4).** The chat sensor's wiring
+    test built the sensor on the default configuration, so it opened the chat log, the raw store
+    and the retention ledger in the checkout's data directory, and seeded the ledger from the chat
+    log there. The deploy gate runs the tier in the checkout of the running instance while its
+    daemon still runs the code before the ledger, so the test would seed that instance's ledger
+    early; a transcript the old daemon retained after it would get no row, since the new daemon's
+    start seeds nothing again, and a replay would rebuild its session from a later digest, or not
+    at all when the guard holds that one. The test now opens its stores under a temporary
+    directory. A seed run at every build, adding the chat log's digests the ledger lacks, would
+    close such a gap whatever opened it; it is open question 9.
 
 ## Falsifiers
 
@@ -1032,9 +1089,10 @@ An audit of part C found these, and the build was changed to match:
   the retention ledger gives a chat log that differs from the one the sensor built.
 - **LCF-4 (the heal is not enough):** a landing that still raises `TokenizerMismatch`, or a command
   that lands into an instance without passing `Writer.land`.
-- **LCF-5 (the marker leaks):** a writer that starts while `reset.pending` exists and lands. A
-  writer that started before the reset and takes no lock is not excluded by the marker (§4.3,
-  open question 7).
+- **LCF-5 (the marker leaks):** a writer that starts while `reset.pending` exists and lands, or a
+  script under `scripts/` that calls a builder of a landing or of a derived store and is not run
+  under the marker by P9. A writer that started before the reset and takes no lock is not
+  excluded by the marker (§4.3, open question 7).
 - **LCF-6 (the vector key is too coarse):** two instances under the same key whose embedders give
   one text vectors with a cosine below 0.9999; then the key needs the model file's digest.
 - **LCF-7 (the rebuild writes the catalog):** a reset of a catalog that has its landing log after
@@ -1077,6 +1135,15 @@ An audit of part C found these, and the build was changed to match:
    out. Whether they are the instance's own state, for a destroy to remove with the root, and
    whether the measurements' results should be kept elsewhere first, is a decision this note
    leaves open.
+9. The retention ledger is seeded from the chat log once, at its first open (§3.4). A transcript
+   retained after that seed by code that writes no row, a daemon still running the code before
+   the ledger or one a rollback put back, gets none, and a replay rebuilds its session from a
+   later digest, or not at all when the guard holds that one (§10 item 30). A seed run at every
+   build, adding each digest of the chat log the ledger lacks, closes that gap, but it appends
+   after the rows already there: the turns a missing digest first wrote are then replayed from the
+   later digest before it, and the rebuilt chat log names that digest for them. Placing a digest
+   at its retention position needs an order the ledger does not keep. Whether to seed at every
+   build, and how to order what it adds, is a decision this note leaves open.
 
 ## Cross-references
 

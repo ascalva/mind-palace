@@ -1087,15 +1087,18 @@ mind-palace reset --confirm    # under the supervisor lock, behind data/reset.pe
 While `data/reset.pending` exists the daemon's start and every command that lands or writes a
 derived store refuse: the on-demand verbs, and the scripts that write (`scripts/ingest.py`,
 `scripts/corpus.py ingest` and `embed`, `purge_raw`, `ingest_self_knowledge`, `mint_ids`, `watch`,
-and the migrations). Each reads the marker when it starts, so it does not stop a writer already
-running, and only some writers take the supervisor lock the reset takes (the daemon,
-`repo-sync`, `scripts/ingest.py`, the corpus runner, `watch`): run a reset when no on-demand
-command (`embed`, `vault-sync`, `lanes`, `dream` and the like) is running (the note's open question
-7). If a reset is interrupted, run `reset --confirm` again: it clears and rebuilds every store the
-marker names. If the embedder was changed meanwhile, the reset refuses: restore the embedder the
-plane was built with, finish the reset, then change it with `palace reembed --confirm`. A reset
-rebuilds the current version of each item only (decision D2); no query reads a superseded
-version's units or occupancies, and rebuilding every version from the landing log is a follow-up.
+`ingest_founding`, `verdict.py submit`, `review`, `talk`, the migrations, and the code and self
+sensors' `snapshot_code` and `sense_self`, so a commit on main meanwhile has its post-commit hook
+report a failed sync, which a sync after the reset heals). So does `destroy`. Each reads the
+marker when it starts, so it does not stop a writer already running, and only some writers take
+the supervisor lock the reset takes (the daemon, `repo-sync`, `scripts/ingest.py`, the corpus
+runner, `watch`): run a reset when no on-demand command (`embed`, `vault-sync`, `lanes`, `dream`
+and the like) is running (the note's open question 7). If a reset is interrupted, run
+`reset --confirm` again: it clears and rebuilds every store the marker names. If the embedder was
+changed meanwhile, the reset refuses: restore the embedder the plane was built with, finish the
+reset, then change it with `palace reembed --confirm`. A reset rebuilds the current version of
+each item only (decision D2); no query reads a superseded version's units or occupancies, and
+rebuilding every version from the landing log is a follow-up.
 
 **The landing log's secret, for reset and destroy.** A reset needs it only while the catalog holds
 rows and no landing log (an instance last written before the log came in): the rebuild's first open
@@ -1122,20 +1125,21 @@ index predates the recorded tokenizer (checked read only on 2026-11-12).
 shared cache, `~/.mind-palace/cache`: the raw objects and vectors of the open-corpus sources, the
 repository sources and the curated class, and the open-corpus sources' stream files. Nothing of
 the mirror's notes, the dialogue or the transcripts enters it, and no source file that is a link.
-It refuses a live run, the lock held, an installed LaunchAgent, a root inside a git working tree,
-a root that is the home root, holds the cache or holds a symbolic link out of itself, a root that
-holds anything but the instance's own state (a git repository below it, a file no namespace of
-the instance names, another instance's root), a source file the cache would take that is a link
-(a symbolic link, a hard link, a file that resolves out of its source), an embedder whose
-geometry is not the plane's, and a cache volume without room. The dry run writes nothing: it
-reads every store read only and opens no run ledger, so it creates no file, nor a root that does
-not exist. It lists the root's top-level entries; names the sources the instance read outside its
-root, which a destroy leaves, and those inside it, which go with the root, with the count and
-bytes of their files the cache does not take (the whole downloads some readers keep under `raw/`,
-the cursors, the state files); and names its overlay and its Keychain items, which a destroy
-leaves, `<id>.landing-log-key` among them: the catalog's file goes with the root, its landing log
-in it, and nothing of the log enters the cache, so the item keys nothing afterwards but a copy of
-that file kept elsewhere.
+It refuses a live run, the lock held, a pending reset (finish it first: a reset interrupted after
+its clearing leaves the plane without the occupancies the fill takes vectors by), an installed
+LaunchAgent, a root inside a git working tree, a root that is the home root, holds the cache or
+holds a symbolic link out of itself, a root that holds anything but the instance's own state (a git
+repository below it, a file no namespace of the instance names, another instance's root), a source
+file the cache would take that is a link (a symbolic link, a hard link, a file that resolves out of
+its source), an embedder whose geometry is not the plane's, and a cache volume without room. The dry
+run writes nothing: it reads every store read only and opens no run ledger, so it creates no file,
+nor a root that does not exist. It lists the root's top-level entries; names the sources the
+instance read outside its root, which a destroy leaves, and those inside it, which go with the root,
+with the count and bytes of their files the cache does not take (the whole downloads some readers
+keep under `raw/`, the cursors, the state files); and names its overlay and its Keychain items,
+which a destroy leaves, `<id>.landing-log-key` among them: the catalog's file goes with the root,
+its landing log in it, and nothing of the log enters the cache, so the item keys nothing afterwards
+but a copy of that file kept elsewhere.
 
 ```sh
 MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace destroy             # dry run
