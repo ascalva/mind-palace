@@ -2,10 +2,11 @@
 
 A cut is a frontier: one position a chain of the landing log (`core/stores/landings.py`), a few
 integers that can be compared, hashed, stored and printed (`Cut`). It stands for what the store
-held as of it, and nothing is read until an operation needs it. Every read happens inside an
-`Evaluation`: the log's connection, the chains of the classes the asker reads, and the head of
-each, read once when the evaluation starts. An operation that names no cut uses that head, so
-every part of one answer reads one cut, and every result names the cuts it reads (D27).
+held as of it, and holding it reads no store: the log is read when an operation asks for
+something of the cut. Every read happens inside an `Evaluation`: the log's connection, the chains
+of the classes the asker reads, and the head of each, read once when the evaluation starts. An
+operation that names no cut uses that head, so every part of one answer reads one cut, and every
+result names the cuts it reads (D27).
 
 **On positions** the cuts inside the log are a lattice: `Cut.join` and `Cut.meet` are the
 pointwise maximum and minimum, the bottom is the empty cut, and the head is the one cut that moves

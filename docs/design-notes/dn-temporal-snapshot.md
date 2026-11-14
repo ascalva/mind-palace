@@ -5,7 +5,7 @@ track: query-language
 status: draft                  # provenance description, never a gate; the merge is ratification
 implementation: partial        # SN-1 built (the landing log, core/stores/landings.py; SNP-1 to SNP-5 in docs/LAWS.md); SN-1b built (the cut and its algebra, core/stores/cuts.py, and the cut tool, agents/ambassador/cut_tool.py; SNP-11 to SNP-17 in docs/LAWS.md); SN-2 to SN-8 design
 created: 2026-11-10
-updated: 2026-11-13
+updated: 2026-11-14
 links:
   - papers/2026-11-10-temporal-snapshot/paper.tex          # the article: the same theorems, with proof sketches and the references
   - docs/design-notes/global-event-clock.md                # N, its generators, the cut as a certified frontier (§2.4)
@@ -79,11 +79,12 @@ warrant: null
 > the same pull request: `core/stores/cuts.py`, the cut tool, their property tests and their
 > figures on a copy of the corpus instance's catalog (§11,
 > `docs/experiments/cut-algebra-2026-11-13.md`). Where the build departed from §4.4 or §7.5, §12
-> says so under SN-1b. The review of that build corrected four things the amendment had said, each
+> says so under SN-1b. The review of that build corrected four claims of the amendment, each
 > marked where it stands: a cut can split a change of class, which no reference of §3.5 joins
-> (§3.5, §7.5); a grant's test of rows inside a chain shows the rows it hides through the stamps of
-> those it shows (§6.5); what three of its citations state (§4.4, §10); and what the tool reads
-> before its outermost operator (§4.4, §7.5).
+> (§3.5, §7.5); through the stamps of the rows it keeps, a grant's test of rows inside a chain
+> shows where rows it hides lie (§6.5); three of its citations claimed more than their theorems
+> state (§4.4, §10); and the tool reads the heads, and a chain's horizon, before its outermost
+> operator (§4.4, §7.5).
 
 ## 1. Purpose and scope
 
@@ -103,10 +104,10 @@ over a window of cuts (dn-graph-dynamics GD-4, which waits on the snapshot); and
 as of a cut (dn-utility-field, open question 1).
 
 Since 2026-11-12 the requirement has a second half. A cut is not only an index a sentence is
-read at: it is a value that stands for the palace's graph as of it, read only when an operation
-needs it, and two cuts act on each other through operators, a difference, a union and an
-intersection among them, as a set of cuts can be operated on (the owner's decisions, §13 D15 to
-D17). §4.4 is the design of that value and of its algebra.
+read at: it is a value that stands for the palace's graph at its positions, evaluated lazily;
+operators take one cut with another, a difference, a union and an intersection among them, and
+operations apply to one cut or to a family of cuts (the owner's decisions, §13 D15 to D17). §4.4
+is the design of that value and of its algebra.
 
 ### 1.2 Decisions
 
@@ -154,12 +155,12 @@ D17). §4.4 is the design of that value and of its algebra.
 9. **Retention is counted in positions and drops derived rows before ledgers (§9).**
    `[INFERENCE, falsifier SNF-9]`
 10. **The build is nine stages, each a pull request with its tests; the first is the landing log
-    (§12).** A stage replaces what it changes and keeps no switch back to it, so a stage's
-    rollback is reverting its pull request (the owner's rule of 2026-11-11 and 2026-11-12 for
-    every change, D20; its application to the stages is D29). `[INFERENCE, falsifier SNF-11]`
-11. **A cut is a lazy value with an algebra (§4.4).** It is addressed by its frontier and reads
-    nothing until an operation needs it. On positions the cuts are a lattice, and the meet and
-    the join of two cuts are cuts. On contents a cut holds the versions alive at it, each a row
+    (§12).** What a stage changes it changes outright, with no switch back to the old form, so a
+    stage's rollback is reverting its pull request (the owner's rule of 2026-11-11 and 2026-11-12
+    for every change, D20; its application to the stages is D29). `[INFERENCE, falsifier SNF-11]`
+11. **A cut is a lazy value with an algebra (§4.4).** It is addressed by its frontier, and holding
+    it reads no store. On positions the cuts are a lattice, and the meet and the join of two cuts
+    are cuts. On contents a cut holds the versions alive at it, each a row
     of the log that lives on one interval of positions, so a union, an intersection, a
     difference and what a whole family of cuts holds are predicates on a row's position and its
     closing stamp, combined without a read and run as one statement. The signed difference of
@@ -1034,7 +1035,8 @@ its columns in 0.12 s, a fifth over the bar, and the corpus chain, with 400,274 
 expected over the bar for its columns and under it for its count. A reader that needs every
 head of such a chain reads them once and then walks the differences, which is the journal of
 §5.1 under another name, or reads a kept head; which of the two SN-4 takes is SN-c's size half,
-parked as before. `[DERIVED from the fixture; INFERENCE for the bar, falsifier SNF-6]`
+parked as before. `[DERIVED from the fixture, whose load average was not recorded; INFERENCE for
+the bar, falsifier SNF-6]`
 
 As built at SN-1b, on a copy of the corpus instance's catalog (§11): every head of the corpus
 chain, 400,274, counted in 66 ms, 0.17 µs an event walked, and read as three columns in 219 to
@@ -1085,8 +1087,8 @@ corpus's catalog, which carry theirs, are in §11. `[MEASURED §11 for the costs
 | a number, a series, a table | a count, a measure at each cut of a family, the sizes of the pairwise differences | nothing: it is a result | it is no operand of a set operator, and its type says so |
 
 A version is one landing: a `store` row of the log, named by its chain and its position. That
-is this note's reading of the owner's decision that a change to a node makes a new version of
-the node and not a new node (D23), and it is proposed as such (D31). A path that returns to
+is this note's reading of the owner's decision that an edit gives a node a new version while it
+stays the same node (D23), and it is proposed as such (D31). A path that returns to
 bytes it held before lands a new version, as it appends a new row to the log and, in the place
 that keeps version chains, a new version there (§2.3, item 2). The digest, the title, the
 identity and the version number are columns of the version. What the version is made of is the
@@ -1509,7 +1511,7 @@ interface an operator reads the graph through. Stage SN-4 builds it; nothing her
 SN-1b, whose contents are the nodes and no edge (§12).
 
 **A node and its version.** A node persists across its versions: an edit lands a new version of
-the node and not a new node (D23), and the cut holds, for each node, the version alive at it.
+the same node (D23), and the cut holds, for each node, the version alive at it.
 What a version is made of is the node design's, a separate track, and this note does not record
 it. The interface assumes three things about a node and no more. It hands an operator the node's
 version at the cut as its parts, with no one vector standing for the version. An operation on a
@@ -2788,8 +2790,8 @@ transcribes it.
   against the count read; the three classes disjoint and covering, with one row a path a side; and
   every path of the difference among the paths `read_between` names.
 - **SNP-14 closure.** A set of rows is an expression over the contents of cuts under union,
-  intersection and difference, and a set read is the set operation on the reads, so every
-  result is an operand again (`Held.mem_rows_union`, `Held.mem_rows_inter`,
+  intersection and difference, and a set read is the set operation on the reads, so every set
+  they give is an operand again (`Held.mem_rows_union`, `Held.mem_rows_inter`,
   `Held.mem_rows_diff`, with `Held.has_symm`, `Held.has_inter_union` and `Held.has_diff_diff`
   among the laws of sets). Whether a row is in a set is a function of its position and its
   closing stamp alone (`Held.has_eq_of_interval`); a set lies inside the contents of the cuts
@@ -3029,9 +3031,9 @@ Nothing is built by this note. What the merge licenses is decision D12. The stag
 request against main with its tests and its rollback, each transcribing its laws and
 property-testing the transcription against the Lean statements; the laws a stage relies on enter
 `docs/LAWS.md` and `formal/Spec/` with it, as design theorems do when code comes to rely on them.
-A stage replaces what it changes and keeps no switch back to it, so its rollback is reverting its
-pull request (D20); the rollbacks below that were a switch were revised on 2026-11-12, and D29
-lists each revision.
+What a stage changes it changes outright, with no switch back to the old form, so its rollback is
+reverting its pull request (D20); the rollbacks below that were a switch were revised on
+2026-11-12, and D29 lists each revision.
 
 - **SN-1 the landing log.** Built on 2026-11-11: `core/stores/landings.py` and the catalog's six
   methods, `tests/property/test_landing_log.py`, family XVI of `docs/LAWS.md` with
@@ -3160,8 +3162,9 @@ lists each revision.
      as the control; the count walked along a family; the three classes disjoint and covering;
      every path of a difference among the paths of the events between (SNP-13);
   4. random expressions of any depth read lazily against the same operations on the fold's
-     sets; the result of each operator given to every other; no statement run by combining; the
-     count without the rows; the family operations (SNP-14);
+     sets; each cut, set and signed difference an operator gives, given to the operators that
+     take it; no statement run by combining; the count without the rows; the family operations
+     (SNP-14);
   5. every set, difference and count at cuts inside the log unchanged by further writes, up to
      the holes a later purge leaves (SNP-14, with SNP-1);
   6. on a class with no closes the contents of the join equal the union of the contents and
@@ -3246,6 +3249,17 @@ lists each revision.
     a write transaction, at every open, so a call had waited on a writer and failed after five
     seconds. And the note of an answer that reads what cuts hold says that a cut can split a
     change of class (§3.5, §7.5).
+  - *Measured after the repairs*, by a probe outside the repository on a clone of the corpus
+    instance's catalog after the harness's history (§11), at a load average of 1.7 to 3.0. The
+    walk from the head less one back to the horizon, about 200,000 rows, takes 22 ms, and a
+    second position on the same chain then reads nothing. So a call that names 64 cuts near the
+    head takes 119 ms, against 96 ms for the engine's count of what persisted through them, where
+    the review had measured 1.4 s; and a signed difference from a cut named a thousand positions
+    back takes 24 ms, nearly all of it the walk, against 2.4 ms for its counts. Reading the
+    horizon in the statement that reads the heads instead walks the genesis block forward,
+    400,276 rows, in 42 ms at every call. `in_how_many` of every head over two cuts reads the 50
+    rows it lists in 158 ms, where the review had measured 457 ms for reading all 400,274.
+    `[MEASURED]`
   - *Measured* (§11): every head counted passes SNF-6's bar on the corpus chain and as columns
     does not, which sets §4.2's size (D30); a signed difference costs what changed.
 
@@ -3569,7 +3583,11 @@ Proposed by this note, for the owner to confirm:
 28. **D28, the engine and the tool in one pull request. Proposed.** Recommended: SN-1b builds the
     engine and the tool's handler, each a module of its own, and registers the tool in the MCP
     server for the Ambassador as its last commit (§7.5, §12). The alternative, the engine alone,
-    leaves a module nothing reads and nothing to try the algebra with before SN-4.
+    leaves a module nothing reads and nothing to try the algebra with before SN-4. Registered,
+    `cut` is a second read of the Ambassador's server beside `query`, which the owner's ruling of
+    2026-11-04 had made the server's one command for reading (`dn-query-sentence-algebra`, the
+    rulings of that day). D18 puts a tool before the grammar, and confirming D28 confirms that
+    departure (added 2026-11-14).
 29. **D29, the change rule applied to the stages. Proposed, as an application of D20.** No stage
     keeps a switch back to what it replaces, so a stage's rollback is reverting its pull
     request. The revisions this makes to §12, each for the owner to see:
