@@ -84,6 +84,66 @@ def causal(b: Built) -> list[tuple[Any, ...]]:
     return sorted(r for t in rows.values() for r in t)
 
 
+# ── the landing log, read back ──────────────────────────────────────────────────────────────
+
+
+def landing_log(cfg: Any) -> dict[str, list[tuple[Any, ...]]]:
+    """The catalog's landing log, read only: every chain's row and every row of the log, in
+    order, each column as stored."""
+    con = sqlite3.connect(f"file:{cfg.paths.vault_catalog}?mode=ro", uri=True)
+    try:
+        return {"chains": con.execute("SELECT * FROM landing_chains ORDER BY chain").fetchall(),
+                "rows": con.execute("SELECT * FROM landings ORDER BY chain, seq").fetchall()}
+    finally:
+        con.close()
+
+
+def chain_heads(cfg: Any) -> dict[int, tuple[int, bytes]]:
+    """Each chain's head: its last position and that row's hash."""
+    con = sqlite3.connect(f"file:{cfg.paths.vault_catalog}?mode=ro", uri=True)
+    try:
+        return {int(c): (int(s), bytes(h)) for c, s, h in con.execute(
+            "SELECT chain, seq, hash FROM landings AS l WHERE seq = "
+            "(SELECT max(seq) FROM landings WHERE chain = l.chain)")}
+    finally:
+        con.close()
+
+
+def chains_verify(cfg: Any) -> bool:
+    """Whether the log has a chain and every chain verifies (`LandingLog.verify`: the hashes and
+    the commitments recomputed), read only. The check needs no secret."""
+    from core.stores.landings import LandingLog
+
+    con = sqlite3.connect(f"file:{cfg.paths.vault_catalog}?mode=ro", uri=True)
+    try:
+        log = LandingLog(con, lambda: b"")
+        chains = log.all_chains()
+        return bool(chains) and all(log.verify(c).ok for c in chains)
+    finally:
+        con.close()
+
+
+def appended(before: dict[str, list[tuple[Any, ...]]],
+             after: dict[str, list[tuple[Any, ...]]]) -> list[tuple[Any, ...]]:
+    """The log's rows in `after` that `before` did not have, in order, once every chain and every
+    row `before` had is found unchanged in `after`."""
+    old = {(r[0], r[1]): r for r in before["rows"]}
+    new = {(r[0], r[1]): r for r in after["rows"]}
+    assert after["chains"] == before["chains"]
+    assert all(new.get(k) == r for k, r in old.items())
+    return [r for k, r in sorted(new.items()) if k not in old]
+
+
+def without_log(cfg: Any) -> None:
+    """The catalog as one written before the landing log is, as the corpus's still is: its rows
+    and no log."""
+    con = sqlite3.connect(cfg.paths.vault_catalog)
+    try:
+        con.executescript("DROP TABLE landings; DROP TABLE landing_chains;")
+    finally:
+        con.close()
+
+
 # ── P1: the inventory is total ──────────────────────────────────────────────────────────────
 
 
@@ -134,14 +194,21 @@ def test_p2_p3_p5_p8_a_reset_keeps_every_ledger_and_the_rebuild_converges(
     lau, made = launcher_for(b)
     before_kept, before_raw, before = dump(b.cfg, KEPT), raw_files(b), heads(b.cfg)
     before_atts = dump(b.cfg)["attestations.sqlite"]
+    before_log, before_heads = landing_log(b.cfg), chain_heads(b.cfg)
     for name in ("derived.sqlite", "queue.sqlite", "run_ledger.sqlite", "claim_ops.sqlite",
                  "staging.sqlite", "verdicts.sqlite", "versions.sqlite", "chat_retention.sqlite",
                  "code_snapshots.sqlite", "reference_edges.sqlite", "attestations.sqlite"):
         assert any(before_kept[name].values()), f"the fixture writes no row in {name}"
+    kinds = {r[2] for r in before_log["rows"]}
+    assert {"genesis", "store", "horizon"} <= kinds, "the fixture's log has a genesis and landings"
+    assert len(before_heads) > 1 and chains_verify(b.cfg)              # a chain for each class
     assert lau.reset(confirm=True) == 0
     assert raw_files(b) == before_raw                                   # P2: raw, byte for byte
     assert dump(b.cfg, KEPT) == before_kept                             # P2: every kept store
     assert dump(b.cfg)["attestations.sqlite"] == before_atts            # no ledger written
+    assert landing_log(b.cfg) == before_log                             # P2: every log row, and
+    assert chain_heads(b.cfg) == before_heads                           # each chain's head hash:
+    assert chains_verify(b.cfg)                                         # the rebuild appends none
     after = heads(b.cfg)
     for name in before:
         assert after[name] == before[name], name                        # P3
@@ -172,10 +239,12 @@ def test_p4_a_reset_twice_is_the_reset_once_and_the_causal_edges_a_fresh_integra
         palace: Built) -> None:
     b = palace
     lau, _ = launcher_for(b)
+    log = landing_log(b.cfg)
     assert lau.reset(confirm=True) == 0
     once, once_causal, once_kept = heads(b.cfg), causal(b), dump(b.cfg, KEPT)
     assert lau.reset(confirm=True) == 0
     assert heads(b.cfg) == once and causal(b) == once_causal and dump(b.cfg, KEPT) == once_kept
+    assert landing_log(b.cfg) == log                    # two resets append nothing to the log
     from core.integrator import build_integrator
     build_integrator(b.cfg).integrate(max_sessions=100)                 # a fresh pass adds none
     assert causal(b) == once_causal
@@ -357,6 +426,193 @@ def test_p7_a_changed_embedder_geometry_refuses(palace: Built) -> None:
     _unchanged(palace, lambda: lau.reset(confirm=True))
 
 
+# ── P17: the landing log through a reset and a destroy ──────────────────────────────────────
+
+
+def test_p17_the_steps_that_open_the_catalog_are_the_ones_the_refusal_reads(
+        palace: Built, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The refusal without the landing log's secret is read for the steps of `OPENS_CATALOG`
+    alone, so those must be every step that opens the catalog: each step is run with the step's
+    name recorded at each open, through the context or through `VaultCatalog` itself, and the
+    clearing opens it never."""
+    from core.stores.catalog import VaultCatalog
+
+    current = ["the clearing"]
+    opened: set[str] = set()
+    real_context, real_init = rebuild.Context.catalog, VaultCatalog.__post_init__
+
+    def context_catalog(self: Any) -> Any:
+        opened.add(current[0])
+        return real_context(self)
+
+    def init(self: Any) -> None:
+        opened.add(current[0])
+        real_init(self)
+
+    monkeypatch.setattr(rebuild.Context, "catalog", context_catalog)
+    monkeypatch.setattr(VaultCatalog, "__post_init__", init)
+    for name, step in list(rebuild.STEPS.items()):
+        def named(ctx: Any, _name: str = name, _step: Any = step) -> str:
+            current[0] = _name
+            return str(_step(ctx))
+        monkeypatch.setitem(rebuild.STEPS, name, named)
+    assert {s.name for s in rebuild.found(palace.cfg)} == set(rebuild.STEPS)   # every step runs
+    lau, _ = launcher_for(palace)
+    assert lau.reset(confirm=True) == 0
+    assert opened == rebuild.OPENS_CATALOG
+
+
+def test_p17_a_reset_that_would_write_the_genesis_refuses_without_the_secret(
+        palace: Built, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """A catalog with rows and no landing log, as one written before the log is: the rebuild's
+    first open of it writes the log's genesis, which needs the secret. Without it the reset
+    refuses, its dry run too, before anything is written, the log's empty tables included; with it
+    the genesis is written at that open, the catalog's rows stay as they were and the log
+    verifies."""
+    from core.stores.landings import LANDING_LOG_KEY
+    from tests.conftest import LANDING_LOG_TEST_KEY
+    from tests.fixtures.lifecycle import sqlite_rows
+
+    b = palace
+    rows = sqlite_rows(Path(b.cfg.paths.vault_catalog))["vault_files"]
+    without_log(b.cfg)
+    assert rebuild.catalog_without_log(b.cfg) == len(rows) > 0
+    before = heads(b.cfg)
+    monkeypatch.delenv(LANDING_LOG_KEY)
+    lau, _ = launcher_for(b)
+    _unchanged(b, lambda: lau.reset(confirm=False))
+    _unchanged(b, lambda: lau.reset(confirm=True))
+    out = capsys.readouterr().out
+    assert "no landing log yet" in out and f"get_secret({LANDING_LOG_KEY!r})" in out
+    assert not (Path(b.cfg.paths.data_dir) / "reset.pending").exists()
+    tables = sqlite_rows(Path(b.cfg.paths.vault_catalog))
+    assert set(tables) == {"vault_files"} and tables["vault_files"] == rows
+    monkeypatch.setenv(LANDING_LOG_KEY, LANDING_LOG_TEST_KEY)
+    assert lau.reset(confirm=False) == 0
+    assert "writes the log's genesis" in capsys.readouterr().out
+    assert lau.reset(confirm=True) == 0
+    assert sqlite_rows(Path(b.cfg.paths.vault_catalog))["vault_files"] == rows
+    assert chains_verify(b.cfg) and heads(b.cfg) == before
+    log = landing_log(b.cfg)["rows"]
+    # the genesis: a `store` of every catalog row, and nothing a rebuild step appended
+    assert sorted(r[4] for r in log if r[2] == "store") == sorted(r[0] for r in rows)
+    assert {r[2] for r in log} <= {"genesis", "store", "retire", "move", "horizon"}
+
+
+def _lexical_overlay(tmp_path: Path, name: str, root: Path, repo: Path) -> Path:
+    """A named instance declared as `config/instances/code.toml` declares the code instance, under
+    another id and root, reading the fixture's repository: no embedder, the repository landed
+    lexically."""
+    import json
+    import tomllib
+
+    declared = tomllib.loads(
+        (Path(loader.REPO_ROOT) / "config" / "instances" / "code.toml").read_text())
+    lines = ["[instance]", f'id = "{name}"', f'root = "{root}"', ""]
+    for section, values in declared.items():
+        if section == "instance":
+            continue
+        for title, table in ([(f"{section}.{k}", v) for k, v in values.items()]
+                             if section == "ingestion" else [(section, values)]):
+            lines.append(f"[{title}]")
+            lines += [f"{k} = {json.dumps(v)}" for k, v in table.items() if k != "repositories"]
+            lines.append("")
+    lines += ["[[ingestion.code.repositories]]", f'name = "{REPO}"', f'path = "{repo}"',
+              'ref = "main"', ""]
+    overlay = tmp_path / f"{name}.toml"
+    overlay.write_text("\n".join(lines))
+    return overlay
+
+
+def _log_values(cfg: Any) -> list[bytes]:
+    """What of the landing log no cache may hold: each chain's secret half and key check, each
+    row's key of its path, commitment and hash, and the suite's secret, as hex and as bytes."""
+    from tests.conftest import LANDING_LOG_TEST_KEY
+
+    con = sqlite3.connect(f"file:{cfg.paths.vault_catalog}?mode=ro", uri=True)
+    try:
+        out = [bytes(v) for row in con.execute("SELECT secret, key_check FROM landing_chains")
+               for v in row]
+        out += [bytes(v) for row in con.execute(
+            "SELECT path_key, commitment, hash FROM landings") for v in row if v is not None]
+    finally:
+        con.close()
+    return [*out, LANDING_LOG_TEST_KEY.encode(), bytes.fromhex(LANDING_LOG_TEST_KEY)]
+
+
+def _cache_holds_nothing_of(cache_root: Path, values: list[bytes]) -> None:
+    """No file of the cache holds one of `values`, and no SQLite file of it holds a table of the
+    catalog's file: the map or the landing log."""
+    files = [p for p in cache_root.rglob("*") if p.is_file()]
+    assert files
+    for p in files:
+        data = p.read_bytes()
+        assert not any(v in data for v in values), p
+        if data.startswith(b"SQLite format 3"):
+            con = sqlite3.connect(f"file:{p}?immutable=1", uri=True)
+            try:
+                tables = {str(r[0]) for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'")}
+            finally:
+                con.close()
+            assert not tables & {"vault_files", "landing_chains", "landings"}, p
+
+
+def test_p17_a_named_instance_resets_with_its_own_item_and_destroys_with_none(
+        tmp_path: Path, repo: Path, home: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """Under a named instance, loaded as a process loads it (`MIND_PALACE_OVERLAY`), the landing
+    log's secret is the instance's own item, `<id>.landing-log-key`. A reset of a catalog with a
+    log needs no secret; one whose first open writes the genesis needs that item, and the default
+    instance's does not serve. A destroy needs none, leaves nothing of the log in the cache, and
+    names the item among those it leaves for the owner."""
+    from core.stores.landings import LANDING_LOG_KEY
+    from tests.conftest import LANDING_LOG_TEST_KEY
+
+    root = home / ".mind-palace" / "instances" / "t"
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(_lexical_overlay(tmp_path, "t", root, repo)))
+    loader.get_config.cache_clear()
+    cfg = loader.get_config()
+    item = cfg.instance.secret(LANDING_LOG_KEY)
+    assert cfg.instance.named and cfg.instance.root == root and item == "t.landing-log-key"
+    monkeypatch.setenv(item, LANDING_LOG_TEST_KEY)
+    cache_root = home / ".mind-palace" / "cache"
+    Path(cfg.paths.data_dir).mkdir(parents=True)
+    lau = Launcher(cfg=cfg, runs=RunLedger(Path(cfg.paths.data_dir) / "runs.sqlite"),
+                   repo_root=repo, cache_root=cache_root,
+                   launchd_label=cfg.instance.label("palace"),
+                   installed_plist=tmp_path / "no-agent.plist")
+    assert lau.repo_sync_now() == 0
+    log = landing_log(cfg)
+    assert log["rows"] and chains_verify(cfg)
+    # a catalog with its log: no step appends to it, so the reset needs no secret at all
+    monkeypatch.delenv(item)
+    monkeypatch.delenv(LANDING_LOG_KEY)
+    assert lau.reset(confirm=True) == 0
+    assert landing_log(cfg) == log
+    # a catalog without a log: the reset's first open writes the genesis, keyed by the item
+    without_log(cfg)
+    monkeypatch.setenv(LANDING_LOG_KEY, LANDING_LOG_TEST_KEY)        # the default's, not t's
+    before = dump(cfg)
+    assert lau.reset(confirm=True) == 1
+    assert repr(item) in capsys.readouterr().out
+    assert dump(cfg) == before
+    monkeypatch.setenv(item, LANDING_LOG_TEST_KEY)
+    assert lau.reset(confirm=True) == 0
+    assert chains_verify(cfg)
+    values = _log_values(cfg)
+    # a destroy reads the catalog read only and removes it whole: no secret, the dry run included
+    monkeypatch.delenv(item)
+    monkeypatch.delenv(LANDING_LOG_KEY)
+    capsys.readouterr()
+    assert lau.destroy(confirm=False) == 0
+    assert item in capsys.readouterr().out                 # left for the owner, and named
+    assert lau.destroy(confirm=True) == 0
+    assert not root.exists()
+    _cache_holds_nothing_of(cache_root, values)
+
+
 # ── P9: an interrupted reset finishes ───────────────────────────────────────────────────────
 
 
@@ -364,7 +620,7 @@ def test_p7_a_changed_embedder_geometry_refuses(palace: Built) -> None:
 def test_p9_a_reset_interrupted_at_any_step_leaves_the_marker_and_finishes(
         palace: Built, step: str, monkeypatch: pytest.MonkeyPatch) -> None:
     b = palace
-    before = heads(b.cfg)
+    before, log = heads(b.cfg), landing_log(b.cfg)
     lau, _ = launcher_for(b)
 
     def boom(_ctx: Any) -> str:
@@ -381,7 +637,7 @@ def test_p9_a_reset_interrupted_at_any_step_leaves_the_marker_and_finishes(
     monkeypatch.undo()
     assert lau.reset(confirm=True) == 0
     assert not (Path(b.cfg.paths.data_dir) / "reset.pending").exists()
-    assert heads(b.cfg) == before
+    assert heads(b.cfg) == before and landing_log(b.cfg) == log
 
 
 # ── the chat sensor's retention ledger ──────────────────────────────────────────────────────
@@ -422,11 +678,16 @@ def test_p10_repo_sync_lands_where_a_stale_index_refused(tmp_path: Path) -> None
     with pytest.raises(TokenizerMismatch):          # the stuck state, reproduced
         current.land(source_path="x", digest="d", provenance="code", title="x", chunks=())
     lau = Launcher(cfg=cfg, runs=RunLedger(tmp_path / "runs.sqlite"), repo_root=repo)
+    log = landing_log(cfg)
     assert lau.repo_sync_now() == 0
     healed = LexicalStore(lexical_path(cfg))
     assert not healed.stale and healed.recorded_tokenizer() == Tokenizer().identity
     paths = {p for p, _ in healed.landed_versions()}
     assert f"code/{REPO}/pkg/late.py" in paths and len(paths) == 4
+    # the heal re-derived every item's units and appended nothing: the one new row of the log is
+    # the new file's landing
+    assert [(r[2], r[4]) for r in appended(log, landing_log(cfg))] == \
+        [("store", f"code/{REPO}/pkg/late.py")]
 
 
 def test_p10_the_writer_heals_a_stale_index_for_a_vault_plan(tmp_path: Path) -> None:
@@ -441,9 +702,12 @@ def test_p10_the_writer_heals_a_stale_index_for_a_vault_plan(tmp_path: Path) -> 
     (Path(cfg.ingestion.vault.path) / "two.md").write_text("a second note\n")
     stores.lexical = LexicalStore(lexical_path(cfg), tokenizer=Tokenizer())
     assert stores.lexical.stale
+    log = landing_log(cfg)
     receipt = perform(cfg, stores, "do sync_vault")
     assert receipt["effects"].get("landed") == 1 and "rederive" in receipt["timing"]
     assert not stores.lexical.stale and len(stores.lexical.landed_versions()) == 2
+    new = appended(log, landing_log(cfg))                   # the landing's row, none of the heal's
+    assert len(new) == 1 and new[0][2] == "store" and str(new[0][4]).endswith("two.md")
 
 
 # ── P11, P12: destroy ───────────────────────────────────────────────────────────────────────
@@ -527,10 +791,20 @@ def _files(root: Path) -> dict[str, tuple[int, int, bool]]:
 
 
 def test_p11_the_destroy_dry_run_writes_nothing(named: Built, home: Path) -> None:
+    """On an instance at rest: its stores closed, so no SQLite file but the launcher's own run
+    ledger has a `-wal` or `-shm` beside it, and a reader that opened one `mode=ro` would create
+    them."""
+    import gc
+
     lau, _ = launcher_for(named, cache=home / ".mind-palace" / "cache")
-    before, before_files = dump(named.cfg), _files(home)
+    before = dump(named.cfg)
+    named.stores = None  # type: ignore[assignment]  # the fixture's stores, closed as they go
+    gc.collect()
+    before_files = _files(home)
+    assert [f for f in before_files if f.endswith(("-wal", "-shm"))
+            and not f.endswith(("runs.sqlite-wal", "runs.sqlite-shm"))] == []
     assert lau.destroy(confirm=False) == 0
-    # the tree first: a read of a WAL database (the dump's own) touches its -shm index
+    # the tree first: a read of a WAL database (the dump's own) creates its -wal and -shm
     assert _files(home) == before_files                 # no file added, removed or touched
     assert dump(named.cfg) == before and not (home / ".mind-palace" / "cache").exists()
     assert not (Path(named.cfg.paths.data_dir) / "supervisor.lock").exists()
@@ -655,9 +929,11 @@ def test_p12_destroy_keeps_exactly_the_cache_classes(named: Built, home: Path) -
     downloaded = set(d._source_files(stream))
     assert any(f.startswith("stream/") and f != "stream/manifest.json" for f in downloaded)
     cache_root = home / ".mind-palace" / "cache"
+    log_values = _log_values(b.cfg)
     lau, _ = launcher_for(b, cache=cache_root)
     assert lau.destroy(confirm=True) == 0
-    assert not b.root.exists()
+    assert not b.root.exists()                  # the catalog's file with it, the landing log in it
+    _cache_holds_nothing_of(cache_root, log_values)
     cache = Cache(cache_root)
     assert cache.raw_digests() == corpus | code | set(curated.values())
     assert not cache.raw_digests() & (notes | set(private_rows.values()) | transcripts)

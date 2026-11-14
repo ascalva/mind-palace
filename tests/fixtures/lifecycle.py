@@ -90,7 +90,12 @@ def instance_config(root: Path, repo: Path | None = None, *, named: str | None =
     """A palace whose every written path is under `root` (its data under `root/data`), reading
     its vault and transcripts from under `sources` (`root` when not given), its corpus streams
     from `root/sources`, and `repo` as its code. A named instance's destroy refuses a root that
-    holds what is not its own state, so a named fixture reads its vault from outside its root."""
+    holds what is not its own state, so a named fixture reads its vault from outside its root.
+
+    A named fixture's configuration is built here, not loaded, so the process's configuration
+    (`get_config()`), which the landing log reads its secret through, stays the default
+    instance's, and the suite's item keys its catalog. A test of the named instance's own item,
+    `<id>.landing-log-key`, loads the instance through an overlay instead."""
     data = root / "data"
     data.mkdir(parents=True, exist_ok=True)
     read = sources if sources is not None else root
@@ -326,8 +331,11 @@ WALL = frozenset({"landed_at", "observed_at", "created_at", "at", "updated_at", 
 
 
 def sqlite_rows(path: Path, *, wall: bool = True) -> dict[str, list[tuple[Any, ...]]]:
-    """Every table's rows, sorted, read only; `wall=False` leaves the wall-clock columns out."""
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    """Every table's rows, sorted, read only, creating no file (`read_only`); `wall=False` leaves
+    the wall-clock columns out."""
+    from ops.lifecycle.inventory import read_only
+
+    conn = read_only(path)
     try:
         out: dict[str, list[tuple[Any, ...]]] = {}
         for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' "

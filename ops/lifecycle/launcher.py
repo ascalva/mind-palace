@@ -1834,9 +1834,11 @@ class Launcher:
         lock, and when the configured embedder is not the plane's geometry; each refusal writes
         nothing. Runs under the lock, behind a marker that makes the daemon and every on-demand
         writer refuse until the last step has run; run again, it finishes an interrupted reset.
-        A step input that has gone missing (a ledgered commit the repository no longer holds)
+        A step input that has gone missing (a ledgered commit the repository no longer holds, or
+        the landing log's secret when the catalog's first open would write the log's genesis)
         refuses before anything is cleared, so no deterministic failure is left behind the
-        marker."""
+        marker. The catalog's file is kept whole, its landing log with it, and no step appends to
+        the log."""
         from ops.lifecycle import rebuild
         from ops.lifecycle.inventory import reset_pending
 
@@ -1857,7 +1859,7 @@ class Launcher:
         missing = rebuild.missing_inputs(self.cfg, self.repo_root, stores)
         if missing:
             for m in missing:
-                print(f"refusing reset — {m}. Nothing was cleared; bring the input back first.")
+                print(f"refusing reset — {m}. Nothing was written.")
             return 1
         pending = reset_pending(self.cfg)
         print(("finishing an interrupted reset" if pending is not None else "reset")

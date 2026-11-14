@@ -11,10 +11,14 @@ source (a stream's named parts, its manifest and its items' metadata; never a cu
 checkpoint). Nothing of the mirror's notes, the dialogue, an observed item outside an open-corpus
 source, or a transcript enters, and no digest a purge recorded. An entry carries no path, title or
 class, so it says only that some open item held these bytes, which that item's source holds in
-public.
+public. Nothing of the catalog's file enters either: the fill reads the digests of open items'
+rows and nothing else of it, so no row of the catalog, no row of its landing log and no part of
+the log's secret reaches the cache.
 
 A destroy fills the cache by this selection and then removes the instance's root, without
-following a symbolic link out of it. `palace cache fill` is the same fill without the removal.
+following a symbolic link out of it, the catalog's file and its landing log with it. It reads the
+catalog read only and never opens it through `VaultCatalog`, so it needs no landing-log secret,
+even for a catalog that holds no log yet. `palace cache fill` is the same fill without the removal.
 Both refuse when the configured embedder is not the geometry the plane recorded, so a vector is
 filed only under the key of the embedder that made it. The plan counts what a fill would add and
 holds no vector; the fill reads the vectors in batches, so neither grows with the plane.
@@ -38,6 +42,7 @@ from typing import Any
 from core.ingest.table import CODE_SPACE, CORPUS
 from core.kernel.provenance import Provenance
 from core.stores.cache import Cache, key_of, same_volume_free
+from ops.lifecycle.inventory import read_only
 
 #: Free space the cache's volume keeps beyond what a fill adds.
 FREE_MARGIN = 1 << 30
@@ -84,7 +89,7 @@ def _catalog_rows(cfg: Any) -> list[tuple[str, str, str]]:
     path = Path(cfg.paths.vault_catalog)
     if not path.is_file():
         return []
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn = read_only(path)
     try:
         return [(str(p), str(d), str(c)) for p, d, c in conn.execute(
             "SELECT source_path, digest, provenance FROM vault_files")]
@@ -99,7 +104,7 @@ def _open_atoms(cfg: Any, open_paths: set[str], purged: set[str]) -> set[str]:
     db = Path(cfg.paths.vector_store) / PLANE_FILE
     if not db.is_file() or not open_paths:
         return set()
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn = read_only(db)
     atoms: set[str] = set()
     try:
         for occ in OCC.values():
@@ -135,7 +140,7 @@ def geometry_refusal(cfg: Any) -> str | None:
     db = Path(cfg.paths.vector_store) / PLANE_FILE
     if not cfg.embedding.enabled or not db.is_file():
         return None
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn = read_only(db)
     try:
         row = conn.execute("SELECT value FROM meta WHERE key = 'fingerprint'").fetchone()
     except sqlite3.Error:
@@ -348,10 +353,14 @@ def refusals(cfg: Any, cache: Cache, *, installed: bool, home: Path | None = Non
 
 
 def keychain_items(cfg: Any) -> list[str]:
-    """The secret item names this instance reads, for the owner to remove by hand."""
+    """The secret item names this instance reads, for the owner to remove by hand: its namespaces'
+    items, and the landing log's (`<id>.landing-log-key` for a named instance), which they do not
+    list. The log goes with the catalog's file, so its secret keys nothing afterwards but a copy
+    of that file kept elsewhere."""
     from core.kernel.config.loader import namespaces_of
+    from core.stores.landings import LANDING_LOG_KEY
 
-    return sorted(namespaces_of(cfg).secrets)
+    return sorted({*namespaces_of(cfg).secrets, cfg.instance.secret(LANDING_LOG_KEY)})
 
 
 def room(cache: Cache, plan: FillPlan) -> str | None:

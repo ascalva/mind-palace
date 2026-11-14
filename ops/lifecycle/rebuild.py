@@ -9,11 +9,18 @@ writes no ledger: the sensors re-project without their attestor, and the referen
 re-projection mints again are found held. Every other store is kept as it was.
 
 What it guarantees, and the tests check (§8): every ledger, declaration and kept store is the same
-row for row; each derived store's head after the rebuild equals its head before, wall-clock
-bookmarks left out (the causal edges equal a fresh integration over the same inputs); no embedder
-call while the atoms are held; a second reset leaves what the first left. Before the landing log
-(pull request #92) the version-keyed stores are rebuilt for the current versions only (decision
-D2): no ledger names a superseded version's path outside the version chains.
+row for row, the catalog's file whole with the landing log in it (every row, every chain's head
+hash); each derived store's head after the rebuild equals its head before, wall-clock bookmarks
+left out (the causal edges equal a fresh integration over the same inputs); no embedder call while
+the atoms are held; a second reset leaves what the first left. The version-keyed stores are rebuilt
+for the current versions only (decision D2); a replay of the landing log's rows, which would give
+every version landed since its genesis, is a follow-up (§3.6).
+
+No step writes the catalog or appends to its landing log: each reads the catalog's active rows and
+nothing else. Three steps open it (`OPENS_CATALOG`), and its first open through `VaultCatalog`
+writes the log's genesis when it holds rows and no log yet, which needs the instance's landing-log
+secret. So that case is found read only before anything is cleared, and the reset refuses without
+the secret (`missing_inputs`) rather than stopping after the clearing.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from ops.lifecycle.inventory import Kind, Store, derived, marker, reset_pending
+from ops.lifecycle.inventory import Kind, Store, derived, marker, read_only, reset_pending
 
 #: Read before the clearing so the dry run and the refusals can say what a reset would do.
 SQLITE_SIDECARS = ("-wal", "-shm", "-journal")
@@ -331,7 +338,7 @@ def _causal_edges(ctx: Context) -> str:
         return "causal edges: no chat events, nothing to integrate"
     path = Path(cfg.paths.data_dir) / "code_snapshots.sqlite"
     # the commit ledger, read only: an instance without one resolves every commit unknown
-    ledger = (sqlite3.connect(f"file:{path}?mode=ro", uri=True) if path.exists()
+    ledger = (read_only(path) if path.exists()
               else sqlite3.connect(":memory:"))
     try:
         integrator = Integrator(events=open_chat_event_store(cfg), ledger=ledger,
@@ -361,6 +368,12 @@ def _dispositions(ctx: Context) -> str:
         dispositions.close()
     return f"verdict dispositions: {len(records)} verdict(s) applied"
 
+
+#: The rebuild steps that open the catalog (`Context.catalog`): the lexical index, the plane and the
+#: authored relation edges read its active rows. Its first open writes the landing log's genesis
+#: when the catalog holds rows and no log yet (`catalog_without_log`). A test checks that these are
+#: exactly the steps that open it.
+OPENS_CATALOG = frozenset({"lexical.sqlite", "vectors.lance", "edges.sqlite"})
 
 #: The rebuild step of each derived store, by name. A test replaces one to inject a failure.
 STEPS: dict[str, Callable[[Context], str]] = {
@@ -419,7 +432,7 @@ def plane_held(cfg: Any) -> set[tuple[str, str, str, str]]:
     db = Path(cfg.paths.vector_store) / PLANE_FILE
     if not db.is_file():
         return set()
-    conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+    conn = read_only(db)
     try:
         out: set[tuple[str, str, str, str]] = set()
         for prov, occ in OCC.items():
@@ -439,18 +452,73 @@ def plane_heads(cfg: Any) -> set[tuple[str, str]]:
     return {(p, d) for p, d, _, _ in plane_held(cfg)}
 
 
+def catalog_without_log(cfg: Any) -> int:
+    """The catalog's rows when it holds rows and no landing log yet, else 0, read only. That is
+    the catalog whose first open through `VaultCatalog`, the rebuild's own included, writes the
+    log's genesis (`VaultCatalog._migrate`), which needs the instance's landing-log secret. A
+    file that is not a SQLite database, or holds no catalog table, is 0: no step would open it as
+    a catalog."""
+    path = Path(cfg.paths.vault_catalog)
+    if not path.is_file():
+        return 0
+    try:
+        conn = read_only(path)
+    except sqlite3.Error:
+        return 0
+    try:
+        tables = {str(r[0]) for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table'")}
+        if "vault_files" not in tables:
+            return 0
+        if "landing_chains" in tables and conn.execute(
+                "SELECT 1 FROM landing_chains LIMIT 1").fetchone() is not None:
+            return 0
+        return int(conn.execute("SELECT count(*) FROM vault_files").fetchone()[0])
+    except sqlite3.Error:
+        return 0
+    finally:
+        conn.close()
+
+
+def landing_log_secret() -> str | None:
+    """Why the landing log's secret cannot be read, or None when it can: the item the catalog's
+    own open reads (`core.stores.landings.landing_log_key`, under the process's configuration),
+    absent, or not 32 bytes of hex."""
+    from core.kernel.config import get_config
+    from core.stores.landings import LANDING_LOG_KEY, LandingLogKeyMissing, landing_log_key
+
+    try:
+        landing_log_key()
+    except LandingLogKeyMissing:
+        name = get_config().instance.secret(LANDING_LOG_KEY)
+        return (f"get_secret({name!r}) is not in the environment, or is not 32 random bytes as "
+                "64 hex digits")
+    return None
+
+
 def missing_inputs(cfg: Any, repo: Path, stores: list[Store]) -> list[str]:
     """What a rebuild step would need and cannot read, found before anything is cleared, so a
     reset that could not finish refuses with nothing written instead of failing after the
-    clearing. Today one input can go missing under a step: a commit the commit ledger holds that
-    the repository no longer has (pruned by a rewrite and a garbage collection), which the code
-    observations' re-projection reads. A retained transcript whose raw object a purge erased is
-    not missing: the chat log's replay skips it and says so (§6.6)."""
+    clearing. Two inputs can go missing under a step. A commit the commit ledger holds that the
+    repository no longer has (pruned by a rewrite and a garbage collection), which the code
+    observations' re-projection reads. And the landing log's secret, when the catalog holds rows
+    and no log yet: the first step that opens the catalog writes the log's genesis there, and
+    without the secret that open refuses, after it has created the log's two empty tables, so the
+    case is found here, read only, before any open. A retained transcript whose raw object a purge
+    erased is not missing: the chat log's replay skips it and says so (§6.6)."""
     out: list[str] = []
+    if any(s.name in OPENS_CATALOG for s in stores):
+        rows = catalog_without_log(cfg)
+        why = landing_log_secret() if rows else None
+        if why is not None:
+            out.append(f"the catalog holds {rows:,} row(s) and no landing log yet, so the "
+                       "rebuild's first open of it writes the log's genesis, which needs the "
+                       f"instance's landing-log secret, and {why}. Place it (runbook §0) and run "
+                       "the reset with it in the environment")
     if any(s.name == "code_observations.sqlite" for s in stores):
         ledger = Path(cfg.paths.data_dir) / "code_snapshots.sqlite"
         if ledger.is_file():
-            conn = sqlite3.connect(f"file:{ledger}?mode=ro", uri=True)
+            conn = read_only(ledger)
             try:
                 shas = [str(r[0]) for r in conn.execute("SELECT commit_sha FROM snapshots")]
             except sqlite3.Error:
@@ -462,7 +530,7 @@ def missing_inputs(cfg: Any, repo: Path, stores: list[Store]) -> list[str]:
                 out.append(f"{len(gone)} commit(s) the commit ledger holds are not in the "
                            f"repository {repo} ({', '.join(g[:10] for g in gone[:3])}"
                            f"{', ...' if len(gone) > 3 else ''}), so their code observations "
-                           "could not be re-projected")
+                           "could not be re-projected. Bring the commits back first")
     return out
 
 
@@ -484,7 +552,7 @@ def row_count(path: Path) -> int | None:
     if not path.is_file():
         return None
     try:
-        conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        conn = read_only(path)
     except sqlite3.Error:
         return None
     try:
@@ -517,6 +585,11 @@ def describe(cfg: Any, stores: list[Store]) -> list[str]:
     for kind in (Kind.LEDGER, Kind.DECLARATION, Kind.KEPT, Kind.OPERATIONAL):
         present = [s.name for s in STORES if s.kind is kind and s.path(cfg).exists()]
         lines.append(f"keeps ({kind.value}): {', '.join(present) or '(none present)'}")
+    rows = catalog_without_log(cfg) if any(s.name in OPENS_CATALOG for s in stores) else 0
+    if rows:
+        lines.append(f"the catalog holds {rows:,} row(s) and no landing log yet: the rebuild's "
+                     "first open of it writes the log's genesis, as any first open does, and "
+                     "leaves its rows as they are")
     return lines
 
 
@@ -549,7 +622,7 @@ def _without_vector(cfg: Any, heads: set[tuple[str, str]]) -> tuple[int, int]:
     path = Path(cfg.paths.vault_catalog)
     if not path.is_file():
         return 0, 0
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn = read_only(path)
     try:
         rows = conn.execute("SELECT source_path, digest, provenance FROM vault_files "
                             "WHERE active = 1").fetchall()
@@ -567,7 +640,7 @@ def _head_atoms(plane_db: Path) -> set[str]:
         return set()
     from core.stores.plane import OCC
 
-    conn = sqlite3.connect(f"file:{plane_db}?mode=ro", uri=True)
+    conn = read_only(plane_db)
     try:
         held: set[str] = set()
         for occ in OCC.values():

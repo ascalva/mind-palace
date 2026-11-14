@@ -3,9 +3,11 @@
 One table, the same for every instance, says what each store under an instance's data directory
 is and so what a reset does to it:
 
-* **ledger**: a source of truth: the raw objects, the catalog, the version chains, the
-  attestations, the chat sensor's retention ledger, the commit ledger, the observation history,
-  the reference edges, the query log, the run and self-modification ledgers, the effects. Kept.
+* **ledger**: a source of truth: the raw objects, the catalog with its landing log, the version
+  chains, the attestations, the chat sensor's retention ledger, the commit ledger, the observation
+  history, the reference edges, the query log, the run and self-modification ledgers, the effects.
+  Kept. The landing log (`LANDING_LOG`, dn-temporal-snapshot §3.2) is two tables in the catalog's
+  own file, so the catalog's entry is kept whole, the log with it.
 * **declaration**: what the owner declared and no code computes: the authored supersessions and
   the signed verdicts. Kept.
 * **derived**: a function of the ledgers, computed again without a model: cleared by a reset and
@@ -25,11 +27,17 @@ fails the inventory's test (falsifier LCF-1).
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+#: The landing log's tables, a ledger inside the catalog's file (`core/stores/landings.py`): the
+#: append-only, hash-chained history of which digest each path held when, whose fold is the
+#: catalog's rows. They share the catalog's entry below, so a reset keeps them as it keeps the file.
+LANDING_LOG = ("landing_chains", "landings")
 
 #: Written before a reset clears anything, removed when its last rebuild step has run. While it is
 #: there the daemon's start and every on-demand writer refuse, so nothing lands into a
@@ -81,7 +89,7 @@ STORES: tuple[Store, ...] = (
     # ── ledgers ──────────────────────────────────────────────────────────────────────────────
     Store("raw", L, _paths("raw_store"), note="the verbatim bytes; a purge is its one deletion"),
     Store("vault_catalog.sqlite", L, _paths("vault_catalog"),
-          note="path to digest, title, class, identity; no other store holds it before #92"),
+          note="path to digest, title, class, identity, and the landing log, its past"),
     Store("versions.sqlite", L, _data("versions.sqlite"), note="mirror_authored's chains"),
     Store("attestations.sqlite", L, _paths("attestation_store"), note="append-only"),
     Store("chat_retention.sqlite", L, _data("chat_retention.sqlite"),
@@ -180,6 +188,17 @@ def unclassified(cfg: Any) -> list[Path]:
     if not data.is_dir():
         return []
     return sorted(p for p in data.iterdir() if classify(cfg, p) is None)
+
+
+def read_only(path: Path) -> sqlite3.Connection:
+    """A read of a SQLite store that creates no file. A database at rest has no `-wal` file, and
+    a `mode=ro` connection to a WAL database creates its `-wal` and `-shm` files, so it is read
+    `immutable=1`. A database with a `-wal` or `-journal` file beside it may hold committed pages
+    outside its main file, which `immutable=1` would not see, so it is read `mode=ro`, beside the
+    files that are already there."""
+    open_elsewhere = any(Path(f"{path}{s}").exists() for s in ("-wal", "-journal"))
+    query = "mode=ro" if open_elsewhere else "immutable=1"
+    return sqlite3.connect(f"file:{path}?{query}", uri=True)
 
 
 def marker(cfg: Any) -> Path:
