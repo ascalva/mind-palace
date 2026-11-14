@@ -380,16 +380,16 @@ falsifier LCF-2]`
 ### 4.3 What starts the rebuild
 
 The reset runs the rebuild itself, in its own process, after the clearing, under the instance's
-supervisor lock (`ops/lifecycle/lock.py`), which the daemon and some of the writers take as
-well (below). It writes a marker, `reset.pending` in
-the data directory, before it clears anything and removes it when the last step has run. While
-the marker is there the daemon's start and every command that lands into the instance or writes a
-store the reset rebuilds refuse, naming the reset: the launcher's on-demand verbs, and the
-scripts that write (`scripts/ingest.py`, `scripts/corpus.py ingest` and `embed`, `watch`,
-`purge_raw`, `ingest_self_knowledge`, `mint_ids`, `migrate_chunk_keys`,
-`migrate_provenance_split`, `reembed_bodyonly`). So nothing starts to land into a half-rebuilt
-instance. Every step is idempotent, so `palace reset --confirm` run again after an interruption
-clears the derived stores again and finishes. `[INFERENCE, falsifier LCF-5]`
+supervisor lock (`ops/lifecycle/lock.py`), which the daemon and some of the writers take as well
+(below). It writes a marker, `reset.pending` in the data directory, before it clears anything and
+removes it when the last step has run. While the marker is there the daemon's start and every
+command that lands into the instance or writes a store the reset rebuilds refuse, naming the
+reset: the launcher's on-demand verbs, and the scripts that write (`scripts/ingest.py`,
+`scripts/corpus.py ingest` and `embed`, `watch`, `purge_raw`, `ingest_self_knowledge`,
+`mint_ids`, `migrate_chunk_keys`, `migrate_provenance_split`, `reembed_bodyonly`). So nothing
+starts to land into a half-rebuilt instance. Every step is idempotent, so `palace reset
+--confirm` run again after an interruption clears the derived stores again and finishes.
+`[INFERENCE, falsifier LCF-5]`
 
 A writer reads the marker when it starts, so the marker does not stop one that started before
 the reset. The lock stops those that take it: the daemon, `repo-sync`, `scripts/ingest.py`,
@@ -430,8 +430,10 @@ which this note does not design (open question 4). `[DERIVED; P7, P9]`
   readings and the authored relation edges; the current units and their postings, and the
   version records of the current versions, in the lexical index; the current occupancies of each
   plane class with their atoms' vectors; the current memberships (as built, kept and not
-  rebuilt: §10 item 1). A transcript a purge erased since the last rebuild is the one exception:
-  the chat log and the chat events come back without it. `[DERIVED; P3]`
+  rebuilt: §10 item 1). Two purges are the exceptions: a transcript a purge erased since the last
+  rebuild, without which the chat log and the chat events come back, and a version the plane held
+  that a purge erased while the reset was pending, without which the plane comes back. `[DERIVED;
+  P3, P9]`
 - **The head only.** The lexical units and plane occupancies of superseded versions, and the
   plane's supersession log, are rebuilt for the current versions only (and for the versions the
   plane held, §4.2). The landing log names every version landed since its chain began, so a replay
@@ -551,7 +553,7 @@ source file the cache would take that is a link (§6.4), and a configured embedd
 plane's geometry (§6.5). The dry run lists the root's top-level entries, and it takes no lock: it
 probes the supervisor lock read only, reads the catalog's and the plane's SQLite files through
 `read_only`, and reads the launcher's run ledger without opening it (§4.6), so on an instance at
-rest it creates and touches no file, run as a command as in a test, and it creates no root that
+rest it creates and touches no file, run as a command or in-process, and it creates no root that
 does not exist. The loader accepts such a root for a named instance; only destroy refuses it.
 
 ### 6.2 What it removes, and what it leaves
@@ -563,15 +565,16 @@ it through `VaultCatalog`, so it needs no landing-log secret, even for a catalog
 yet. It leaves what is not in the root: the sources the instance read outside it (a declared
 vault, a transcript directory, a repository), its overlay in `config/instances/`, which is code,
 and its Keychain items (`<id>.<name>`), which the dry run and the result name for the owner to
-remove. The sources inside the root go with it: an open-corpus source's directory under the
-root's `sources/`, of which the cache keeps the stream files (§6.4) and nothing else. The whole
-downloads some edge readers keep under `<source>/raw/` (`edge/corpus/`: arxiv, hackernews,
-openalex, gutenberg, stackexchange), the cursors and the state files are removed with nothing
-kept. The dry run names the sources it leaves, and those it removes with the count and bytes of
-their files the cache does not take.
-`<id>.landing-log-key` is among them: the instance's namespaces do not list it
+remove. `<id>.landing-log-key` is among them: the instance's namespaces do not list it
 (`namespaces_of(cfg).secrets`), so `keychain_items` adds it. After the destroy it keys nothing but
 a copy of the catalog's file kept elsewhere, a backup's for one. `[PROPOSED]`
+
+The sources inside the root go with it: an open-corpus source's directory under the root's
+`sources/`, of which the cache keeps the stream files (§6.4) and nothing else. The whole downloads
+some edge readers keep under `<source>/raw/` (`edge/corpus/`: arxiv, hackernews, openalex,
+gutenberg, stackexchange), the cursors and the state files are removed with nothing kept. The dry
+run names the sources it leaves, and those it removes with the count and bytes of their files the
+cache does not take. `[ESTABLISHED]`
 
 ### 6.3 The cache
 
@@ -730,7 +733,9 @@ bytes) by type, size and modification time, showed no entry added, removed or ch
 `corpus.landing-log-key` placed first, since its first open of the catalog writes the genesis
 (§4.7); a destroy needs no secret. The whole root is 18,949,782,338 bytes in 389,417 files; its
 raw store is 387,838 objects of 1,003,892,779 bytes, by a snapshot of the root's metadata taken
-on 2026-11-13. A reset keeps the raw store and the catalog and rebuilds the lexical index and the
+on 2026-11-13. On disk the raw store takes about twice its bytes, one file per object in whole
+blocks: the stage-1 record counts it at 2.0 GB of allocated blocks (`eval/corpus/footprint.py`).
+A reset keeps the raw store and the catalog and rebuilds the lexical index and the
 plane relations from them; it re-occupies only what the plane held, every atom of which the atom
 table holds, so the embedder is not called, and the items still waiting for a vector stay with
 the embed job.
@@ -740,8 +745,10 @@ dry run, on a copy-on-write clone of the root (2026-11-13, 16.3 s at a load aver
 MB resident), plans 387,838 raw objects (1,003,892,779 bytes), 468 source files of the six
 sources (1,372,531,168 bytes) and 1,338,585 vectors, which the cache stores as float64
 (8,224,266,240 bytes): 10,600,690,187 bytes by the plan's count, which is what the room check
-weighs. The fill reads the vectors in batches, so its memory does not grow with the plane. Its
-time, and the space SQLite takes for the vectors beyond their bytes, are not measured.
+weighs. That count is of bytes, and the disk takes more: the cache stores the raw objects one file
+each, as the raw store does, and the vectors in SQLite pages. The fill reads the vectors in
+batches, so its memory does not grow with the plane. Its time, and the space it takes on disk,
+are not measured.
 
 A destroy of the corpus refuses as the root stands. The root holds entries no namespace of the
 instance names: some written at the root by the repository's own corpus tooling (the runner's

@@ -1154,9 +1154,11 @@ digest is recorded so no fill puts it back.
 A fill of the corpus is not offered yet. Its dry run (on a clone of the root, 2026-11-13) plans
 387,838 raw objects of 1,003,892,779 bytes, 468 source files of 1,372,531,168 bytes and 1,338,585
 vectors, 8,224,266,240 bytes as float64: 10,600,690,187 bytes by the plan's count, which the room
-check weighs. Its time, and the space SQLite takes for the vectors beyond their bytes, have not
-been measured. A destroy of the corpus refuses as its root stands: the root holds the corpus
-tooling's own files and leftovers no code here writes (dn-instance-lifecycle §7, open question 8).
+check weighs. The disk takes more than those bytes (the raw objects one file each, which the
+stage-1 record counts at 2.0 GB of blocks for the raw store, and the vectors in SQLite pages),
+and neither that nor the fill's time has been measured. A destroy of the corpus refuses as its
+root stands: the root holds the corpus tooling's own files and leftovers no code here writes
+(dn-instance-lifecycle §7, open question 8).
 
 **The corpus instance** lives at `~/.mind-palace/instances/corpus` (`[instance] root` in
 `config/instances/corpus.toml`); its old location, `instances/corpus` in the corpus stage-1
