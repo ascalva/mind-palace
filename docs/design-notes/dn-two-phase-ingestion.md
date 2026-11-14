@@ -422,7 +422,12 @@ request and its own plane transaction; the drain lands 64 at a time. `[MEASURED:
    first gigabyte; at a hundred gigabytes the posting lists are the plane's size. The corpus's
    battery already holds the weights as a sparse matrix built in bulk (`LexicalIndex`); serving
    queries from it, or from an on-disk inverted index with skip lists, is the next form. The
-   reconciliation (a version's units written once, the currency last) carries over.
+   reconciliation (a version's units written once, the currency last) carries over. The first
+   step is taken (2026-11-11, `docs/experiments/keyword-and-ledger-2026-11-11.md`): the unit count,
+   the total length and the document frequencies are kept per class in the transaction of every
+   write that changes which units are current, a reader's statistics are its cleared classes'
+   rows summed, and the arithmetic, the sum and the top `k` are one statement read from the
+   query terms' postings or the given paths' units, the scores the old statements' to the bit.
 2. **Yielding.** The daemon's drain takes the embedder's time in batches of 64 without asking who
    else is waiting. The corpus runner's backfill drains through its gated embedder, which waits
    while another principal has a request in flight; the right place for that policy is the

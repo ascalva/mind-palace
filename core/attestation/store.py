@@ -8,6 +8,20 @@ audit trail tamper-evident-by-construction even before signatures land (Step 3).
 Thread-safety mirrors the JobQueue fix (PROGRESS 2026-06-27): the vault watcher emits ingest
 attestations from a spawned thread, so the connection is opened `check_same_thread=False` and
 every method is guarded by a reentrant lock.
+
+The producer lookups (which attestations name a hash among their outputs) read a side table of
+the ledger, one row for each element of each record's `output_hashes` with the record's id and
+action, keyed by the hash: a lookup is an index seek, where it was a decode of every record. The
+table is written by a trigger on the ledger, so every append writes its rows in its own statement
+and transaction, whatever process appends, and a rolled-back append leaves none. A ledger written
+before the table existed gets it on its first open, filled from the records in one transaction.
+No open or lookup fails because of that migration. It does not wait for the file's write lock: a
+process that opens the ledger while another holds the lock opens at once and answers the lookups
+by one pass over the records, as the ledger answered them before the table, until a lookup finds
+the lock free and makes the table. A migration that fails for any other reason (a file the
+process cannot write, a full disk) is rolled back, and the lookups pass over the records until
+the ledger is opened again. The table is derived from the records and changes no record: the
+ledger stays append-only.
 """
 
 from __future__ import annotations
@@ -35,6 +49,25 @@ CREATE TABLE IF NOT EXISTS attestations (
 );
 CREATE INDEX IF NOT EXISTS att_role_ts ON attestations(agent_role, timestamp);
 """
+
+# The output-hash side table: created, filled from the records and given its trigger in one
+# transaction (`AttestationStore._migrate`), so its presence means it is complete. `pos` is the
+# element's place in the record's `output_hashes`, so a record that names a hash twice has two
+# rows, as the records do.
+_OUTPUTS = (
+    "CREATE TABLE output_hashes (hash TEXT NOT NULL, att_id TEXT NOT NULL, action TEXT NOT NULL, "
+    "pos INTEGER NOT NULL, PRIMARY KEY (hash, att_id, pos)) WITHOUT ROWID",
+    "INSERT INTO output_hashes (hash, att_id, action, pos) "
+    "SELECT j.value, a.id, a.action, j.key FROM attestations a, "
+    "json_each(a.payload_json, '$.output_hashes') j",
+    "CREATE TRIGGER attestation_outputs AFTER INSERT ON attestations BEGIN "
+    "INSERT INTO output_hashes (hash, att_id, action, pos) "
+    "SELECT j.value, NEW.id, NEW.action, j.key FROM json_each(NEW.payload_json, "
+    "'$.output_hashes') j; END",
+)
+_BATCH = 400
+_TIMEOUT_S = 5.0          # how long a statement waits for another connection's lock
+_LOCKED = (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED)     # a lock another connection holds
 
 
 @dataclass(frozen=True)
@@ -81,11 +114,54 @@ class AttestationStore:
             self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._defer = False
-        self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
+        self._conn = sqlite3.connect(str(self.path), timeout=_TIMEOUT_S,
+                                     check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
             self._conn.executescript(_DDL)
             self._conn.commit()
+            self._migration_failed = False   # failed but for the lock: not tried again here
+            self._indexed = self._migrate()
+
+    def _has_outputs(self) -> bool:
+        return self._conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' "
+                                  "AND name = 'output_hashes'").fetchone() is not None
+
+    def _migrate(self) -> bool:
+        """Give a ledger written before the output-hash side table its table, its rows and its
+        trigger, in one transaction (another process may have done it first: checked again
+        inside); True once the table exists. Only the open and the lookups call it, and no SQLite
+        error of the migration reaches them. The migration does not wait for the write lock: while
+        another connection holds it nothing is written, the answer is False, and the lookups pass
+        over the records until a later lookup finds the table or makes it. Any other failure (a
+        file this process cannot write, a full disk, an I/O error) is rolled back and answers
+        False, and this store does not try again; its next open does. A crash midway leaves the
+        ledger as it was, to be migrated at the next open."""
+        if self._has_outputs():
+            return True
+        conn = self._conn
+        if conn.in_transaction:         # inside a deferred block: its appends are not ours to end
+            return False
+        if self._migration_failed:
+            return False
+        try:
+            conn.execute("PRAGMA busy_timeout = 0")
+            try:
+                conn.execute("BEGIN IMMEDIATE")
+            finally:
+                conn.execute(f"PRAGMA busy_timeout = {int(_TIMEOUT_S * 1000)}")
+            if not self._has_outputs():
+                for statement in _OUTPUTS:
+                    conn.execute(statement)
+            conn.commit()
+        except sqlite3.Error as exc:
+            conn.rollback()
+            self._migration_failed = (getattr(exc, "sqlite_errorcode", 0) & 0xFF) not in _LOCKED
+            return False
+        except BaseException:
+            conn.rollback()
+            raise
+        return True
 
     def append(self, att: Attestation) -> Attestation:
         """Insert one attestation. Append-only: an id already present is left untouched
@@ -135,34 +211,48 @@ class AttestationStore:
         return [a for a in self.all() if a.agent_role == role]
 
     def producers_by_output(self, hashes: set[str]) -> dict[str, list[tuple[str, str]]]:
-        """Each hash's producers, (action, id), for many hashes in one pass the database makes
-        over the ledger (SQLite's JSON functions, no record decoded in Python): what a batch of
-        landings asks once instead of `producers_of` per landing."""
+        """Each hash's producers, (action, id), sorted, an attestation once for each time its
+        outputs name the hash: what a batch of landings asks once instead of `producers_of` per
+        landing, a seek of the output-hash table a hash."""
         out: dict[str, list[tuple[str, str]]] = {h: [] for h in hashes}
-        if not hashes:
-            return out
-        with self._lock:
-            self._conn.execute("CREATE TEMP TABLE IF NOT EXISTS wanted_hashes "
-                               "(h TEXT PRIMARY KEY)")
-            self._conn.execute("DELETE FROM wanted_hashes")
-            self._conn.executemany("INSERT OR IGNORE INTO wanted_hashes VALUES (?)",
-                                   [(h,) for h in hashes])
-            rows = self._conn.execute(
-                "SELECT j.value, a.action, a.id FROM attestations a, "
-                "json_each(a.payload_json, '$.output_hashes') j "
-                "WHERE j.value IN (SELECT h FROM wanted_hashes)").fetchall()
-            self._conn.execute("DELETE FROM wanted_hashes")
-        for h, action, att_id in rows:
+        for h, action, att_id in self._outputs(hashes, "hash, action, att_id"):
             out[str(h)].append((str(action), str(att_id)))
         return {h: sorted(ps) for h, ps in out.items()}
+
+    def _outputs(self, hashes: set[str], columns: str) -> list[sqlite3.Row]:
+        """The output-hash table's rows for the hashes (`columns` of `hash`, `att_id`, `action`),
+        by seeks of its key, a statement a few hundred hashes; while the ledger has no table yet
+        (`_migrate`), the same rows from one pass over the records. Reads alone: no transaction is
+        opened, so no lock outlives the call."""
+        wanted = list(hashes)
+        rows: list[sqlite3.Row] = []
+        with self._lock:
+            if not self._indexed:
+                self._indexed = self._migrate()
+            if not self._indexed:
+                return self._scanned(wanted, columns) if wanted else []
+            for i in range(0, len(wanted), _BATCH):
+                batch = wanted[i:i + _BATCH]
+                rows += self._conn.execute(
+                    f"SELECT {columns} FROM output_hashes WHERE hash IN "
+                    f"({', '.join('?' for _ in batch)})", batch).fetchall()
+        return rows
+
+    def _scanned(self, wanted: list[str], columns: str) -> list[sqlite3.Row]:
+        """`_outputs`'s rows from the records themselves, for a ledger without the table: one
+        pass of SQLite's JSON functions over every record, the hashes asked for given as one JSON
+        array (no temporary table, so no transaction)."""
+        names = {"hash": "j.value", "att_id": "a.id", "action": "a.action"}
+        select = ", ".join(f"{names[c.strip()]} AS {c.strip()}" for c in columns.split(","))
+        return self._conn.execute(
+            f"SELECT {select} FROM attestations a, json_each(a.payload_json, '$.output_hashes') j "
+            "WHERE j.value IN (SELECT value FROM json_each(?))", [json.dumps(wanted)]).fetchall()
 
     def producers_of(self, hashes: set[str]) -> set[str]:
         """Ids of attestations whose `output_hashes` intersect `hashes` — the attestations that
         PRODUCED any of those outputs. This is the chain-linking lookup: an action consuming
         hash h derives from whatever attested producing h (attestation-layer.md §2)."""
-        if not hashes:
-            return set()
-        return {a.id for a in self.all() if hashes & set(a.output_hashes)}
+        return {str(r[0]) for r in self._outputs(hashes, "att_id")}
 
     def chain_for(self, att_id: str) -> AttestationChain:
         """Assemble the transitive closure following `derived_from_ids`. `complete` is False if

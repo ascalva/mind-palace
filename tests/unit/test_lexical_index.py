@@ -357,3 +357,357 @@ def test_a_store_from_before_the_record_holds_legacy_units(tmp_path: Path):
     assert LexicalStore(tmp_path / "lex.sqlite", tokenizer=Tokenizer()).stale
     empty = LexicalStore(tmp_path / "empty.sqlite", tokenizer=Tokenizer())
     assert empty.recorded_tokenizer() is None and not empty.stale
+
+
+# ── the kept statistics: the migration, the guards, a transaction that dies ────────────────────
+
+def _old_store(path: Path, tokenizer: Tokenizer, *, record: bool = True) -> None:
+    """A store written by the code before the statistics existed (its schema and its landing,
+    `tests/fixtures/lexical_reference.py`), with a retire as that code retired a path."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import OLD_DDL, old_land
+
+    conn = sqlite3.connect(str(path), isolation_level=None)
+    conn.execute("PRAGMA journal_mode=WAL")           # as the old store opened its file
+    conn.executescript(OLD_DDL)
+    for p, d, cls, texts in (("a.md", "v1", AUTHORED, ["spectral gap of a graph", "random"]),
+                             ("b.md", "v1", OBSERVED, ["random walks on graphs"]),
+                             ("a.md", "v2", AUTHORED, ["spectral gap"]),
+                             ("c.md", "v1", OBSERVED, ["the gap between two numbers"]),
+                             ("d.md", "v1", AUTHORED, ["nothing relevant"])):
+        old_land(conn, tokenizer, p, d, cls, p, _chunks(*texts))
+    conn.execute("UPDATE units SET current = 0 WHERE source_path = 'd.md' AND current = 1")
+    if not record:
+        conn.execute("DELETE FROM meta")
+    conn.close()
+
+
+def test_a_store_from_before_the_statistics_counts_them_on_its_first_open(tmp_path: Path):
+    from tests.fixtures.lexical_reference import new_search, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    store = LexicalStore(path)
+    classes, terms = recount(store)
+    assert classes == {(AUTHORED, 1, 2), (OBSERVED, 2, 9)}
+    assert ("gap", OBSERVED, 1) in terms and ("gap", AUTHORED, 1) in terms
+    for q in ("spectral gap", "random graphs", "the gap", "absent"):
+        for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO]):
+            assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10,
+                                                                         classes=cls)
+    store.close()
+    again = LexicalStore(path)                        # counted once: a second open counts nothing
+    assert again.statistics().units == 3 and again.statistics(terms=["gap"]).df == {"gap": 2}
+
+
+def test_a_stale_store_is_counted_by_its_reset_not_by_its_open(tmp_path: Path):
+    import sqlite3
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, LEGACY, record=False)            # LEGACY's units, from before the record
+    store = LexicalStore(path)                        # the current tokenizer: stale
+    assert store.stale and not store._counted()
+    assert store._conn.execute("SELECT 1 FROM sqlite_master WHERE name = 'class_stats'"
+                               ).fetchone() is None   # its open wrote nothing
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("UPDATE units SET current = 1 WHERE source_path = 'd.md'")   # nothing guards it
+    raw.close()
+    store.reset()
+    store.land(source_path="a.md", digest="v3", provenance=AUTHORED, title="A",
+               chunks=_chunks("Straße und Weg"))
+    from tests.fixtures.lexical_reference import recount
+
+    assert recount(store)[0] == {(AUTHORED, 1, 3)}
+    assert "a.md" in store.scores("strasse")
+
+
+def test_the_units_refuse_a_write_that_does_not_keep_the_statistics(tmp_path: Path):
+    """A process of the code before the statistics (or any writer but this class) would change
+    which units are current without moving the statistics; the units refuse it, whole."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta", "gamma"))
+    kept = recount(store)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    for sql in ("UPDATE units SET current = 0 WHERE source_path = 'a.md'",
+                "DELETE FROM units WHERE source_path = 'a.md'",
+                "INSERT INTO units (source_path, digest, chunk_index, provenance, title, length, "
+                "current, landed_at) VALUES ('b.md', 'v', 0, 'observed', 'B', 1, 1, 'now')"):
+        with pytest.raises(sqlite3.IntegrityError, match="keeps statistics"):
+            raw.execute(sql)
+    with pytest.raises(sqlite3.IntegrityError):
+        old_land(raw, store.tokenizer, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    raw.close()
+    assert recount(store) == kept and store.units_of("b.md", current=False) == 0
+    assert store.retire("a.md") == 2 and recount(store) == (set(), set())
+
+
+def test_a_transaction_that_dies_between_the_units_and_the_statistics_leaves_neither(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """The statistics move once a transaction, after every unit row of it is written (a retire's
+    after its currency moved): an exception there leaves neither the rows nor the statistics."""
+    from tests.fixtures.lexical_reference import recount
+
+    store = LexicalStore(tmp_path / "lex.sqlite")
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+    keep, seen = LexicalStore._keep, []
+
+    def dying(self: LexicalStore, changes: dict[int, int]) -> None:
+        if not changes:                   # a version's own call, before its rows: nothing moves
+            keep(self, changes)
+            return
+        seen.append(self._conn.execute(
+            "SELECT (SELECT count(*) FROM units WHERE source_path = 'b.md'), "
+            "(SELECT count(*) FROM units WHERE source_path = 'a.md' AND current = 1)").fetchone())
+        raise RuntimeError("died after the unit rows, before the statistics")
+    monkeypatch.setattr(LexicalStore, "_keep", dying)
+    with pytest.raises(RuntimeError):
+        store.land_many([("b.md", "v1", OBSERVED, "B", _chunks("beta gamma")),
+                         ("a.md", "v2", AUTHORED, "A", _chunks("delta"))])
+    with pytest.raises(RuntimeError):
+        store.retire("a.md")
+    monkeypatch.undo()
+    # the batch died with b.md's unit written and a.md's new version current; the retire with
+    # a.md's units no longer current
+    assert seen == [(1, 1), (0, 0)]
+    assert recount(store) == kept
+    assert store.units_of("b.md", current=False) == 0 and store.holds_current("a.md", "v1")
+    assert store.landed_versions() == {("a.md", "v1")}
+
+
+def test_a_write_killed_before_its_commit_leaves_neither(tmp_path: Path):
+    """The process dies (no exception, no rollback) at the statistics, after the unit rows: a
+    landing with its units written and made current, a retire with its currency moved. The
+    uncommitted transaction is gone when the store is opened again."""
+    import subprocess
+    import sys
+
+    from tests.fixtures.lexical_reference import recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+    store.close()
+    script = (
+        "import os, sys\n"
+        "from pathlib import Path\n"
+        "from core.kernel.ingest.chunk import Chunk\n"
+        "from core.stores.lexical import LexicalStore\n"
+        "keep = LexicalStore._keep\n"
+        "def dying(self, changes):\n"
+        "    if not changes:\n"
+        "        return keep(self, changes)\n"
+        "    row = self._conn.execute(\"SELECT (SELECT count(*) FROM units WHERE current = 1 \"\n"
+        "                             \"AND source_path = 'b.md'), (SELECT count(*) FROM units \"\n"
+        "                             \"WHERE current = 1 AND source_path = 'a.md')\").fetchone()\n"
+        "    print(*row, flush=True)\n"
+        "    os._exit(9)\n"
+        "LexicalStore._keep = dying\n"
+        "s = LexicalStore(Path(sys.argv[1]))\n"
+        "if sys.argv[2] == 'land':\n"
+        "    s.land_many([('b.md', 'v1', 'observed', 'B', [Chunk(0, 'beta gamma')])])\n"
+        "else:\n"
+        "    s.retire('a.md')\n")
+    for write, inside in (("land", "1 1"), ("retire", "0 0")):
+        done = subprocess.run([sys.executable, "-c", script, str(path), write],
+                              capture_output=True, text=True)
+        assert done.returncode == 9, done.stderr
+        assert done.stdout.split() == inside.split()        # it died with its rows written
+        again = LexicalStore(path)
+        assert recount(again) == kept and again.units_of("b.md", current=False) == 0
+        assert again.holds_current("a.md", "v1")
+        again.close()
+
+
+def test_a_write_whose_writer_key_fails_leaves_no_transaction_open(tmp_path: Path):
+    """The writer's key is the transaction's first write: when it fails (here a trigger refuses
+    it, as a full disk would), the transaction is rolled back, the write lock is free for other
+    connections, and the store's next write begins its own."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta"))
+    kept = recount(store)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("CREATE TRIGGER refuse_writer BEFORE INSERT ON meta WHEN NEW.key = 'writer' "
+                "BEGIN SELECT RAISE(ABORT, 'no room for the key'); END")
+    for write in (lambda: store.retire("a.md"), store.reset,
+                  lambda: store.land(source_path="b.md", digest="v1", provenance=OBSERVED,
+                                     title="B", chunks=_chunks("beta"))):
+        with pytest.raises(sqlite3.IntegrityError, match="no room"):
+            write()
+        assert not store._conn.in_transaction
+        raw.execute("BEGIN IMMEDIATE")                       # the lock is free
+        raw.execute("ROLLBACK")
+    raw.execute("DROP TRIGGER refuse_writer")
+    raw.close()
+    assert recount(store) == kept
+    store.land(source_path="b.md", digest="v1", provenance=OBSERVED, title="B",
+               chunks=_chunks("beta"))
+    assert store.holds_current("b.md", "v1") and recount(store)[0] == {(AUTHORED, 1, 2),
+                                                                        (OBSERVED, 1, 1)}
+
+
+def test_a_store_opened_while_another_holds_its_lock_opens_at_once_and_counts_its_queries(
+        tmp_path: Path):
+    """The migration does not wait for the write lock: a store from before the statistics,
+    opened while another connection holds the lock (another process counting it, or writing),
+    opens at once and scores with statistics counted from the units, the same integers the
+    tables will hold, so the same scores; the first query after the lock is free counts them."""
+    import sqlite3
+    import time
+
+    from tests.fixtures.lexical_reference import new_search, old_scores, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.execute("BEGIN IMMEDIATE")                          # another connection's write lock
+    t0 = time.perf_counter()
+    store = LexicalStore(path)
+    assert time.perf_counter() - t0 < 5 and not store._counted()
+    asked = [(q, cls) for q in ("spectral gap", "random graphs", "the gap", "absent")
+             for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO])]
+    for q, cls in asked:
+        assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10, classes=cls)
+        assert store.scores(q, classes=cls) == old_scores(store, q, classes=cls)
+    counted = store.statistics(classes=[Provenance.OBSERVED], terms=["gap", "random"])
+    assert not store._counted()
+    raw.execute("ROLLBACK")
+    raw.close()
+    assert new_search(store, "the gap", k=3) == old_search(store, "the gap", k=3)
+    assert store._counted()                                 # that query counted them
+    assert store.statistics(classes=[Provenance.OBSERVED], terms=["gap", "random"]) == counted
+    recount(store)
+
+
+@pytest.mark.parametrize("fault", ["read-only", "full"])
+def test_a_store_that_cannot_take_the_count_opens_and_answers_from_its_units(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str):
+    """The count is a write the open and the queries make, and it never fails them. When it
+    fails for a reason other than another connection's lock (a file this process cannot write;
+    a full file, which SQLite refuses as a full disk refuses it), it is rolled back, the store
+    stays as it was and scores as the old statements do, its statistics counted from the units,
+    and it does not try the count again until it is opened again; a write fails, as any write
+    to such a file does. Its next open counts them."""
+    import os
+    import sqlite3
+    import stat
+
+    from tests.fixtures.lexical_reference import new_search, old_scores, old_search, recount
+
+    path = tmp_path / "lex.sqlite"
+    _old_store(path, TOKENIZER)
+    connect = sqlite3.connect
+
+    def full(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        conn = connect(*args, **kwargs)
+        (pages,) = conn.execute("PRAGMA page_count").fetchone()
+        conn.execute(f"PRAGMA max_page_count = {pages}")         # not one page more
+        return conn
+
+    if fault == "full":
+        monkeypatch.setattr(sqlite3, "connect", full)
+    else:
+        os.chmod(path, stat.S_IRUSR)
+    try:
+        store = LexicalStore(path)
+        assert not store._counted() and not store._conn.in_transaction
+        ran: list[str] = []
+        store._conn.set_trace_callback(ran.append)
+        for q in ("spectral gap", "random graphs", "the gap", "absent"):
+            for cls in (None, [Provenance.OBSERVED], [Provenance.AUTHORED_SOLO]):
+                assert new_search(store, q, k=10, classes=cls) == old_search(store, q, k=10,
+                                                                             classes=cls)
+                assert store.scores(q, classes=cls) == old_scores(store, q, classes=cls)
+        assert not any("BEGIN" in s for s in ran) and not store._counted()   # not tried again
+        store._conn.set_trace_callback(None)
+        with pytest.raises(sqlite3.OperationalError, match="readonly|full"):
+            store.land(source_path="e.md", digest="v1", provenance=OBSERVED, title="E",
+                       chunks=_chunks(" ".join(f"w{i}" for i in range(2000))))
+        assert not store._conn.in_transaction
+        store.close()
+    finally:
+        for name in ("", "-wal", "-shm"):   # SQLite made the companions read-only, as the file
+            if Path(f"{path}{name}").exists():
+                os.chmod(f"{path}{name}", stat.S_IRUSR | stat.S_IWUSR)
+    monkeypatch.undo()
+    again = LexicalStore(path)
+    assert again._counted()
+    recount(again)
+
+
+# docs/runbook.md, "Reverting the kept lexical statistics": the step, and the check that the
+# triggers stay dropped (it finds none)
+_REVERT_STEP = ("DROP TRIGGER IF EXISTS units_kept_insert; "
+                "DROP TRIGGER IF EXISTS units_kept_update; "
+                "DROP TRIGGER IF EXISTS units_kept_delete; "
+                "DELETE FROM meta WHERE key = 'statistics';")
+_REVERT_CHECK = "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name GLOB 'units_kept_*'"
+
+
+def test_the_runbooks_revert_step_lets_the_old_code_write_and_the_change_count_again(
+        tmp_path: Path):
+    """docs/runbook.md, reverting the kept statistics: once the triggers and the record are
+    dropped the code before the change writes the units again, and the change, if it lands
+    again, counts the statistics anew from them instead of trusting tables nobody kept."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    store = LexicalStore(path)
+    store.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+               chunks=_chunks("alpha beta", "gamma"))
+    store.close()
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    with pytest.raises(sqlite3.IntegrityError):
+        old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    raw.executescript(_REVERT_STEP)
+    assert raw.execute(_REVERT_CHECK).fetchall() == []
+    old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))
+    old_land(raw, TOKENIZER, "a.md", "v2", AUTHORED, "A", _chunks("delta"))
+    raw.close()
+    again = LexicalStore(path)                                # the change, landed again
+    assert again._counted()
+    assert recount(again)[0] == {(AUTHORED, 1, 1), (OBSERVED, 1, 1)}
+
+
+def test_a_process_of_the_change_left_running_undoes_the_revert_step(tmp_path: Path):
+    """docs/runbook.md, reverting the kept statistics: a store of the change still open when the
+    step runs counts the statistics again at its next query, from the units as they are then,
+    and installs the triggers with them, after which the code before the change cannot write the
+    units. So the step waits until no process of the change is left, and its check finds the
+    triggers back when one was."""
+    import sqlite3
+
+    from tests.fixtures.lexical_reference import old_land, recount
+
+    path = tmp_path / "lex.sqlite"
+    live = LexicalStore(path)                         # a process of the change, still running
+    live.land(source_path="a.md", digest="v1", provenance=AUTHORED, title="A",
+              chunks=_chunks("alpha beta", "gamma"))
+    raw = sqlite3.connect(str(path), isolation_level=None)
+    raw.executescript(_REVERT_STEP)
+    old_land(raw, TOKENIZER, "b.md", "v1", OBSERVED, "B", _chunks("beta"))   # the reverted code
+    assert raw.execute(_REVERT_CHECK).fetchall() == [] and not live._counted()
+    assert [h.source_path for h in live.search("alpha", k=3)] == ["a.md"]    # its next query
+    assert len(raw.execute(_REVERT_CHECK).fetchall()) == 3 and live._counted()
+    assert recount(live)[0] == {(AUTHORED, 2, 3), (OBSERVED, 1, 1)}         # b.md counted too
+    with pytest.raises(sqlite3.IntegrityError, match="keeps statistics"):
+        old_land(raw, TOKENIZER, "c.md", "v1", OBSERVED, "C", _chunks("gamma"))
+    raw.close()

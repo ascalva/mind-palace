@@ -235,7 +235,7 @@ the state files are left out, each with its reason (§1.3).
 |---|---|---|---|
 | raw objects (`core/kernel/stores/rawstore.py:28-40`) | none of its own; an object is ordered by the events that name its digest | the digest | nothing is rewritten; a purge deletes the object (`rawstore.py:51-61`); a transcript that grew is retained whole again under a new digest (`ops/chat_sensor.py:289-333`) |
 | version chains (`core/stores/versions.py:77-86`) | `version_seq` per document | `(doc_id, version_seq)` | nothing (one admitted relabel of `doc_id`, `versions.py:132`); kept by one place only, `mirror_authored` (`core/ingest/table.py:241-251`) |
-| attestations (`core/attestation/store.py:27-36`) | insertion order and the parents' graph; read back `ORDER BY timestamp, id` (`store.py:130`) | the content-addressed id | nothing; one per (action, digest), and one more for a landing that appended a version (`core/ingest/landing.py:77-86`), so not one a landing outside the place that keeps chains, and no path |
+| attestations (`core/attestation/store.py`, `_DDL`) | insertion order and the parents' graph; read back `ORDER BY timestamp, id` (`AttestationStore.all`) | the content-addressed id | nothing; one per (action, digest), and one more for a landing that appended a version (`core/ingest/landing.py`, `attest_once`), so not one a landing outside the place that keeps chains, and no path |
 | chat utterances (`core/stores/chatlog.py:77-92`) | `turn_index` per session | `(session_id, turn_index)` | nothing: the first write of a turn stands (`chatlog.py:161`); the store is wiped by a reset and filled again from the raw store (`chatlog.py:41-45`) |
 | citation readings (`core/stores/reference_edges.py:134-148`) | the commit of the reading; git orders the commits | `commit_sha`, part of every edge's identity (`reference_edges.py:164-174`) | no row: the store is append-only (`reference_edges.py:289-302`). What is lost is which projection wrote an edge: a deliberate re-projection under a later extractor (`ops/code_sensor.py:827-845`, through `_project`, `:473-490`) adds edges under the old `commit_sha`, the rows carry no extractor version, and one is owed (`code_sensor.py:83-91`). So a commit's reading is the union of every projection of it so far, not a function of its tree |
 | commit ledger (`ops/code_snapshot.py:44-58`) | git's ancestry: the ledger keeps no parent, and the sensor reads the commits of one branch in `rev-list` order (`ops/code_sensor.py:404-418`) | `commit_sha` | nothing |
@@ -256,7 +256,7 @@ the state files are left out, each with its reason (§1.3).
 | the plane's supersession log (`plane.py:282-289`) | `seq` per path | (path, seq) | a purge deletes entries and the next entry takes the position again (`plane.py:491-495`, `:552-553`) `[MEASURED §11]`; a reset drops it (`plane.py:628-640`); an instance with no plane has none; under lazy embedding it is written by the drain, in the drain's order, and only for the versions still current then (`core/ingest/derive.py:85-118`) |
 | atoms (the vector table) | none: content-addressed (`plane.py:113-115`) | the atom's id | the `held` and `current` cache columns; the table's own dataset versions, one a write, which a compaction drops (`core/stores/vectorstore.py:780-812`) |
 | the curated store: a second vector table with a plane of its own (`core/stores/curated_store.py:30-38`, `core/stores/vectorstore.py:243`) | as the plane and the atoms | as the plane and the atoms | as the plane and the atoms. It has two writers. `ingest_curated` lands through the catalog (`core/ingest/curated.py:66-82`). `scripts/curate_local.py:96-108` writes rows with `store.add` and no catalog row, raw object or attestation, so nothing positions them. `near` seeds from it (`core/sentence/universe.py:378-393`) and `read` opens its rows (`core/sentence/execute.py:318-326`); the purge does not open it (`scripts/purge_raw.py:51-56`) |
-| lexical units and postings (`core/stores/lexical.py:56-82`) | none: `landed_at` is wall time | (path, digest, chunk) | the head flag (`lexical.py:251-256`, `:260-265`); every unit, when the tokenizer changes (`lexical.py:180-194`) |
+| lexical units and postings (`core/stores/lexical.py`, `units` and `postings`) | none: `landed_at` is wall time | (path, digest, chunk) | the head flag (`LexicalStore._land_one`, `LexicalStore.retire`); every unit, when the tokenizer changes (`LexicalStore.reset`) |
 | code memberships (`core/stores/memberships.py:140-155`) | git: (path, blob) | the version's identity | the head flag; a purge leaves a recorded hole (`memberships.py:153`, `:491-497`) |
 
 **Stores rewritten in place: no past.**
@@ -293,8 +293,8 @@ in §2.2 unless given]`
    dialogue, observed and curated places a landing attests once per (action, digest), so a path
    that returns to bytes it held before, or bytes that land at a second path, leave no new
    record. In `mirror_authored` both append a version and are attested again
-   (`core/ingest/landing.py:77-86`, `core/ingest/writer.py:409-418`), which is the one place
-   whose past is already kept. The ledger is read back in wall-time order.
+   (`core/ingest/landing.py`, `attest_once`; `core/ingest/writer.py:409-418`), which is the one
+   place whose past is already kept. The ledger is read back in wall-time order.
 3. **Lexical postings and a changed item's vectors are not rewritten.** The units and the
    occupancies of a superseded version stay; only a `current` flag moves. They are generations in
    all but the stamp. And a stamp on the row would be wrong: a path that returns to bytes it held
@@ -901,7 +901,7 @@ measured:
 | a document's version chain | the log's `store` rows of the identity at or under `c` (§6.2) | the same rows in the range | `landings_path` where the identity is the path, `landings_doc` where it is not | 9 µs for seven versions through the index, and 49 to 57 ms when the planner takes the primary key, so the statement names the index `[MEASURED §11]` |
 | raw objects | the object of the digest the log names at `c` | the objects the delta names | none: content-addressed | one file read, the object's bytes |
 | chat log | a session's turns whose chain number is at or under `c` | the turns numbered in the range | the chain table's key and its `(session, turn)` | a range of an integer key: of the order of the log's 0.7 ms a thousand rows |
-| attestations | by id, as today; in order, the chain table at or under `c` | a range of the chain table | the chain table | the same order, where `all()` sorts the ledger by wall time and `producers_of` decodes every record today (`core/attestation/store.py:127-132`, `:159-165`) |
+| attestations | by id, as today; in order, the chain table at or under `c` | a range of the chain table | the chain table | the same order, where `all()` sorts the ledger by wall time; `producers_of` reads the output-hash table, one row an output of a record, written by the ledger's trigger (2026-11-11) |
 | citation readings | the edges of the commit projected at or under `c` on `att` (§5.1) | the paths whose blob differs between the two commits, by the commit ledger's `files` rows (`ops/code_snapshot.py:59-69`), with their readings at each | exists: `(target_ref, commit_sha)` and `(source_ref, commit_sha)` (`reference_edges.py:149-156`); the projection's position is one integer column more | one indexed lookup a reference, as today |
 | commit ledger | the commit and, through git, its ancestors | git's range | none: the ledger keeps no parent, so the range is git's | one `rev-list`, not measured |
 | staging | `read_at(g)`, as built | the rows admitted or tombstoned in the range | `staged_rows_generation` exists; none on the tombstone stamp | a range of the generation index; a scan for the tombstones |
@@ -1021,11 +1021,14 @@ Three things follow.
 
 ### 5.3 The lexical index
 
-The index keeps every version's units and postings and marks the head
-(`core/stores/lexical.py:56-82`, `:251-256`), and it computes its statistics at query time over
-the current units of the reader's classes: the unit count and the mean length
-(`lexical.py:316-321`) and each term's document frequency (`lexical.py:337-340`).
-`[ESTABLISHED]` At a cut the arithmetic is the same with one predicate changed: a unit counts
+The index keeps every version's units and postings and marks the head (`core/stores/lexical.py`,
+`units` and `_land_one`), and it scores with the statistics of the current units of the reader's
+classes: the unit count and the mean length and each term's document frequency, counted at query
+time until 2026-11-11 and kept since, per class, in the transaction of every write that moves the
+currency (`class_stats`, `term_stats`), a reader's the sums over its classes' rows. The kept
+statistics are the present's; a read at a cut counts its own under the cut's mask, as the store
+counted them before, or keeps them per epoch. `[ESTABLISHED]` At a cut the arithmetic is the same
+with one predicate changed: a unit counts
 when its version is its path's head at the cut, in place of `current = 1`. The collection size,
 the mean length and the document frequencies are then the masked set's own, which is what makes
 a score at a cut the score the index gave then under the same tokenizer. A clearance and a cut
@@ -1037,10 +1040,11 @@ the statistics are the collection's and not the support's: every unit of every h
 mask reads the units' stored lengths and postings. A journal of the changes to the document frequencies has an entry a term a unit, no
 fewer than the postings (122 a unit on the synthetic text). An index with its statistics built in
 cannot serve a cut, or a clearance, without a copy a mask; if the index moves to immutable
-segments, a segment carries no statistics and they are computed from the mask, as they are
-today, until a query at a past cut runs over its budget (SN-e). None of the three is measured
+segments, a segment carries no statistics and they are computed from the mask, as the store
+computed them for every query before it kept them, until a query at a past cut runs over its
+budget (SN-e). None of the three is measured
 at a corpus's size. `[INFERENCE, falsifier SNF-7]` The tokenizer's identity is the
-present's, as the embedder's is: a changed tokenizer resets the index (`lexical.py:180-194`) and
+present's, as the embedder's is: a changed tokenizer resets the index (`LexicalStore.reset`) and
 the backfill lands the active items, so a superseded version's units are derived again from the
 raw store when a cut asks for them.
 
@@ -1418,10 +1422,10 @@ within them, to the events it may see named (`snapshot`). The grant is no functi
 an answer when the answer is a filter of the read, as the members of `reach`, `trace`, `read`
 and `changed` are. They do not pass to a score. A lexical score uses the statistics of the
 reader's own classes, the unit count, the mean length and each term's document frequency
-(`core/stores/lexical.py:316-321`, `:337-340`), and §5.3 keeps it so; a rank depends on every
-candidate. So for a sentence that scores or ranks, the narrower answer is not the wider one
-masked, at the head today as at a cut, and nothing here claims it is. `[ESTABLISHED for the
-statistics]`
+(`LexicalStore.statistics`, sums of the reader's classes' rows), and §5.3 keeps it so; a rank
+depends on every candidate. So for a sentence that scores or ranks, the narrower answer is not
+the wider one masked, at the head today as at a cut, and nothing here claims it is.
+`[ESTABLISHED for the statistics]`
 
 **The cut shown.** `snapshot_congr` holds for a fixed cut. The cut read is resolved over every
 chain (§7.1), and its position on a chain the grant names can depend on a chain the grant does
@@ -1692,7 +1696,7 @@ So the horizon is recorded, and a cut under it is not served.
 ### 9.1 What grows
 
 A landing drops nothing today: a retired path's rows and a superseded version's rows stay in the
-plane and in the lexical index (`core/stores/plane.py:497-499`, `core/stores/lexical.py:260-265`),
+plane and in the lexical index (`core/stores/plane.py:497-499`, `LexicalStore.retire`),
 and rows go only with a purge or a reset. So the bytes of a past are mostly paid already, and
 the snapshot adds three things.
 
@@ -2380,7 +2384,8 @@ give, and what each alternative costs is the answers it changes, which the entry
    row, after which no attestation can be tested against a guess of the content. It costs a
    side row a distinct digest, of the order of a hundred bytes; a lookup an attestation; every
    reader that matches an attestation's hashes against a digest going through the side table
-   (`core/attestation/attestor.py:59-69`, `core/ingest/landing.py:60-75`); and an outside
+   (`core/attestation/attestor.py:59-69`, `core/ingest/landing.py`, `attested_by` and
+   `attested_batch`); and an outside
    verifier needing the salt to check an attestation against bytes. The rows written before
    stay, and a purge lists their ids as what it could not reach. The alternatives. Name the
    landing log's commitment in the attestation: the log's row, its salt and its position are

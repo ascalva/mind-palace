@@ -15,8 +15,9 @@ per (action, digest), so a re-run after a crash between the attestation and the 
 attest twice. A rename is the one event the digest cannot show: the same bytes under a new path
 are a version event by the identity design (bp-031), and `sync_path` tells it from a re-run by
 the catalog, where the old path still binds the identity until the pass tombstones it. The
-attestation check scans the store; an index by output hash is the efficiency item if it ever
-shows in a profile.
+attestation check reads the ledger's output-hash table (`AttestationStore.producers_by_output`),
+a seek a digest, where it was a pass over every record: at a few hundred thousand records the pass
+took seconds and an item landed effect by effect asked it three times.
 """
 
 from __future__ import annotations
@@ -37,11 +38,15 @@ def record_version_if_new(versions: VersionStore, doc_id: str, digest: str) -> V
 
 
 def attested_by(attestor: Attestor | None, action: str, digest: str) -> list[str]:
-    """The ids of the attestations of `action` that name `digest` among their outputs, through
-    the store's producer lookup (`producers_of`, a pass over the ledger)."""
+    """The ids of the attestations of `action` that name `digest` among their outputs, sorted,
+    each once: from the store's producers by output (their actions with them) where it has them,
+    else from its producer ids, each record read for its action."""
     store: Any = getattr(attestor, "store", None)
     if store is None or not digest:
         return []
+    if hasattr(store, "producers_by_output"):
+        pairs = store.producers_by_output({digest}).get(digest, [])
+        return sorted({str(att_id) for act, att_id in pairs if act == action})
     out = []
     for att_id in sorted(store.producers_of({digest})):
         att = store.get(att_id)
@@ -52,11 +57,11 @@ def attested_by(attestor: Attestor | None, action: str, digest: str) -> list[str
 
 def attested_batch(attestor: Attestor | None,
                    digests: set[str]) -> dict[str, list[tuple[str, str]]]:
-    """For many digests in one pass over the ledger, each digest's producers: the attestations,
-    of any action, whose outputs name it, as (action, id). `attested_by` is the producers of one
-    action, and an attestation's parents (`StoreAttestor.emit`'s auto-link) the producers of its
-    inputs; the batched landing reads both off this one pass a batch (`Writer.land_batch`), where
-    asking per store is two passes a store, which grow with the ledger."""
+    """For many digests in one read of the ledger's output-hash table, each digest's producers:
+    the attestations, of any action, whose outputs name it, as (action, id). `attested_by` is the
+    producers of one action, and an attestation's parents (`StoreAttestor.emit`'s auto-link) the
+    producers of its inputs; the batched landing reads both off this one read a batch
+    (`Writer.land_batch`) rather than asking per store."""
     store: Any = getattr(attestor, "store", None)
     out: dict[str, list[tuple[str, str]]] = {d: [] for d in digests}
     if store is None or not digests:
