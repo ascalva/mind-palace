@@ -28,8 +28,8 @@ bottom can split a change of class, which writes a `leave` in one chain and the 
 another, and the note says that too (§3.5). A call's sets name at most `TERMS` cuts, counted each
 time their statement names one, so a short call cannot ask for a statement of any size. The
 handler reads through the connection it is given, which the server opens to only read
-(`core.stores.cuts.read_only`): it takes no lock and writes nothing. It is not yet the graph: edges
-and graph mathematics at a cut arrive with SN-4.
+(`core.stores.cuts.read_only`): it takes no lock a writer waits on and writes nothing. It is not
+yet the graph: edges and graph mathematics at a cut arrive with SN-4.
 """
 
 from __future__ import annotations

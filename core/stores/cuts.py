@@ -34,7 +34,8 @@ A read (`Read`) is a cut with what it holds and the events up to it.
 
 Every statement names the chains of the evaluation and no other, so a result under a grant is a
 function of the chains the grant reads (SNP-16), and a row a purge emptied is in no set (SNP-17).
-An evaluation needs only a connection, and one that only reads (`read_only`) takes no lock.
+An evaluation needs only a connection, and one that only reads (`read_only`) takes no lock a
+writer waits on.
 It is not yet the graph: edges and graph mathematics at a cut arrive with SN-4. Apart from the
 cut tool (`agents/ambassador/cut_tool.py`), nothing in the palace reads this module yet.
 """
