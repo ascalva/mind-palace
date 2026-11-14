@@ -1059,9 +1059,10 @@ network** (only counts + the *shape* of activity). It is deliberately NOT sealed
 
 **Reset** clears an instance's derived stores and rebuilds them from the raw store and the ledgers
 (`ops/lifecycle/inventory.py` is the one table of what each store is). It keeps the raw store, the
-catalog, the version chains, the attestations, the chat sensor's retention ledger, the commit
-ledger, the reference edges, the verdicts, the authored supersessions, every model output and the
-queue, row for row. It rebuilds, in order: the lexical index, the plane's occupancies (the atoms are
+catalog with the landing log in its file, the version chains, the attestations, the chat sensor's
+retention ledger, the commit ledger, the reference edges, the verdicts, the authored
+supersessions, every model output and the queue, row for row; no step appends to the landing
+log. It rebuilds, in order: the lexical index, the plane's occupancies (the atoms are
 kept, so no embedder is called while they are held), the code and agent observations (re-projected
 without the attestor), the authored relation edges (parsed from raw), the chat log (replayed from
 the retention ledger, with no transcript directory), the chat events, the causal edges and the
@@ -1070,9 +1071,11 @@ clearing, each at the version it held, so on a lazy instance the items still wai
 stay with the embed job, and a note edited since it was embedded stays searchable at its old
 version until the embed job takes the new one. It
 refuses a live daemon, the supervisor lock held, an embedder whose geometry is not the plane's
-(that is `palace reembed`), and a commit the commit ledger holds that the repository no longer has;
-each refusal writes nothing. A transcript a purge erased is skipped by the chat log's replay, and
-the replay's report counts it as purged.
+(that is `palace reembed`), a commit the commit ledger holds that the repository no longer has,
+and, when the catalog holds rows and no landing log yet, an environment without the instance's
+landing-log secret, since the rebuild's first open of the catalog writes the log's genesis; each
+refusal writes nothing. A transcript a purge erased is skipped by the chat log's replay, and the
+replay's report counts it as purged.
 
 ```sh
 mind-palace reset              # dry run: each derived store with its rows, every kept store by class
@@ -1081,8 +1084,24 @@ mind-palace reset --confirm    # under the supervisor lock, behind data/reset.pe
 
 While `data/reset.pending` exists the daemon's start, every on-demand writer and the corpus runner
 refuse. If a reset is interrupted, run `reset --confirm` again: it clears and rebuilds every store
-the marker names. A reset before pull request #92 lands rebuilds the current version of each item
-only (decision D2); no reader but a purge reads a superseded version's units or occupancies.
+the marker names. A reset rebuilds the current version of each item only (decision D2); no query
+reads a superseded version's units or occupancies, and rebuilding every version from the landing
+log is a follow-up.
+
+**The landing log's secret, for reset and destroy.** A reset needs it only while the catalog holds
+rows and no landing log (an instance last written before the log came in): the rebuild's first open
+of the catalog writes the log's genesis, as any first open does. The dry run says when, and a
+reset that needs the secret and lacks it refuses, naming the item. Once the log is in the file, a
+reset needs no secret. A destroy and a cache fill need none: they read the catalog read only and
+remove it, or leave it, whole. The item is the instance's own (§0): the wrapper places the default
+instance's, and refuses a named instance, so a named instance's reset that needs the secret is
+given its own item under its own name:
+
+```sh
+mind-palace run-with-secrets mind-palace reset --confirm       # the default instance
+env "<id>.landing-log-key=$(security find-generic-password -a mind-palace -s <id>.landing-log-key -w)" \
+  MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace reset --confirm
+```
 
 **Every landing heals a stale lexical index.** When the index's tokenizer is not the current one,
 the writer re-derives it before it lands (the `rederive` stage of the receipt's timing), so a
@@ -1099,7 +1118,9 @@ holds a symbolic link out of itself, a root that holds anything but the instance
 git repository below it, a file no namespace of the instance names, another instance's root), an
 embedder whose geometry is not the plane's, and a cache volume without room. The dry run writes
 nothing, lists the root's top-level entries, and names the sources the instance read, its overlay
-and its Keychain items, which a destroy leaves.
+and its Keychain items, which a destroy leaves, `<id>.landing-log-key` among them: the catalog's
+file goes with the root, its landing log in it, and nothing of the log enters the cache, so the
+item keys nothing afterwards but a copy of that file kept elsewhere.
 
 ```sh
 MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace destroy             # dry run
@@ -1122,7 +1143,12 @@ vectors into the cache, and neither its time nor its disk use has been measured.
 `config/instances/corpus.toml`); its old location, `instances/corpus` in the corpus stage-1
 worktree, is a symbolic link to it. Read it in place read only for regression numbers: SQLite
 with `immutable=1`, since a `mode=ro` connection to a WAL database creates its `-wal` and `-shm`
-files, and Lance read only. Nothing but `scripts/corpus.py ingest` writes under it.
+files, and Lance read only. Never open its catalog through `VaultCatalog` to read it: the catalog
+holds 400,274 rows and no landing log yet, so that open would write under the root (the WAL
+files, the migration, the log's tables and a genesis of 400,274 rows), or, without
+`corpus.landing-log-key`, refuse after creating the log's two empty tables. Nothing but
+`scripts/corpus.py ingest` writes under it, and its next ingest, like a reset of the corpus,
+needs `corpus.landing-log-key` placed first.
 
 ## Code-execution sandbox — libraries, data-piping, WASM (BUILD-SPEC §11, owner-operated)
 

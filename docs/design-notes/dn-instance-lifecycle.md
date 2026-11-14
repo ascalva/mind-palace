@@ -5,9 +5,10 @@ track: deployed-instances
 status: draft                  # provenance description, never a gate; the merge is ratification
 implementation: built          # part B built §3 to §8; §10 records where the build departs
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 links:
-  - docs/design-notes/dn-temporal-snapshot.md          # §2.2 the inventory this note checks and extends; §2.3 item 7 the reset as it was; §3.2 the landing log
+  - docs/design-notes/dn-temporal-snapshot.md          # §2.2 the inventory this note checks and extends; §2.3 item 7 the reset as it was; §3.2 the landing log (SN-1, merged with #92)
+  - core/stores/landings.py                            # the landing log, in the catalog's file: kept whole by the reset, removed with the root by a destroy
   - docs/design-notes/chat-sensor.md                   # CS-1: the transcript retained verbatim before extraction; the chat log a derived layer over raw
   - docs/design-notes/self-sensing.md                  # §2.5: readings rebuilt by re-projection, history ledger-class and kept
   - docs/design-notes/code-observation-projection.md   # §2.4, §2.5: observations and reference edges, corpus-side
@@ -24,12 +25,17 @@ warrant: null
 
 # The instance's lifecycle: a reset that rebuilds, a destroy that keeps a cache, the corpus at its own root
 
-> Drafted on the branch `feat/instance-lifecycle`, cut from `origin/main` at `0a5fba27`. Every
-> claim about code was read there, at the lines cited; the landing log was read on the branch of
-> pull request #92 at `245f938d` (`git show`, no checkout). The note is as built: part B built §3
-> to §8, and §10 records where the build departs from the design, the changes an audit of the
-> build asked for among them. Grades: `[ESTABLISHED]` is a fact of the code at the lines cited or of a
-> ratified note; `[DERIVED]` is argued here from those; `[INFERENCE]` is a design call with a
+> Drafted on the branch `feat/instance-lifecycle`, cut from `origin/main` at `0a5fba27`, and
+> rebased onto `8d4dff3d` once pull request #92 had merged (2026-11-12, `ab67880f`), and #89
+> after it. Every claim about code at a cited line was read at `0a5fba27`. The landing log, which
+> #92 brought into the base, was read at `8d4dff3d`, and the passages about it (§3.6, §4.4 to
+> §4.7, §6.1, §6.2, §6.4, §7, §10 items 16 to 20) name functions rather than lines. Of the
+> files cited by line, two moved in the rebase: `perform` is at `core/ingest/ingress.py:716-763`
+> and `Writer.finish`'s two key writes at `core/ingest/writer.py:475-476` and `:489-490`. The
+> note is as built: part B built §3 to §8, and §10 records where the build departs from the
+> design, the changes an audit of the build asked for among them, and those part C made with the
+> landing log in the base. Grades: `[ESTABLISHED]` is a fact of the code at the lines cited or of
+> a ratified note; `[DERIVED]` is argued here from those; `[INFERENCE]` is a design call with a
 > named falsifier; `[PROPOSED]` is a choice this note makes and leaves to the owner (§9).
 
 ## 1. Purpose and scope
@@ -61,8 +67,9 @@ These five bind this note. They are recorded here in this note's words.
    name. `[INFERENCE, falsifier LCF-1]`
 2. **A reset clears the derived stores and rebuilds them in a fixed order, in its own process,
    under the instance's supervisor lock, and keeps everything else (§4).** The raw store, the
-   catalog, the attestations, the version chains, the verdicts and the queue, which the reset
-   removes today, are kept. `[DERIVED from decision 1 and §3]` The lexical index and the
+   catalog with the landing log in its file, the attestations, the version chains, the verdicts
+   and the queue, which the reset at main removes, are kept. `[DERIVED from decision 1 and §3]` The
+   lexical index and the
    authored relation edges, which it leaves today, are rebuilt. `[PROPOSED, D11]`
 3. **The chat log is rebuilt from the raw store through a new ledger of retained transcripts
    (§3.4).** Today a kept raw store makes the chat sensor skip every transcript it has seen, so
@@ -79,7 +86,9 @@ These five bind this note. They are recorded here in this note's words.
 
 ### 1.3 Out of scope
 
-The landing log itself (pull request #92) and every file it changes; the erasure of what a purge
+The landing log itself (`core/stores/landings.py` and the catalog's writing methods, merged with
+pull request #92) and the stages after it (dn-temporal-snapshot §12; the algebra of cuts on the
+branch `feat/cut-algebra`), which this note reads and does not change; the erasure of what a purge
 leaves in the stores it does not reach today (dn-temporal-snapshot §6.1), except the cache this
 note adds; backups and migration archives; the curated store's second writer
 (`scripts/curate_local.py`), which this note keeps out of the reset (§3.3); and the Keychain items
@@ -152,14 +161,16 @@ a `repo-sync` landed 110 files. `[ESTABLISHED]`
 Every store an instance writes, by class. Paths are relative to the instance's data directory
 (`cfg.paths.data_dir`; `derived_store.parent` is the same directory under the default paths,
 `config/defaults.toml` `[paths]`). This extends dn-temporal-snapshot §2.2, which lists the stores a
-sentence can read, with the operational ones, and was checked against the code at `0a5fba27`.
+sentence can read, with the operational ones, and was checked against the code at `0a5fba27`, and
+for the landing log at `8d4dff3d`.
 
 ### 3.1 Ledgers: sources of truth, kept
 
 | store | writer | why it is a ledger |
 |---|---|---|
 | `raw/` (`core/kernel/stores/rawstore.py`) | the writer's derive step (`writer.py:407-412`), the chat sensor (`chat_sensor.py:310`) | the verbatim bytes; every derived store is a function of them; a purge is its one deletion (`rawstore.py:51-61`) |
-| `vault_catalog.sqlite` (`core/stores/catalog.py`) | the writer's key (`writer.py:449-450`, `:463-464`), the vault sync, the founding, dialogue and curated landers | the map from path to digest, title, class and identity. Before #92 nothing else holds it (§3.6) |
+| `vault_catalog.sqlite` (`core/stores/catalog.py`) | the writer's key (`writer.py:449-450`, `:463-464`), the vault sync, the founding, dialogue and curated landers | the map from path to digest, title, class and identity, with its landing log in the same file (§3.6) |
+| the landing log: `landing_chains` and `landings` in `vault_catalog.sqlite` (`core/stores/landings.py`) | the catalog's writing methods, in the transaction of the row each writes, and the genesis at the first open of a catalog with rows and no log (`VaultCatalog._migrate`) | append-only and hash-chained: which digest each path held when; the catalog's rows are its fold (SNP-5). Kept whole with the catalog's file (`LANDING_LOG` in `ops/lifecycle/inventory.py`) |
 | `versions.sqlite` (`core/stores/versions.py`) | `Writer.finish` for the place that keeps chains (`writer.py:433-445`) | the version chains of `mirror_authored` |
 | `attestations.sqlite` (`core/attestation/store.py`) | the attestor, from the writer and the sensors | append-only, content-addressed; the record of who produced what |
 | `chat_retention.sqlite` (new, §3.4) | the chat sensor, at retention | which raw objects are transcripts, in the order they were retained |
@@ -266,31 +277,49 @@ edges an integration over the present ledger gives, which resolves every commit 
 resolved and possibly more. So they are rebuilt (step 9), and their guarantee is weaker than the
 others' (§4.4). Decision D6. `[DERIVED]`
 
-### 3.6 The catalog, before and after the landing log
+### 3.6 The catalog and its landing log
 
-The catalog is the head of every landed item and the idempotence key (ING-7), and at main no
-ledger holds its past outside `mirror_authored`'s version chains (dn-temporal-snapshot §2.3 item
-1). The sources it was landed from may be gone, as a transcript may be, as a dialogue export may
-be. So before #92 the catalog cannot be computed from anything, and the reset keeps it whole, as it
-keeps a ledger. `[DERIVED]`
+The catalog is the head of every landed item and the idempotence key (ING-7). Since pull request
+#92 its file holds its past as well: the landing log (`core/stores/landings.py`;
+dn-temporal-snapshot §3.2, stage SN-1), two tables, `landing_chains` and `landings`, an
+append-only, hash-chained record of which digest each path held when. The catalog's writing
+methods append to it in the transaction of the row each writes, so the catalog's rows are the
+log's fold (SNP-5). The sources the catalog was landed from may be gone, as a transcript may be,
+as a dialogue export may be, so the log can be computed from nothing else, and the rows from
+nothing but the log. `[ESTABLISHED]`
 
-Pull request #92 adds the landing log to the catalog's file (`core/stores/landings.py` at
-`245f938d`): an append-only, hash-chained log written in the transaction of the catalog's row,
-whose fold is the catalog (§3.2 of dn-temporal-snapshot on that branch). Once it has landed:
-
-- the log's two tables, `landing_chains` and `landings`, are a ledger, and the reset keeps them;
-- the catalog's rows are derived, and the reset rebuilds them by folding the log, without
-  appending to it. That needs a write of the catalog's table that bypasses its logging methods,
-  which belongs in `core/stores/catalog.py`, a file #92 changes, so it is a follow-up to both pull
-  requests and not part of this one;
-- the version-keyed derived stores can be rebuilt for every version and not only the head: the
-  lexical units, the plane's occupancies and its supersession log are written by replaying the
-  log's `store` and `retire` rows in chain order, which gives every version's rows and the
-  supersession entries in landing order. Before #92 a rebuild gives the head only (§4.4).
-
-What the reset does before #92 lands is what this pull request builds: the catalog is kept, and
-nothing in the reset reads or writes the log's tables, so the two pull requests merge in either
-order. `[DERIVED]`
+- **The log is a ledger, and the reset keeps it.** The reset keeps the catalog's file whole, so it
+  keeps the log: every row and every chain's head hash, byte for byte. `[DERIVED; P2]`
+- **Nothing in the reset appends to it.** Three rebuild steps open the catalog: those of the
+  lexical index, the plane and the authored relation edges (`OPENS_CATALOG` in
+  `ops/lifecycle/rebuild.py`). Each reads its active rows (`active_entries`) and calls none of its
+  writing methods. The heal of
+  §5 reads it through the writer's open stores, the same way. The chat log's replay, the
+  re-projections, the chat events, the causal edges and the dispositions do not open it.
+  `[ESTABLISHED; P2, P10, P17]`
+- **The one write is the first open's.** `VaultCatalog`'s constructor sets WAL, runs its DDL and
+  migration, and on the first open of a catalog that has rows and no log writes the log's genesis
+  (`VaultCatalog._migrate`, `LandingLog.genesis`), which needs the instance's landing-log secret:
+  `landing-log-key`, or `<id>.landing-log-key` under a named instance, read through the process's
+  configuration. So a reset of an instance whose catalog has rows and no log yet writes the genesis
+  at the rebuild's first open, after the clearing, as any first open on main does (the daemon's
+  start, a sync, a reader), and leaves the catalog's rows as they were. Without the secret that
+  open raises `LandingLogKeyMissing`, and by then it has created the log's two empty tables
+  (`executescript` commits the DDL before the genesis asks for the key; measured on a scratch
+  catalog), so opening the catalog cannot itself be the check. The reset reads the catalog read
+  only before anything is written and refuses without the secret (§4.5). With a log already in the
+  file the reset needs no secret: it appends no row and seeks no path by its key.
+  `[ESTABLISHED for the constructor; DERIVED for the reset; P17]`
+- **What stays a follow-up.** The catalog's rows could be rebuilt as the log's fold instead of kept.
+  That needs a write of the catalog's table that bypasses its logging methods, which belongs in
+  `core/stores/catalog.py`, and it gives a reset nothing while the file is kept whole. The
+  version-keyed derived stores could be rebuilt for every version and not only the head: a replay
+  of the log's `store` and `retire` rows in chain order gives the lexical units, the plane's
+  occupancies and its supersession log of every version landed since the chain began
+  (dn-temporal-snapshot §5.2, §5.3 read the same stores as functions of a cut). A genesis records
+  each path's head alone, under a horizon (dn-temporal-snapshot §8), so for an instance whose
+  catalog predates the log the versions superseded before its genesis are in no ledger but
+  `mirror_authored`'s version chains. Both are decision D2. `[DERIVED]`
 
 ### 3.7 Operational state: kept, not content
 
@@ -311,7 +340,8 @@ idempotent and finds nothing to do after the rebuild. Decision D7. `[DERIVED]`
 
 It clears the stores of §3.3, each by its own `reset` method or, for a store with none, by
 deleting its file; and the rows of provenance `authored-solo` in `edges.sqlite`. It keeps every
-other store of §3, byte for byte. The classes are one table in `ops/lifecycle/` (the store's path
+other store of §3, byte for byte, the catalog's file whole with its landing log (§3.6). The
+classes are one table in `ops/lifecycle/` (the store's path
 relative to the data directory, its class, and for a derived store its rebuild step), and
 `reset_targets` and `_RESET_GUARD` are replaced by it. `[DERIVED]`
 
@@ -358,6 +388,10 @@ loss is accepted, which this note does not design (open question 4). `[DERIVED; 
 
 - **Nothing is lost.** Every store of §3.1, §3.2, §3.5 and §3.7 is byte for byte what it was:
   a raw object's file, and every row of every table of a kept SQLite or DuckDB file. `[DERIVED]`
+- **The landing log is kept, and nothing is appended to it.** Every row of the log and each
+  chain's head hash are what they were, since no step writes the catalog (§3.6). On a catalog
+  with rows and no log, the rebuild's first open writes its genesis, as any first open does, and
+  the catalog's rows stay as they were. `[DERIVED; P2, P17]`
 - **The rebuild converges to the state before.** For each derived store but the causal edges, the
   head after the rebuild equals the head before, with the wall-time bookmarks left out
   (`landed_at`, `observed_at`, `created_at`, `at`, `updated_at`; Law C4). The head is: every row of
@@ -367,12 +401,15 @@ loss is accepted, which this note does not design (open question 4). `[DERIVED; 
   plane class with their atoms' vectors; the current memberships (as built, kept and not
   rebuilt: §10 item 1). A transcript a purge erased since the last rebuild is the one exception:
   the chat log and the chat events come back without it. `[DERIVED; P3]`
-- **Before #92, the head only.** The lexical units and plane occupancies of superseded versions,
-  and the plane's supersession log, are rebuilt for the current versions only, since no ledger
-  names a superseded version's path outside the version chains. No reader at main reads a
-  superseded version's lexical units or occupancies but the purge, which finds them by digest. The
-  re-derivation of a stale index and the re-embedding after a model change already rebuild the head
-  only. Decision D2. `[ESTABLISHED for the readers; DERIVED]`
+- **The head only.** The lexical units and plane occupancies of superseded versions, and the
+  plane's supersession log, are rebuilt for the current versions only (and for the versions the
+  plane held, §4.2). The landing log names every version landed since its chain began, so a replay
+  of it could rebuild them; that replay is a follow-up (§3.6). No query at `8d4dff3d` reads a
+  superseded version's lexical units or occupancies: the purge finds them by digest, and the
+  migration that re-keys the plane's rows reads them to re-key them (`rekey_store`,
+  `core/ingest/index.py`), which a head-only plane leaves nothing to miss. The re-derivation of a
+  stale index and the re-embedding after a model change already rebuild the head only. Decision
+  D2. `[ESTABLISHED for the readers; DERIVED]`
 - **The causal edges equal a fresh integration over the present inputs**, and a reset run twice
   gives the same edges. `[DERIVED; P4]`
 - **No embedder call when the atoms are held, and no ledger written.** `[DERIVED; P2, P8]`
@@ -383,7 +420,11 @@ loss is accepted, which this note does not design (open question 4). `[DERIVED; 
 A live daemon (the last run active and its process the supervisor, `_supervisor_alive`,
 `launcher.py:193-244`); the supervisor lock held by another writer; a configured embedder whose
 geometry is not the one the plane records; a commit the commit ledger holds that the repository no
-longer has (§4.3). Each refusal says what to do, and writes nothing.
+longer has (§4.3); and a catalog that holds rows and no landing log while the instance's
+landing-log secret is not in the environment, since the rebuild's first open of it would write the
+log's genesis (§3.6). The last is read before any open (`catalog_without_log`,
+`landing_log_secret` in `ops/lifecycle/rebuild.py`), for the steps that open the catalog, and its
+refusal names the item the process reads. Each refusal says what to do, and writes nothing.
 
 ### 4.6 Its dry run
 
@@ -392,7 +433,33 @@ would clear with its row count, the rebuild's steps with the count of items each
 stores it keeps, and for the plane the items it re-occupies, the distinct atoms they need and how
 many of those the atom table lacks (the embedder is called for those alone), and the items of the
 plane's classes whose current version holds no vector, which the reset leaves to the embed job;
-the items the plane holds at a version older than the catalog's head are counted among both.
+the items the plane holds at a version older than the catalog's head are counted among both. When
+the catalog holds rows and no landing log, it says the rebuild's first open writes the genesis.
+
+It writes no row of any store. It reads each SQLite store it counts read only without creating a
+file (`read_only` in `ops/lifecycle/inventory.py`: `immutable=1` for a file with no `-wal` or
+`-journal` beside it, since a `mode=ro` read of a WAL database creates its `-wal` and `-shm`),
+except the plane: it opens the plane through the vector store to check its geometry and to count
+the atoms the table lacks, as the confirmed reset opens it, and on an instance at rest that open
+creates the plane's `-wal` and `-shm` files. `[ESTABLISHED, measured on a fixture at rest]`
+
+### 4.7 The landing log's secret, by command and instance
+
+The secret is read through the process's configuration (`landing_log_key`), so its item is the
+instance's own: `landing-log-key` for the default instance, `<id>.landing-log-key` for a named one
+selected by `MIND_PALACE_OVERLAY`. `[ESTABLISHED]`
+
+- **A reset** needs it only while the catalog holds rows and no log: the rebuild's first open
+  writes the genesis. With the log in the file it needs none. Without it, when it is needed, the
+  reset refuses before anything is written and names the item (§4.5). `[ESTABLISHED; P17]`
+- **A destroy and a cache fill** need none: they read the catalog read only and remove it, or
+  leave it, whole (§6.2). `[ESTABLISHED; P17]`
+- **Under a named instance**, `scripts/run_with_secrets.sh` refuses to run, since it places the
+  default instance's items, so a reset that needs the secret is run with the instance's own item
+  in its environment under its own name (`docs/runbook.md` shows how). The default instance's item
+  does not serve a named instance. `[ESTABLISHED; P17]`
+- **The corpus** is a named instance whose catalog has rows and no log yet (§7): a reset of it,
+  and any landing into it, needs `corpus.landing-log-key` placed first.
 
 ## 5. A sync heals a stale lexical index
 
@@ -411,8 +478,10 @@ dependency; the heal is one more stage of the landing, reported among the writer
 `rederive`, which the receipt carries already (`ingress.py:751-752`). `[INFERENCE, falsifier
 LCF-4]`
 
-This changes none of the files the open pull requests change: `writer.py`'s `land`, not
-`finish`; no change to `lexical.py`, `landing.py`, `ingress.py` or `sync.py`.
+It changes `writer.py`'s `land` and not `finish`, whose two key writes #92 changed, and none of
+`lexical.py` or `landing.py` (pull request #93 changes them), `ingress.py` or `sync.py`. The heal
+reads the catalog's active rows and appends nothing to its landing log: a healing sync's one new
+row of the log is its own landing (P10).
 
 ## 6. Destroy
 
@@ -433,16 +502,23 @@ instance's namespaces lies at or under (`namespaces_of(cfg).paths`), an entry of
 directory the class table does not name, a `.git` anywhere below it, a root at, inside or around
 another declared instance's root (a derived root inside the checkout excepted, §10 item 5), and a
 configured embedder that is not the plane's geometry (§6.5). The dry run lists the root's
-top-level entries, and it takes no lock: it probes the supervisor lock read only, so it creates
-no file. The loader accepts such a root for a named instance; only destroy refuses it.
+top-level entries, and it takes no lock: it probes the supervisor lock read only, and it reads the
+catalog's and the plane's SQLite files through `read_only` (§4.6), so on an instance at rest it
+creates and touches no file. The loader accepts such a root for a named instance; only destroy
+refuses it.
 
 ### 6.2 What it removes, and what it leaves
 
 It fills the cache from the instance (§6.4), then removes the instance's root, the declared one or
-`<repo>/instances/<id>`, without following a symbolic link out of it. It leaves what is not in the
-root: the sources the instance read (a declared vault, a transcript directory, a repository), its
-overlay in `config/instances/`, which is code, and its Keychain items (`<id>.<name>`), which the
-dry run and the result name for the owner to remove. `[PROPOSED]`
+`<repo>/instances/<id>`, without following a symbolic link out of it. The catalog's file goes with
+the root, and the landing log in it. A destroy reads the catalog's rows read only and never opens
+it through `VaultCatalog`, so it needs no landing-log secret, even for a catalog that holds no log
+yet. It leaves what is not in the root: the sources the instance read (a declared vault, a
+transcript directory, a repository), its overlay in `config/instances/`, which is code, and its
+Keychain items (`<id>.<name>`), which the dry run and the result name for the owner to remove.
+`<id>.landing-log-key` is among them: the instance's namespaces do not list it
+(`namespaces_of(cfg).secrets`), so `keychain_items` adds it. After the destroy it keys nothing but
+a copy of the catalog's file kept elsewhere, a backup's for one. `[PROPOSED]`
 
 ### 6.3 The cache
 
@@ -487,6 +563,11 @@ dialogue), no observed item outside an open-corpus source (the dialogue's model 
 the sensors' readings), no transcript (the chat sensor's raw objects have no catalog row), no raw
 object no catalog row names, and no digest in `purged.sqlite`. `[PROPOSED, D9]`
 
+Nothing of the catalog's file enters either. The fill reads the catalog's rows to select by path
+and class and writes none of them: no row of the map, no row of the landing log, no chain's half
+of the log's key and no part of the instance's secret reaches the cache. P12 and P17 search every
+file of a filled cache for each of the log's values and find none. `[ESTABLISHED; P12, P17]`
+
 Why sharing an object held by an open item is safe even when a private item holds the same bytes:
 a cache entry carries no path, title or class, so it says only that some open item held these
 bytes, and the open item's source holds them in public. The same argument covers an atom shared by
@@ -517,8 +598,8 @@ later fill would put the object back. `[DERIVED]`
 - **A raw object, by digest.** `RawStore.get` on a miss reads the cache's object, checks that its
   SHA-256 is the digest asked for, and copies it in; a mismatch is refused and the entry deleted.
   The address is the whole trust decision. This is how an instance takes a raw object it has a
-  digest for and no bytes: a catalog seeded from another instance's for a fixture (§7), or a log
-  replay after #92.
+  digest for and no bytes: a catalog seeded from another instance's for a fixture (§7), or a
+  replay of the landing log (§3.6, a follow-up).
 - **A source, by file.** An edge reader of an open-corpus source looks in `cache/sources/<source>/`
   before it downloads, and takes a file whose size and SHA-256 match its manifest row. The entry's
   trust is the trust of the download that filled it, on this machine.
@@ -564,7 +645,24 @@ catalog's count of active items, a lexical query's top hits, a `near` query's an
 reports the first two in the pull request, from a read-only check that the configuration resolves
 the corpus to its root and that its stores open.
 
-**Reset and destroy of the corpus.** The corpus is a named instance, so both apply. A reset keeps
+**Never through `VaultCatalog`.** The corpus's catalog holds 400,274 rows and no landing log yet.
+Opening it through `VaultCatalog` would write under the root: the WAL files, the migration, the
+log's two tables and a genesis of 400,274 rows, or, without `corpus.landing-log-key`, refuse after
+creating the two empty tables (§3.6). So a regression read opens the corpus's SQLite files with
+`immutable=1` and its Lance table read only, and never opens the catalog through its class. The
+check was run again on the rebased tree, with the landing log in the base and without
+`corpus.landing-log-key` in its environment: the configuration resolves `corpus` to
+`~/.mind-palace/instances/corpus`; the catalog holds 400,274
+rows, all active, in `vault_files` alone; the lexical index holds 1,369,944 units made by the
+legacy tokenizer, and the query "superconductivity phase transition" returned the same five hits
+as on 2026-11-12, in 17.37 s at a load average of 2.84; the Lance table holds 1,338,585 rows. A
+snapshot of the whole root before and after, 389,745 entries (389,417 files, 18,949,782,338
+bytes) by type, size and modification time, showed no entry added, removed or changed.
+`[ESTABLISHED, measured 2026-11-13]`
+
+**Reset and destroy of the corpus.** The corpus is a named instance, so both apply. A reset needs
+`corpus.landing-log-key` placed first, since its first open of the catalog writes the genesis
+(§4.7); a destroy needs no secret. A reset keeps
 its 19 GB of raw and its catalog and rebuilds its lexical index and plane relations from them; it
 re-occupies only what the plane held, every atom of which the atom table holds, so the embedder
 is not called, and the items still waiting for a vector stay with the embed job. A destroy, or a
@@ -587,7 +685,9 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   directory is in exactly one class of the table, and every `open_*` helper's path is in the table.
 - **P2, a reset keeps every ledger.** Every raw object's file and every row of every table of every
   store of §3.1, §3.2, §3.5 and §3.7 is the same before and after a confirmed reset, the attestation
-  ledger included.
+  ledger included, and the landing log's: on a fixture whose log has a genesis and landings, every
+  row of the log and each chain's head hash, and every chain still verifies. Two resets, and a
+  reset interrupted and finished, append nothing to it either (P4, P9).
 - **P3, the rebuild converges.** For each derived store but the causal edges, the head of §4.4
   after a confirmed reset equals the head before, the wall-time bookmarks left out.
 - **P4, a reset is idempotent.** Two confirmed resets leave the state one leaves, the causal edges
@@ -595,7 +695,8 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
 - **P5, the chat stores come from raw.** With the transcript directory emptied after the first
   sync, a reset gives back the chat log and the chat events as they were; a fixture with a grown
   session and one held by the guard included.
-- **P6, the dry run writes nothing** and names every store it would clear.
+- **P6, the dry run writes nothing** (no row of any store; §4.6 says which files it opens) and
+  names every store it would clear.
 - **P7, the refusals.** A live run, the lock held, a changed embedder geometry, a ledgered commit
   the repository no longer has: each refuses and every byte is unchanged.
 - **P8, no embedder call.** A reset of an instance whose atoms are held calls the embedder zero
@@ -605,17 +706,21 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   holds.
 - **P10, a sync heals a stale index.** A repository landed under the legacy tokenizer, its index
   then opened under the current one: `repo_sync_now` lands where it raised `TokenizerMismatch`
-  before, and the index is no longer stale; the same through `Writer.land` for a vault plan.
+  before, and the index is no longer stale; the same through `Writer.land` for a vault plan. In
+  both, the one row the sync adds to the landing log is its own landing's: the heal adds none.
 - **P11, destroy's refusals.** The default instance, a live run, the lock held, a root in a working
   tree, a root that is or holds the cache, a symbolic link out of the root, a root holding a git
   repository or a file not the instance's own, a root around another instance's, a changed embedder
-  geometry: each refuses and writes nothing; the dry run creates, removes and touches no file.
+  geometry: each refuses and writes nothing; the dry run, on an instance at rest (every store
+  closed), creates, removes and touches no file.
 - **P12, destroy keeps exactly the cache's classes.** After a confirmed destroy of a fixture with
   notes, dialogue, a transcript, corpus items and a repository, the root is gone; the cache's raw
   objects are exactly the digests open items named, its vectors exactly the atoms open items or
   code memberships held (as built, open items only: §10 item 2), its sources exactly the open
-  sources' downloaded files; no raw object of a
-  note, a dialogue turn or a transcript, and no vector only a private item held, is in it.
+  sources' downloaded files; no raw object of a note, a dialogue turn or a transcript, and no
+  vector only a private item held, is in it; and no file of it holds a value of the landing log (a
+  chain's half of the key or its key check, a row's key of its path, commitment or hash), the
+  secret, or a table of the catalog's file.
 - **P13, a cached vector is reused without the embedder.** A new instance under the same key
   drains an item whose atoms are cached with zero embedder calls, and its vectors equal the cached
   ones byte for byte; under another key it calls the embedder.
@@ -628,6 +733,16 @@ catalog as that fold) is #92's and dn-temporal-snapshot's.
   `~/.mind-palace/instances/corpus` as the root and every data path under it (a configuration test
   with a temporary home; the check of the real stores is the read-only one of §7, run once and
   reported, not a test).
+- **P17, the landing log through a reset and a destroy.** The steps that open the catalog, through
+  the rebuild's context or through `VaultCatalog` itself, are exactly `OPENS_CATALOG`, and the
+  clearing opens it never. On a catalog with rows and no log, a reset without the secret refuses,
+  its dry run too, with every row of every store unchanged and no log table created; with the
+  secret it writes the genesis at its first open, the catalog's rows stay as they were, the log
+  holds one `store` for each of them and nothing more, and every chain verifies. Under a named
+  instance loaded through its overlay, the item is `<id>.landing-log-key` and the default
+  instance's does not serve; a reset of a catalog that has its log needs no secret; a destroy
+  needs none, its dry run names the item among those it leaves, and the cache holds no value of
+  the log.
 
 ## 9. Decisions for the owner
 
@@ -637,10 +752,18 @@ Each is proposed, with the recommendation first.
   command whatever its state, a dry run unless confirmed. The alternative, a destroy of the default
   instance behind a second confirmation, would remove the checkout's `data/` and the HashiCorp
   Vault storage in it.
-- **D2, a reset before #92 rebuilds the head of the version-keyed stores.** Recommended: accept it,
-  and rebuild every version once #92 has landed and the follow-up of §3.6 has. The alternative is
-  to keep the lexical index and the plane's relations out of the reset until then, which leaves the
-  stale-row problem of §2.2 in place.
+- **D2, a reset rebuilds the head of the version-keyed stores and keeps the catalog's rows.** With
+  the landing log in main (#92), the reset keeps the catalog's file whole, the log in it, and
+  appends nothing to it (§3.6). What D2 now covers is what the reset does not yet take from the
+  log: the lexical units and plane occupancies of superseded versions, and the plane's
+  supersession log, are rebuilt for the current versions (and those the plane held) only, and the
+  catalog's rows are kept rather than folded from the log. Recommended: accept both for now, and
+  make the log's replay a follow-up: every version landed since a chain began rebuilt from the
+  log's `store` and `retire` rows, and the catalog's rows as the log's fold through a write of the
+  catalog that bypasses its logging methods. The versions superseded before an instance's genesis
+  stay head-only, since no ledger but `mirror_authored`'s version chains holds them. The
+  alternative is to keep the lexical index and the plane's relations out of the reset until that
+  follow-up, which leaves the stale rows of §2.2 in place.
 - **D3, the reference edges are a ledger.** Recommended: kept by the reset until their rows carry
   the extractor's version; then the current extractor's rows become derived and the older ones
   stay.
@@ -731,6 +854,32 @@ An audit of the build found these, and the build was changed to match the design
     `immutable=1`; a snapshot of the data directory and the Lance tree before and after showed no
     entry created, removed or touched.
 
+Part C rebased the branch onto `8d4dff3d`, with the landing log of #92 in the base, and made the
+lifecycle correct with it:
+
+16. **The reset keeps the catalog's file whole, its landing log in it, and appends nothing to the
+    log (§3.6).** The inventory names the log as a ledger in the catalog's entry (`LANDING_LOG`).
+    P2 now checks every row of the log and each chain's head hash, and P4, P9 and P10 that two
+    resets, an interrupted one and a healing sync append nothing.
+17. **A reset refuses before a genesis it has no secret for (§3.6, §4.5).** Found in the code: the
+    three steps that open the catalog do so after the clearing, and the constructor's genesis needs
+    the secret, so a missing secret would have stopped a reset with its derived stores cleared and
+    the marker left; and the constructor without the secret raises after `executescript` has
+    created the log's two empty tables, so opening the catalog cannot be the check. The reset reads
+    the catalog read only first (`catalog_without_log`) and refuses, naming the item, with nothing
+    written. `OPENS_CATALOG` names the steps that open it, and a test records every open.
+18. **Destroy names the landing log's item (§6.2).** Found in the code: the instance's namespaces
+    (`namespaces_of(cfg).secrets`) do not list `<id>.landing-log-key`, so the dry run did not name
+    it among the items a destroy leaves; `keychain_items` adds it.
+19. **The lifecycle's SQLite readers create no file (§4.6, §6.1).** Found by a probe on a fixture
+    at rest: destroy's dry run created the catalog's and the plane's `-wal` and `-shm` files, since
+    its readers opened them `mode=ro`, and P11 passed only because the fixture held its stores open.
+    The readers of the destroy and of the reset go through `read_only`, the fixture's own reader
+    too, and P11 runs on an instance at rest. The reset's dry run still opens the plane through
+    the vector store (§4.6).
+20. **The corpus check was run again on the rebased tree, over the whole root (§7)**, never through
+    `VaultCatalog`, which on the corpus's catalog would write the log's genesis or refuse.
+
 ## Falsifiers
 
 - **LCF-1 (the inventory is not total):** a store written by a lane the fixtures exercise that the
@@ -744,6 +893,9 @@ An audit of the build found these, and the build was changed to match the design
 - **LCF-5 (the marker leaks):** a writer that lands while `reset.pending` exists.
 - **LCF-6 (the vector key is too coarse):** two instances under the same key whose embedders give
   one text vectors with a cosine below 0.9999; then the key needs the model file's digest.
+- **LCF-7 (the rebuild writes the catalog):** a reset of a catalog that has its landing log after
+  which the log holds a row it did not hold, or a chain's head hash differs; or a step that opens
+  the catalog and is not in `OPENS_CATALOG`. P2 and P17 find it.
 
 ## Open questions
 
@@ -764,11 +916,16 @@ An audit of the build found these, and the build was changed to match the design
    new key of its `meta` table written beside the geometry at the first landing, checked by the
    fill, the destroy and the reset as the geometry is, with a rule for a plane that predates the
    key. Whether to make that schema change is open.
+6. Whether the landing log's genesis should move off a catalog's first open is open with the owner
+   (dn-temporal-snapshot §12, SN-1). Moved off it, a reset would never need the secret, and the
+   refusal of §4.5 would go with it.
 
 ## Cross-references
 
 - dn-temporal-snapshot §2.2 (the inventory), §2.3 item 7 (the reset as it was), §3.2 (the landing
-  log, on #92's branch), §6.1 (what a purge leaves).
+  log, SN-1, merged with #92), §5.2 and §5.3 (vectors and the lexical index as functions of a
+  cut), §6.1 (what a purge leaves), §8 (horizons), §12 (the genesis at the first open); the
+  algebra of cuts on the branch `feat/cut-algebra`, which amends it.
 - chat-sensor CS-1 and CS-3; `core/stores/chatlog.py` header (the chat log as a derived layer).
 - self-sensing §2.5 (readings rebuilt, history kept); code-observation-projection §2.4, §2.5.
 - dn-two-phase-ingestion D1 (the vector and the units as derived fields); dn-embedder-use (the
