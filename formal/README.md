@@ -380,13 +380,46 @@ Roundoff and FloatModel, so it has no statements of its own):
   (`resolution_reads_unnamed`), and served positions that shrink (`served_set_shrinks`). Design
   theorems (Palace and PalaceTest, no Spec rows): `as of` reads the citation graph at a commit
   and every other store as it is now.
+- `SnapshotAlgebra`: the algebra of cuts (dn-temporal-snapshot §4.4), on the model of `Snapshot`
+  and proved before its code, which is stage SN-1b's. A cut is a value, one position a chain,
+  that stands for what the store held as of it and is read only when an operation needs it. Two
+  kinds of operation act on it. On positions the cuts inside a store are a sublattice of the
+  cuts (`cutsIn`), with the empty cut and the head as its bounds, and the difference of two cuts
+  is the events between them. On contents a chain of keyed writes kept by generation has one row
+  a write, alive on one interval of positions; what a cut holds is the rows alive at it
+  (`contentAt`), and a set of rows is an expression over the contents of cuts under union,
+  intersection and difference, with no complement (`Held`), whose membership reads a row's
+  position and its closing stamp and nothing else (`Held.has`). The signed difference of two
+  cuts is two such sets (`Held.gone`, `Held.come`), sorted by key into the rows removed, added
+  and replaced; a family of cuts gives what every cut holds, what some cut holds and in how
+  many a row is alive (`Held.all`, `Held.any`, `countIn`); and an operator reads through four
+  forms, a function of one read, of two, a measure at each cut of a family and a fold over one
+  (`view`, `combine`, `series`, `foldOver`). SNP-11 the lattice of cuts, the reads at the meet
+  and the join, and the difference on positions from the meet and to the join; SNP-12 a row is
+  alive from its position up to its closing stamp, so a row alive at two cuts is alive between
+  them, with the range reads that follow and one row a key at a cut; SNP-13 the signed
+  difference applied, composed through a cut between the two, counted and sorted, and every row
+  of it under a key the events between name; SNP-14 closure: a set read is the set operation on
+  the reads, lies inside the contents of the cuts it names, commutes with a row's own test and
+  is append invariant, as the four forms are; SNP-15 the union on contents is the join's
+  contents with the rows closed between the meet and the join, and the two agree on the rows
+  never closed; SNP-16 every set commutes with the grant's restriction and reads only the
+  chains the grant names; SNP-17 an erasure takes its own rows out of every set and changes no
+  other, and a retire is a removal in the signed difference that spans it. The seven laws are
+  rows of family XVI (`Spec/SnapshotAlgebra.lean`, 80 statements) whose anchors and falsifiers
+  wait for SN-1b's code. The six controls as theorems, in `Witness`: a value has no interval
+  (`value_not_contiguous`), the union on contents is not the contents of the join
+  (`union_ne_join`), a complement grows with the store (`complement_grows`), differences do
+  not compose through a cut outside the two (`delta_through_outside`), the events between two
+  cuts name a key the signed difference does not hold (`changed_not_delta`), and a row's test
+  applied before the generations are computed moves the positions (`filter_before_gens`).
 - `Bridges`: theorems that join two families, so that what one proves serves the other: BRG-1
   the Laplacian as `∂₁ ∂₁ᵀ`, BRG-2 Euler and Poincaré on the flag complex, BRG-3 Thomson's
   principle on edge flows, BRG-4 the clock's cuts and scope's closed strata as lower sets, BRG-5
   delegation's noninterference through the plane, and BRG-6 Forman's curvature as the Weitzenböck
   term of `L₁`.
 - `comparator.json`: what `lake comparator` judges: `Spec` against `Palace`, the cited theorems
-  (380 theorems), and the three standard axioms.
+  (460 theorems), and the three standard axioms.
 - `Compare.lean`: the comparator's comparison step, run in-process where its sandbox is unavailable
   (macOS has no `bwrap`); CI runs the comparator itself. It is weaker than the comparator: it
   compares the statements' types and the definitions' values, not constructors, recursor rules or
@@ -396,7 +429,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   exported, every module contributes, and only the unsafe compiler helpers are left out, and
   `check.sh` holds its count to the audit's, since a checker accepts an empty export.
 - `PalaceTest/`: the attacks, one module per ledger family's `Palace` module (of the design
-  theorems, Magnetic, NegativeType, Superconnection, Dynamics, Scale and Snapshot have them), as
+  theorems, Magnetic, NegativeType, Superconnection, Dynamics, Scale and Snapshot have them, and
+  SnapshotAlgebra has its own module), as
   Mathlib keeps its tests in `MathlibTest`. `lake test` builds them, which runs every attack and negative control.
   `PalaceTest/Attack.lean` holds `survives` and `refuted`, which run Plausible with a fixed seed and
   count the instances that passed their guards.
@@ -514,6 +548,13 @@ Roundoff and FloatModel, so it has no statements of its own):
 | SNP-3 | the read at `a` and the read between `a` and `b` compose to the read at `b`, so a fold continued over the delta is the fold of the prefix; a key the delta does not write keeps its state | proved; attacks survived 500 each (seeds 436, 438, 439, 447, 475, 476); the controls refuted |
 | SNP-4 | a cut at or past the head reads the store, so every reading at the head is the present's | proved; the attack survived 500 (seed 440); the control refuted |
 | SNP-5 | a reader is append invariant exactly when it reads only the prefixes, exactly when it is a derived view; the generational read is the recomputed state and the last write, with at most one generation alive | proved; attacks survived 500 each (seeds 441, 442, 443); the controls refuted, the store rewritten in place also as a theorem |
+| SNP-11 | the cuts inside a store are a lattice under the pointwise meet and join, bounded by the empty cut and the head; the read at the join is the later read and at the meet the earlier; the difference on positions is the events between, from the meet and to the join | proved; attacks survived 500 each (seeds 529, 531, 533, 534); the controls refuted (530, 532, 535) |
+| SNP-12 | a row is alive from its position up to its closing stamp, so a row alive at two cuts is alive between them; the range reads for what the later cut holds and the earlier does not, the converse, and what both hold; a family's cuts all hold a row exactly when the least and the greatest do | proved; attacks survived 500 each (seeds 536, 538, 540, 542); the controls refuted (537, 539, 541), a value with no interval also as a theorem |
+| SNP-13 | the signed difference of two cuts applied gives the later contents, composes through a cut between the two, walks a count, sorts by key into removed, added and replaced, and holds only keys the events between name | proved; attacks survived 500 each (seeds 543, 545, 547, 548); the controls refuted (544, 546, 549), two of them also as theorems |
+| SNP-14 | a set of rows read lazily is the set operation on the reads; it lies inside the contents of its cuts, commutes with a row's own test and is append invariant, as a function of two reads, a series and a fold over a family are | proved; attacks survived 500 each (seeds 551, 553, 556, 557); the controls refuted (552, 554, 555, 558), the complement as a theorem |
+| SNP-15 | what either cut holds is what the join holds with the rows closed between the meet and the join; on rows never closed the contents follow the positions | proved; attacks survived 500 each (seeds 559, 561); the control refuted (560), also as a theorem |
+| SNP-16 | every set commutes with the grant's restriction, reads only the chains the grant names and names no other | proved; the attack survived 500 (seed 562); the control refuted (563); a test applied before the generations as a theorem |
+| SNP-17 | an erasure takes its own rows out of every set and changes no other; a retire is a removal in the signed difference that spans it | proved; attacks survived 500 (seed 564) and 295 with 205 discarded by the guard (seed 550); the controls refuted (565, 566) |
 
 The binarized forms (0/1 adjacency) reduce to Mathlib's `SimpleGraph.posSemidef_lapMatrix` and
 `card_connectedComponent_eq_finrank_ker_toLin'_lapMatrix` in one line each.
@@ -973,6 +1014,39 @@ served (5). The rows whose own sources lie inside the cut taken for a closed set
 prefix taken for the filtered read (15); a chain that follows a lowered chain read as asked
 (38).
 
+The algebra of cuts is attacked in a module of its own (`PalaceTest/SnapshotAlgebra.lean`, seeds
+529 to 566), on the same helpers. A set of rows is built from a program, each step pushing what
+a cut holds or combining the two sets on top of a stack, so the attacks draw sets of any shape,
+and beside the model the module carries an oracle the library does not define: the set an
+expression names computed by list operations on what its cuts hold, against which the lazy
+membership is tested. Twenty-one attacks survived, twenty of them all 500 instances: the reads
+at the join and the meet, the difference on positions from the meet and to the join, the
+lattice laws on the reads, and the join and the meet of two cuts read as asked; a row alive
+between two cuts at which it is alive, the three range reads, the family read from its least
+and its greatest position, and one row a key at a cut; the signed difference applied and
+composed, the count walked and the triangle inequality, the rows sorted into three classes, and
+every row under a key the events between name; a set read lazily against the oracle, the same
+after growth, read from the prefix at a cut above its cuts, and the family operations; the
+contents following the positions on a chain with no closes, and the union as the join's
+contents with the rows closed between; a set under a grant against the restriction of the set
+on the whole store, on stores that differ off the grant's chains; and an erasure taking its own
+rows out of every set. The attack on a retire as a removal (550) is guarded by a key that holds
+a version at one cut and whose last event at the other is a retire, and survived the 295
+instances that passed the guard.
+
+Its seventeen controls, each refuted, with the instances it took. The read at the join taken
+for the read at the meet (5); the difference taken for symmetric (10); the join of a cut read
+as asked with any frontier taken for consistent (11). A value taken to live on an interval
+(61); the rows come taken for every row stored between the two cuts (25); what some cut of a
+family holds taken for what the range between its least and its greatest holds (23). A
+composition through a cut outside the two (6); the count that forgets the rows gone (21); the
+events between two cuts taken for the signed difference (14). The set operations taken on
+values and not on rows (19); a set at a cut past the head taken for append invariant (5); the
+closing stamps taken for part of what a set held (18); a row's test applied before the
+generations are computed (25). The contents of the join taken for the union of the contents
+(31). A set read without the grant's restriction (10). An erasure that deletes its rows (21); a
+hole taken for a version (7).
+
 ## Build
 
 The toolchain is pinned in `lean-toolchain` (elan resolves it); Mathlib is pinned in
@@ -1001,7 +1075,7 @@ another module, and without it 68 proofs in seven files fail. One instance is wr
 to importers (`Palace/Scope.lean`).
 
 The kernel re-check. `Export.lean` writes every `Palace` declaration and everything it uses, from
-`Init` up (55,608 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
+`Init` up (56,530 declarations on the run this commit was built with), and `check.sh` replays that export from nothing through Lean's
 kernel and the five independent checkers bundled with Lean: `leanchecker-paranoid`, `lean4lean` (a
 kernel written in Lean), `nanoda` (one written in Rust), and `con-leche`, whose acceptance carries a
 machine-checked theorem that the environment holds no proof of `False`, with `con-ron`, its port.
@@ -1012,7 +1086,7 @@ nothing safe can mention them, and nanoda refuses them.
 
 `lake comparator` builds and exports both sides in a `bwrap` sandbox, so it runs where `bwrap`
 does, which is Linux: CI runs it with `--paranoid`, and the same five checkers replay what the
-306 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
+460 statements reach. Elsewhere `check.sh` runs `Compare.lean`, the comparator's
 comparison step over the two environments the build left; planted, a weakened statement in the
 library and a changed one in `Spec/` each fail it.
 

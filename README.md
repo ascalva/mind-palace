@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-106_rows_in_16_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-380_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-113_rows_in_16_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-460_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
+[![attacks](https://img.shields.io/badge/attacks-253_with_controls-blue)](formal/PalaceTest)
 [![tests](https://img.shields.io/badge/tests-3721-brightgreen)](docs/runbook.md)
 [![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 27 statement files; 25,700 lines of models and proofs, 3,841 of statements, 5,757 of attacks |
-| theorems | 1,544 proved in `formal/Palace`; 380 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 106 rows in 16 families, 386 cited declarations, 93 law markers checked against the rows |
-| attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
+| the library | 39 proof modules, 38 models, 28 statement files; 27,136 lines of models and proofs, 4,452 of statements, 6,185 of attacks |
+| theorems | 1,654 proved in `formal/Palace`; 460 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 113 rows in 16 families, 466 cited declarations, 100 law markers checked against the rows |
+| attacks | 253 Plausible attacks and 223 negative controls over 34 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 56,238 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| the replay | 56,530 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field · the temporal snapshot |
 
 ## The mathematics
