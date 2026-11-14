@@ -956,6 +956,74 @@ edge fetch lane · now the notification bus). Worth stating once as a general ru
 rediscovering it a fourth time: **components that move things must not also be components that hold
 things.**
 
+## ⚑⚑⚑ `write_scope` DIES — an allowlist is a PREDICTION; a denylist is a BRIGHT LINE
+
+> *"no more write scopes, or at least it's more of a denylist than an allow list, github action on PR
+> to check 0 writes to specific files, only I can overrule"* · *"and then me or the auditor can
+> question if a write to a specific file was necessary, let the builder do what it needs to do, don't
+> limit it, we then question via PR review"*
+
+⚑ **This supersedes even the dispatch-time-capability answer from earlier tonight** — but only for
+file writes. The two halves must be separated, because they now differ:
+
+| what is constrained | mechanism | why |
+|---|---|---|
+| **credentials** | ⚑ dispatch-time capability **stands** — no AWS key, no merge ability | the worker is *constructed* without them; there is no legitimate need to overrule |
+| ⚑ **file writes** | ⚑ **unconstrained** — denylist + review | *"let the builder do what it needs to do, don't limit it"* |
+
+### ⚑⚑ WHY THE ALLOWLIST WAS ALWAYS GOING TO FAIL
+
+**An allowlist is a prediction about what the work will need.** Predictions are wrong, and when
+they are wrong they block **legitimate** work — which is exactly, mechanically, how `write_scope`
+clogged the machinery it was protecting. Every denial it ever produced was one of two things: a real
+violation, or a graduation-time guess that turned out too narrow. ⚑ **It could not tell those apart,
+and neither could the builder hitting it.**
+
+A **denylist** encodes only what must never happen. That set is **small, stable, and actually
+knowable** — `CONSTITUTION.md`, `eval/golden/**`, `eval/golden.py` — and it has not changed in the
+life of this repo, whereas `write_scope` was re-guessed for all 137 plans.
+
+### ⚑⚑ THE DEEPER DIAGNOSIS — judgement does not compress to a glob
+
+`write_scope` tried to encode **judgement as a list**. *"Should this unit touch `board.py`?"* is a
+question with a reason behind it; a glob can only answer *"is this path in the set?"* ⇒ The
+information the check needed was never in the artifact it read.
+
+⇒ ⚑ **The new model puts judgement back where judgement lives — a reviewer who can ask *why did you
+touch this?* — and leaves only absolutes to mechanism.** General rule, worth stating once:
+**mechanism for the absolute, judgement for the contextual.** That is the same partition the whole
+evening produced, arriving one more time.
+
+### ⚑ AND IT IS THE THESIS, APPLIED
+
+A GitHub Action on the PR is **external to the agent** — it does not share a principal with the thing
+it binds ([[study-not-product]] §the-thesis), unlike `scope-guard`, which read a file the agent could
+write. ⇒ The control finally sits outside the controlled. *"Only I can overrule"* makes it a required
+status check the owner alone can bypass: **the notary pattern, a fourth time.**
+
+### ⚑⚑ THE SELF-PROTECTION INTERLOCK — the check must be on its own denylist
+
+If the denylist is enforced by a GitHub Action and the agent may write `.github/workflows/**`, then
+⚑ **the agent can delete the check that binds it.** ⇒ `.github/workflows/**` must itself be on the
+denylist, or the control is self-removable and therefore not a control.
+
+Exactly the interlock as excluding `Administration` from the agent's token (`finding-0276`): *a
+constraint the constrained party can remove is decoration.* ⚑ This is now the **third** instance —
+worth generalizing rather than rediscovering: **every external control must deny writes to itself.**
+
+### Knock-on effects
+
+- ⚑ **`write_scope` the FIELD survives, with a new job** — a **declaration of intent** the diff is
+  checked against in review: *"you said X, you touched Y, why?"* It becomes a **hypothesis**, not a
+  fence, and divergence is a **question**, not a denial. `[INFERENCE]` This is arguably more useful
+  than its enforcement role ever was: a stated intent that the work then contradicts is a genuine
+  review signal, where a denial was merely an obstacle.
+- **`bp-146`** ("`write_scope` as a per-unit enforcement level") is **largely obsolete** — it
+  graduated hours ago against a mechanism that is now retired. It must be superseded explicitly, not
+  left pointing at a dead design.
+- **`finding-0275`**'s clearing condition **changes**: `scope-guard` is not coming back, so its three
+  red tests are replaced by the CI denylist check rather than by parity tests.
+
 ## OPEN — remaining owner rulings, not guesses
 
 1. **Sequencing against tomorrow's keys.** ⚑ Recommendation: **do not block key onboarding on the

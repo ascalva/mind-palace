@@ -4,7 +4,7 @@ id: dn-role-state-and-scoped-handoff
 track: workflow
 status: ratified            # draft → ratified → superseded.  draft→ratified is an OWNER-ONLY hand edit.
 created: 2026-07-26
-updated: 2026-07-26
+updated: 2026-07-27
 links:
   - docs/brainstorms/role-state-and-scoped-handoff.md   # the commissioning capture (2026-07-26)
   - docs/findings/finding-0175.md                       # the warrant — displaced eleven times
@@ -264,9 +264,25 @@ fourth category:
   pane renders the latest reading per command **with its age** — "suite: 2 failed / 2276 passed
   (18h ago)" — so a stale reading advertises itself instead of impersonating a current fact.
 
-### 2.6 D4 — the substrate: files as source; the queue as an input, never the source
+### 2.6 D4 — the substrate: the registry as source, files as its export (revised 2026-07-27; originally "files as source")
 
-**Ruling: the scheduler's queue does not become the handoff substrate.** The owner's suggestion
+> **Revision notice (2026-07-27, post-ratification — the warrant is lapsed).** Edited under
+> `dn-typed-workflow-registry` §2.10's protocol: the edit lapses this note's warrant, the PR
+> is the resubmission, the owner's merge is the re-auth. Owner instruction, verbatim:
+> *"amend this note: role-state-and-scoped-handoff, it was written at a time when we didn't
+> expect the hook migration would somehow make it all worse, needs to be amended, files are
+> no longer the source of truth, and an agent's write scopes could be forced by role, scope
+> still plays a part."*
+>
+> **D4's ruling sentence, as amended: the registry is the source of truth for state,
+> identity, relations, transitions, and ordering; files are its EXPORT — authoritative
+> prose, derived frontmatter** (`dn-typed-workflow-registry` §2.3). The queue half of D4 is
+> unchanged and was never in question: a read-only input to the DERIVED pane, never a
+> substrate. D4's error was one word — it concluded "files are the *source*" from premises
+> that only establish "files must remain readable, and authoritative where the registry is
+> absent." That weaker claim is the one this revision preserves, ground by ground below.
+
+**Ruling (original, queue half unchanged): the scheduler's queue does not become the handoff substrate.** The owner's suggestion
 ("you could even use the scheduler's queue") is honored where it is right — and it is right
 about the *pattern*, not the *storage*:
 
@@ -290,6 +306,30 @@ no running system.** Four independent failures, each sufficient:
 4. **The fresh-agent test reads files.** Its inputs are "plan + journal + write-scope files"
    `[GROUNDED .claude/skills/checkpoint/SKILL.md:70-79]`; a substrate the test cannot read
    cannot be the substrate.
+
+**How the registry answers the four grounds (2026-07-27 revision — three of the four are
+requirements it must satisfy, not objections it overturns; the first it *inherits*):**
+
+| D4 ground | still binding? | how the registry answers it |
+|---|---|---|
+| 1. fresh worktrees have no queue | **YES — binds the registry too** | store is machine-level, outside the repo; registry-less checkouts read the export, fail closed on writes |
+| 2. single-writer would be breached | satisfied | the registry is single-writer by construction — the property that makes serial minting work |
+| 3. the artifact chain requires typed files | **YES — stronger than D4 stated** | the export, pinned + CI-ratcheted; published files make a hash resolvable — load-bearing for auth |
+| 4. the fresh-agent test reads files | **YES** | it still reads files — the exported ones; the drill must pass in a checkout with no registry present (F8 there) |
+
+**Write scope, as the owner's instruction says, "still plays a part" — but the part changed
+twice the same night (registry note §2.6 is the single home for the mechanics, per the DRY
+rule; what belongs *here* is the role fact):** credential capability is **role-forced at
+dispatch** — the registry constructs each worker (Claude SDK) with the credentials its role
+warrants, which for every builder-shaped role is *none* (no AWS key, no merge ability, no
+signing material); the agent is never forbidden them, it is never given them. File writes,
+by the later ruling, are **not** role-fenced at all: the foundation denylist (including
+`.github/workflows/**`) is checked by an external-principal Action on the PR, and
+everything else is review judgement against the plan's declared intent. The role ceiling as
+an *allowlist over paths* — the shape this note's era assumed — is retired with the rest of
+act-based scope enforcement; what the role still fixes is **who is acting and with what
+capability**, which is exactly this note's subject. `[GROUNDED — both rulings verbatim at
+docs/brainstorms/the-typed-workflow-registry.md:260-305 and :959-1025.]`
 
 **What the queue contributes instead:**
 
