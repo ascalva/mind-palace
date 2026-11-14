@@ -25,14 +25,15 @@ Five measurements, the first four on the copy's own size:
    alone. The first against the third is what SN-1 adds to a key's write, and the first against
    the second what the log's rows add.
 4. **The reads.** `state_at` and `history_at` of one path, the paths drawn from the catalog;
-   `heads_at` at a tenth of the chain, at its middle and at its head, and the same predicate
-   counted in SQL, the walk without the rows built; `read_at` and
+   every head at a tenth of the chain, at its middle and at its head, as the contents of the cut
+   (`core/stores/cuts.py`, which replaced SN-1's `heads_at`): counted, the walk without a row
+   built, and read as three columns (the position, the path's key, the digest); `read_at` and
    `read_between` of a thousand positions; `head`; and the keyed hash of a path alone. Medians
    with their ranges over `--repeat` (a whole-class read over five).
 5. **Every head of a smaller chain.** With `--fresh`, for each size a new catalog beside the copy
    with that many paths of one class, landed through `record` in batches, its paths and titles of
-   the corpus's lengths: `heads_at` at its head and the walk counted in SQL, five times each, so
-   the cost a head returned can be read apart from the walk. The file is removed after.
+   the corpus's lengths: the contents at its head counted and read as three columns, five times
+   each, so the cost a head returned can be read apart from the walk. The file is removed after.
 
 Timings are wall time on whatever else the machine is doing, so the load average is recorded at
 the start and the end, and before each fresh chain, with the versions of Python and SQLite.
@@ -60,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on 
 
 from core.kernel.provenance import Provenance  # noqa: E402
 from core.stores.catalog import VaultCatalog, _utcnow  # noqa: E402
+from core.stores.cuts import Cut  # noqa: E402
 
 # The key's write as `record` made it before SN-1 (`core/stores/catalog.py` at `f969904e`): this
 # upsert alone, in the batch's transaction, with no read of the row before it and no log.
@@ -70,6 +72,7 @@ _UPSERT_BEFORE = (
     "   digest=excluded.digest, title=excluded.title,"
     "   provenance=excluded.provenance, active=1, updated_at=excluded.updated_at")
 ARMS = ("with", "without", "before")   # record as built; its log rows off; the write before SN-1
+_THREE = ("path_key", "digest")         # with the position, which every read of rows carries
 
 
 def _files(db: Path) -> dict[str, int]:
@@ -102,10 +105,6 @@ def _timed(fn: Callable[[], Any], n: int) -> dict[str, float]:
         times.append((time.perf_counter() - t0) * 1e6)
     return {"median_us": statistics.median(times), "low_us": min(times), "high_us": max(times),
             "runs": n}
-
-
-def _count(conn: sqlite3.Connection, sql: str, args: list[int]) -> int:
-    return int(conn.execute(sql, args).fetchone()[0])
 
 
 def _fold(cat: VaultCatalog) -> dict[str, tuple[str, str, str, bool, str]]:
@@ -174,8 +173,9 @@ def _batch(cat: VaultCatalog, records: list[tuple[str, str, str, Provenance]],
 
 def _fresh_heads(where: Path, n: int, key: bytes, batch: int) -> dict[str, Any]:
     """A new catalog of `n` paths of one class, landed through `record` in batches, its paths and
-    titles about the corpus's lengths (28.6 and 63.8 characters): every head at its head, and the
-    walk counted in SQL, five times each. The file is removed after."""
+    titles about the corpus's lengths (28.6 and 63.8 characters): every head at its head, the
+    contents of the cut counted and read as three columns, five times each. The file is removed
+    after."""
     db = where / f"fresh-{n}.sqlite"
     for suffix in ("", "-wal", "-shm"):
         Path(f"{db}{suffix}").unlink(missing_ok=True)
@@ -189,15 +189,13 @@ def _fresh_heads(where: Path, n: int, key: bytes, batch: int) -> dict[str, Any]:
                                f"{'t' * 56} {i:07}", provenance=Provenance.OBSERVED)
         (chain,) = cat.chains(Provenance.OBSERVED)
         head = cat.head(chain)
-        cut = {chain: head}
+        held = cat.cuts([Provenance.OBSERVED]).held()
         out["chain_rows"] = head
-        out["heads_at"] = {**_timed(functools.partial(cat.heads_at, Provenance.OBSERVED, cut), 5),
-                           "rows": len(cat.heads_at(Provenance.OBSERVED, cut))}
-        out["heads_walk"] = _timed(functools.partial(
-            _count, cat._conn, "SELECT count(*) FROM landings WHERE chain = ? AND seq <= ? AND "
-            "kind = 'store' AND (closed_at IS NULL OR closed_at > ?)", [chain, head, head]), 5)
-        past = out["heads_at"]["median_us"] - out["heads_walk"]["median_us"]
-        out["us_a_head_past_the_walk"] = past / out["heads_at"]["rows"]
+        out["heads_columns"] = {**_timed(functools.partial(held.columns, *_THREE), 5),
+                                "rows": held.count()}
+        out["heads_count"] = _timed(held.count, 5)
+        past = out["heads_columns"]["median_us"] - out["heads_count"]["median_us"]
+        out["us_a_head_past_the_walk"] = past / max(1, out["heads_columns"]["rows"])
     finally:
         cat.close()
         for suffix in ("", "-wal", "-shm"):
@@ -280,15 +278,13 @@ def measure(db: Path, batch: int, rounds: int, repeat: int, seed: int,
                                         repeat)
     reads["read_at_1000"] = _timed(lambda: cat.read_at(big, 1000), repeat)
     reads["head"] = _timed(lambda: cat.head(big), repeat)
-    walk = ("SELECT count(*) FROM landings WHERE chain = ? AND seq <= ? AND kind = 'store' "
-            "AND (closed_at IS NULL OR closed_at > ?)")
-    for name, c in (("heads_at_tenth", head // 10), ("heads_at_mid", mid), ("heads_at_head", head)):
-        cut = {big: c}
-        reads[name] = {**_timed(functools.partial(cat.heads_at, cls, cut), 5),
-                       "rows": len(cat.heads_at(cls, cut))}
-        # the same predicate counted in SQL: the walk alone, without building the rows
-        reads[name.replace("heads_at", "heads_walk")] = _timed(
-            functools.partial(_count, cat._conn, walk, [big, c, c]), 5)
+    ev = cat.cuts([cls])
+    for name, c in (("tenth", head // 10), ("mid", mid), ("head", head)):
+        contents = ev.held(Cut.of({big: c}))
+        # every head as the contents of the cut: counted, the walk without a row built, and read
+        # as three columns, one buffer a column
+        reads[f"heads_count_{name}"] = {**_timed(contents.count, 5), "rows": contents.count()}
+        reads[f"heads_columns_{name}"] = _timed(functools.partial(contents.columns, *_THREE), 5)
     out["reads"] = reads
 
     # the write overhead: new paths, then new versions of held paths, by each arm in turn

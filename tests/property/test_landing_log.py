@@ -22,7 +22,9 @@ as §10 states them for this stage:
 * SNP-4, idempotence: the read at the head is the chain, and the state at the head the catalog.
 * SNP-5, three reads: at every position of every chain, the genesis's included, the seek by key,
   the closing-stamp read and the fold of the prefix give each path the same row, before and after
-  rows are emptied, and no path has two rows alive.
+  rows are emptied, and no path has two rows alive. The closing-stamp read over a class is the
+  contents of the cut (`core/stores/cuts.py`), which replaced SN-1's `heads_at`: its versions are
+  the fold's `store` rows that keep their content, and its holes the ones a purge emptied.
 
 Then the stage's own cases: a record that changes nothing, and a store the UNCHANGED check skips,
 append nothing; the writer, its batched landing too, and the sync carry the version each landing
@@ -32,8 +34,9 @@ when its caller goes on, and the batch's other writes commit; the genesis is the
 tombstoned paths included, closes each tombstoned path's `store` and ends at a horizon; a relabel
 into a class that has rows changes no row of the log, closed rows and holes included, and every
 chain verifies; a history over two chains of a class follows a rule of the prefixes; a purge of an
-old version of a live path leaves a hole that all three reads return at a cut where it was the
-head, and a purge of every version of a deleted note leaves no row that names it; `verify` fails
+old version of a live path leaves a hole that the seek and the fold return at a cut where it was
+the head, and that the contents of the cut count as a hole and hold as no version, and a purge of
+every version of a deleted note leaves no row that names it; `verify` fails
 on an edited row and on a hole that keeps any one column of its content; the secret is required
 by what appends or seeks a path by its key and by nothing else, and another one is refused; a
 statement by path seeks the key index, and a purge by digest walks the log twice.
@@ -56,6 +59,7 @@ from hypothesis import strategies as st
 from core.kernel.provenance import Provenance
 from core.stores.authored_supersession import owner_declaration
 from core.stores.catalog import VaultCatalog
+from core.stores.cuts import Cut
 from core.stores.landings import (
     LANDING_LOG_KEY,
     Landing,
@@ -177,6 +181,15 @@ def log_rows(cat: VaultCatalog) -> list[Landing]:
 
 def alive(row: Landing, c: int) -> bool:
     return row.seq <= c and (row.closed_at is None or row.closed_at > c)
+
+
+def paths_held(cat: VaultCatalog, cls: Provenance | str,
+               cut: dict[int, int] | None = None) -> list[str | None]:
+    """The paths of the versions a cut holds over a class, the head when no cut is given, in
+    position order: the contents of the cut (`core/stores/cuts.py`)."""
+    ev = cat.cuts([str(cls)])
+    text = ev.held(Cut.of(cut) if cut is not None else None).columns("source_path")["source_path"]
+    return [text[i] for i in range(len(text))]
 
 
 def emptied(row: Landing) -> bool:
@@ -342,9 +355,10 @@ def assert_unchanged(cat: VaultCatalog, taken: Taken) -> None:
 
 def assert_three_reads(cat: VaultCatalog) -> None:
     """SNP-5: at every position of every chain, for every path, the seek by key, the closing-stamp
-    read and the fold of the prefix agree, and no path has two rows alive. The heads of the class
-    at the position are the rows of the fold that are `store`s, and the history of a path is its
-    `store` rows in the prefix."""
+    read and the fold of the prefix agree, and no path has two rows alive. What the position holds
+    over the class, the contents of the cut, is the rows of the fold that are `store`s keeping
+    their content, its holes those a purge emptied, and the history of a path is its `store` rows
+    in the prefix."""
     names = sorted({*PATHS, "id-x", "id-y", *catalog_rows(cat)})
     cls_of = classes(cat)
     for ch in chains(cat):
@@ -363,8 +377,13 @@ def assert_three_reads(cat: VaultCatalog) -> None:
             assert {k: rs[0] for k, rs in living.items()} == \
                 {k[1]: r for k, r in f.last.items()}
             cut = {ch: c}
-            assert cat.heads_at(cls, cut) == [r for r in prefix if r.kind == "store"
-                                              and alive(r, c)]
+            held = cat.cuts([cls]).held(Cut.of(cut))
+            cols = held.columns()
+            assert list(zip(cols.ints("chain").tolist(), cols.ints("seq").tolist(),
+                            strict=True)) == \
+                [(ch, r.seq) for r in prefix if r.kind == "store" and not r.hole and alive(r, c)]
+            assert held.holes() == sum(1 for r in prefix
+                                       if r.kind == "store" and r.hole and alive(r, c))
             for name in names:
                 key = cat._log.path_key(ch, name)
                 assert cat.state_at(cls, name, cut) == f.last.get((ch, key))
@@ -711,9 +730,8 @@ def test_the_genesis_is_the_catalog_and_ends_at_a_horizon(tmp_path: Path) -> Non
     # a tombstoned path's store is closed at its tombstone, and an active path's is open, so the
     # closing-stamp read at the head serves the active paths alone
     assert [r.closed_at for r in block] == [None, block[2].seq, None, block[4].seq, None, None]
-    assert [r.source_path for r in cat.heads_at(Provenance.AUTHORED_SOLO, heads(cat))] == \
-        ["v/a.md", "v/d.md"]
-    assert [r.source_path for r in cat.heads_at(Provenance.CURATED, heads(cat))] == []
+    assert paths_held(cat, Provenance.AUTHORED_SOLO) == ["v/a.md", "v/d.md"]
+    assert paths_held(cat, Provenance.CURATED) == []
     state = cat.state_at(Provenance.AUTHORED_SOLO, "v/b.md", heads(cat))
     assert state is not None and state.kind == "retire"
     assert_consistent(cat)
@@ -792,8 +810,8 @@ def test_a_purged_old_version_of_a_live_path_is_a_hole_by_the_three_reads() -> N
     assert state is not None and state.hole and state.seq == at_d2 and state.kind == "store"
     assert emptied(state) and state.version == 2         # §6.1: the content goes, the count stays
     assert state.path_key == cat._log.path_key(chain, "live.md")
-    (head_row,) = cat.heads_at(Provenance.AUTHORED_SOLO, cut)
-    assert head_row.hole and head_row.seq == at_d2 and head_row.source_path is None
+    held = cat.cuts([Provenance.AUTHORED_SOLO]).held(Cut.of(cut))
+    assert held.count() == 0 and held.holes() == 1      # no version: the hole, counted as one
     history = cat.history_at(Provenance.AUTHORED_SOLO, "live.md", cut)
     assert [r.digest for r in history] == ["d1", None] and history[-1].hole
     assert fold(cat, cut).last[(chain, state.path_key)] == state
@@ -935,7 +953,7 @@ def test_without_the_secret_what_appends_or_seeks_a_path_by_its_key_refuses(
     assert all(r.source_path != "old.md" for r in log_rows(cat))
     assert cat.read_at(solo, 2) == cat.read_at(solo, cat.head(solo))[:2]
     assert cat.read_between(solo, 1, 3) == cat.read_at(solo, 3)[1:]
-    assert [r.source_path for r in cat.heads_at(Provenance.AUTHORED_SOLO, head)] == ["a.md"]
+    assert paths_held(cat, Provenance.AUTHORED_SOLO, head) == ["a.md"]
     assert cat.chains(Provenance.OBSERVED) and all(cat.verify(c).ok for c in chains(cat))
     assert_consistent(cat)
     cat.close()

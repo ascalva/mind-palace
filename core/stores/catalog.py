@@ -28,8 +28,9 @@ landing-log secret, which is read from the environment and never stored here: wi
 genesis, every write that appends a row (`record` and `tombstone` when they change the map, the
 re-key) and `remove` refuse, loudly, and nothing is written unkeyed; `relabel_provenance` and
 `remove_digest` append no row and need none. The reads of the log (`chains`, `head`, `read_at`,
-`state_at`, `history_at`, `heads_at`, `read_between`, `verify`) have no reader yet; the two by
-path, `state_at` and `history_at`, need the secret.
+`state_at`, `history_at`, `read_between`, `verify`) have no reader yet; the two by path,
+`state_at` and `history_at`, need the secret. What a cut holds, every head of a class at once, is
+the contents of the cut (`cuts`, `core/stores/cuts.py`), which need none; the cut tool reads them.
 """
 
 from __future__ import annotations
@@ -438,11 +439,6 @@ class VaultCatalog:
         left come first and the one that holds its present last, a rule of the prefixes and not
         the order the versions landed in (`LandingLog.history_at`)."""
         return self._log.history_at(str(provenance), source_path, c)
-
-    def heads_at(self, provenance: Provenance | str, c: Mapping[int, int] | int) -> list[Landing]:
-        """Every head of a class at the cut: the `store` rows alive there, through the closing
-        stamp, a hole returned as a hole with its position and no name."""
-        return self._log.heads_at(str(provenance), c)
 
     def verify(self, chain: int) -> ChainCheck:
         """A chain's hashes recomputed from its first row, and every commitment that still has

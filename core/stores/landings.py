@@ -37,7 +37,9 @@ finds its rows by the digest, by the names they carry and by the keys the emptie
 secret that is not the one a chain was written with is refused as well, by the chain's
 `key_check`, so a chain is never keyed two ways.
 
-Nothing reads the log yet: the reads below are the ones the later stages build on.
+The reads below are by chain and by path. What a cut holds over a class, every head at once, is
+the contents of the cut in `core/stores/cuts.py`, read through the closing stamp as a count or as
+columns (dn-temporal-snapshot §4.4, stage SN-1b); the cut tool is their one reader yet.
 """
 
 from __future__ import annotations
@@ -599,20 +601,6 @@ class LandingLog:
                 parts.append((rows[-1].kind != "leave", chain,
                               [r for r in rows if r.kind == "store"]))
         return [r for _, _, stores in sorted(parts, key=lambda p: (p[0], p[1])) for r in stores]
-
-    def heads_at(self, cls: str, c: Mapping[int, int] | int) -> list[Landing]:
-        """Every head of the class at the cut: the `store` rows with `seq ≤ c` whose closing
-        stamp is absent or above `c`, over the class's chains (§4.2), a hole returned as a hole
-        with its position and no name."""
-        chains = self.chains(cls)
-        out: list[Landing] = []
-        for chain in chains:
-            pos = cut_position(c, chain, chains)
-            out.extend(_landing(r) for r in self._conn.execute(
-                f"SELECT {_COLUMNS} FROM landings WHERE chain = ? AND seq <= ? "
-                "AND kind = 'store' AND (closed_at IS NULL OR closed_at > ?) ORDER BY seq",
-                [chain, pos, pos]))
-        return out
 
     def rows(self, chain: int) -> Iterator[Landing]:
         """Every row of the chain, in order."""

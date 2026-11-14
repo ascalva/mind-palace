@@ -11,8 +11,9 @@ a random one made for the run and dropped with it, as SN-1's harness makes it
 
 The measurements, on the copy's largest chain:
 
-1. **Every head.** At the head of the genesis, before any history: SN-1's `heads_at`, a row in
-   Python a head, against the contents of the cut (`core/stores/cuts.py`): counted, which builds
+1. **Every head.** At the head of the genesis, before any history: the read SN-1's `heads_at`
+   made, a row in Python a head, which the contents replaced (the harness keeps its statement as
+   the baseline), against the contents of the cut (`core/stores/cuts.py`): counted, which builds
    no row, and read as columns, the three a head is named by (its position, its path's key, its
    digest) and the seven a listing shows. The bar is SNF-6's tenth of a second.
 2. **A history.** `--history` catalog writes after the genesis, landed through `record` and
@@ -21,8 +22,8 @@ The measurements, on the copy's largest chain:
    row, so the history is that many positions.
 3. **The signed difference.** From the head less 1, 1,000, 100,000 and the whole history, and from
    the bottom, to the head: its counts (one statement), its sizes, its two sides read as columns,
-   and its rows sorted into removed, added and replaced; against two of SN-1's `heads_at` calls
-   and a set difference of their rows. The two give the same rows.
+   and its rows sorted into removed, added and replaced; against two reads of every head as SN-1
+   made them and a set difference of their rows. The two give the same rows.
 4. **A family.** Ten cuts spread evenly over the history: the count at each, walked by the
    differences against ten counts; what persisted through all, what existed in any, and the
    sizes of the pairwise differences; and what persisted from the horizon to the head.
@@ -70,9 +71,22 @@ def _ms(t: dict[str, float]) -> dict[str, float]:
             "high_ms": t["high_us"] / 1e3, "runs": t["runs"]}
 
 
+# Every head as SN-1 read it, before the contents of a cut replaced the read: the statement of the
+# removed `LandingLog.heads_at` (`core/stores/landings.py` at `8d4dff3d`), a chain at a time.
+_ROWS_A_HEAD = (
+    "SELECT chain, seq, kind, path_key, source_path, doc_id, version, digest, title, att_head, "
+    "horizon, salt, commitment, hash, closed_at, at FROM landings WHERE chain = ? AND seq <= ? "
+    "AND kind = 'store' AND (closed_at IS NULL OR closed_at > ?) ORDER BY seq")
+
+
 def _rows_a_head(cat: VaultCatalog, cls: str, cut: dict[int, int]) -> list[Landing]:
-    """Every head as SN-1 read it (`VaultCatalog.heads_at`): a `Landing` a row."""
-    return cat.heads_at(cls, cut)
+    """Every head of a class at a cut as SN-1's `heads_at` built it, a `Landing` in Python a row,
+    a hole included: the baseline the contents are measured against, kept in the harness."""
+    out: list[Landing] = []
+    for chain in cat.chains(cls):
+        pos = cut.get(chain, 0)
+        out.extend(Landing(*r) for r in cat._conn.execute(_ROWS_A_HEAD, [chain, pos, pos]))
+    return out
 
 
 def _seqs(rows: list[Landing]) -> set[tuple[int, int]]:
