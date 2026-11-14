@@ -406,8 +406,8 @@ Roundoff and FloatModel, so it has no statements of its own):
   never closed; SNP-16 every set commutes with the grant's restriction and reads only the
   chains the grant names; SNP-17 an erasure takes its own rows out of every set and changes no
   other, and a retire is a removal in the signed difference that spans it. The seven laws are
-  rows of family XVI (`Spec/SnapshotAlgebra.lean`, 80 statements) whose anchors and falsifiers
-  wait for SN-1b's code. The six controls as theorems, in `Witness`: a value has no interval
+  rows of family XVI (`Spec/SnapshotAlgebra.lean`, 80 statements), whose code is SN-1b's
+  (`core/stores/cuts.py`, checked by `tests/property/test_cut_algebra.py`). The six controls as theorems, in `Witness`: a value has no interval
   (`value_not_contiguous`), the union on contents is not the contents of the join
   (`union_ne_join`), a complement grows with the store (`complement_grows`), differences do
   not compose through a cut outside the two (`delta_through_outside`), the events between two
