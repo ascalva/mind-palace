@@ -3,7 +3,7 @@ type: design-note
 id: dn-temporal-snapshot
 track: query-language
 status: draft                  # provenance description, never a gate; the merge is ratification
-implementation: partial        # SN-1 built (the landing log, core/stores/landings.py; SNP-1 to SNP-5 in docs/LAWS.md); SN-1b designed and proved (the cut and its algebra, §4.4; SNP-11 to SNP-17), its build the second part of its pull request; SN-2 to SN-8 design
+implementation: partial        # SN-1 built (the landing log, core/stores/landings.py; SNP-1 to SNP-5 in docs/LAWS.md); SN-1b built (the cut and its algebra, core/stores/cuts.py, and the cut tool, agents/ambassador/cut_tool.py; SNP-11 to SNP-17 in docs/LAWS.md); SN-2 to SN-8 design
 created: 2026-11-10
 updated: 2026-11-13
 links:
@@ -22,6 +22,10 @@ links:
   - core/stores/landings.py                                # SN-1 as built: the landing log, in the catalog's file
   - docs/experiments/landing-log-2026-11-11.md             # SN-1 measured on a copy of the corpus instance's catalog
   - papers/2026-11-11-landing-log/paper.tex                # the article of SN-1
+  - core/stores/cuts.py                                    # SN-1b as built: the cut, the contents of a cut and the algebra
+  - agents/ambassador/cut_tool.py                          # SN-1b as built: the cut tool's handler (§7.5)
+  - docs/experiments/cut-algebra-2026-11-13.md             # SN-1b measured on a copy of the corpus instance's catalog
+  - papers/2026-11-13-cut-algebra/paper.tex                # the article of the algebra of cuts and of SN-1b
 supersedes: null
 superseded_by: null
 warrant: null
@@ -66,7 +70,11 @@ warrant: null
 > cites were read at `8d4dff3d`, the seven laws are proved in
 > `formal/Palace/SnapshotAlgebra.lean`, and the figures it adds to §11 are of probes on synthetic
 > fixtures. One rule the owner gave for every change, that a change replaces what it changes, is
-> applied to the stages of §12, and each revision it makes is listed in §13 (D29).
+> applied to the stages of §12, and each revision it makes is listed in §13 (D29). Stage SN-1b was
+> built on 2026-11-13, the second part of the same pull request: `core/stores/cuts.py`, the cut
+> tool, their property tests and their figures on a copy of the corpus instance's catalog (§11,
+> `docs/experiments/cut-algebra-2026-11-13.md`). Where the build departed from §4.4 or §7.5, §12
+> says so under SN-1b.
 
 ## 1. Purpose and scope
 
@@ -200,8 +208,8 @@ twenty-one attacks, twenty surviving all 500 instances and one, whose guard hold
 them, surviving those, and seventeen negative controls, each refuted). The seven laws are what
 stage SN-1b builds on, so they entered the ledger with the design: seven rows of family XVI,
 and the 80 declarations §10 lists for them restated in `formal/Spec/SnapshotAlgebra.lean` and
-judged by the comparator. Until SN-1b's code and tests land, each of those rows names no anchor
-and its falsifier is a gap, which caps its label at a conjecture about the code (§12).
+judged by the comparator. SN-1b's code and tests landed with them: each row names its anchor in
+`core/stores/cuts.py` and its property tests as its falsifier (§12).
 
 Measured, on synthetic fixtures (§11): the landing log's size and the cost of its reads; what
 a kept version costs in the lexical index; what a purge leaves behind today; that the causal store
@@ -212,7 +220,10 @@ built, on a copy of the corpus instance's catalog: its migration, its bytes, its
 reads (§11, as built). And for the algebra of cuts, before its code and on synthetic fixtures
 again: the interval reads against a fold of the log, their plans and what they cost, every head
 read as columns, and where updating a quantity of a graph over the difference of two cuts costs
-less than computing it again (§11, the algebra).
+less than computing it again (§11, the algebra). And at SN-1b, the algebra as built, on a copy of
+the corpus instance's catalog: every head counted and as columns against SN-1's rows, the signed
+difference over spans from one position to every position, and a family of ten cuts (§11, as
+built at SN-1b).
 
 Open, stated where it bites: the attestation ledger's own content hashes under an erasure
 (decision D9); the cadence of recorded cuts (§3.3); a repository history that is not one line
@@ -999,6 +1010,16 @@ expected over the bar for its columns and under it for its count. A reader that 
 head of such a chain reads them once and then walks the differences, which is the journal of
 §5.1 under another name, or reads a kept head; which of the two SN-4 takes is SN-c's size half,
 parked as before. `[DERIVED from the fixture; INFERENCE for the bar, falsifier SNF-6]`
+
+As built at SN-1b, on a copy of the corpus instance's catalog (§11): every head of the corpus
+chain, 400,274, counted in 66 ms, 0.17 µs an event walked, and read as three columns in 219 to
+224 ms, against 1.74 to 1.79 s for SN-1's rows. Beyond the walk a head costs 0.39 µs as three
+columns and 4.2 µs as a row. So the count passes the bar up to about 600,000 events, and three
+columns pass it near 180,000 heads on a chain whose events are its heads, and fewer where many
+rows are closed, since the walk is over events. That is the size the rule by size takes from
+here, in place of the 250,000 events the fixture gave (D30): a chain whose every head, read as
+columns, passes the bar is over it, and the corpus chain is. The owner has not ruled on the bar,
+so the size stays a recommendation. `[MEASURED §11; INFERENCE for the bar, falsifier SNF-6]`
 
 ### 4.3 What the reads cost in bytes
 
@@ -2242,7 +2263,7 @@ The same call with the cuts of `cuts` in place of its defaults returns the same 
 has landed since, under the same grant and the same erasure (§4.4, the default operand).
 
 **What a guest may call.** Not decided: it is the owner's (D34). The tool is registered in the
-Ambassador's table. The guest's table (`GUEST_TOOLS`, `agents/ambassador/mcp.py:598-618`) is
+Ambassador's table. The guest's table (`GUEST_TOOLS` in `agents/ambassador/mcp.py`) is
 not changed by SN-1b, so a guest has no `cut` tool until the owner rules. What this note
 recommends, and what the ruling weighs, is in D34.
 
@@ -2914,6 +2935,35 @@ Not measured for the algebra: anything on an instance's own log, which is SN-1b'
 table and the count of the cuts that hold a row; a set of more than two cuts read as one
 statement; any quantity of a real graph at two cuts, which is SN-4's.
 
+**Measured at SN-1b, on a copy of the corpus instance's catalog (added 2026-11-13).** The algebra
+as built, by its committed harness (`eval/cut_algebra_bench.py`, at `4e94b442`, the engine at
+`b210db03`), on two copy-on-write clones of the corpus instance's catalog, migrated in place: the
+genesis of 400,274 `observed` rows, then a history of 200,000 writes through `record` and
+`tombstone` (100,000 new versions of held paths, 50,000 retires, 50,000 new paths, shuffled), so
+the chain ends at position 600,276 with 400,274 heads. The record is
+`docs/experiments/cut-algebra-2026-11-13.md`, every figure in its JSON. The same machine, macOS
+27.0.1, Python 3.15.2, SQLite 3.54.1, NumPy 2.5.4, the load average between 2.3 and 4.0. Medians
+over five repetitions, the two runs given as a range. `[MEASURED]`
+
+| probe | result |
+|---|---|
+| every head at the genesis's head, 400,274 | SN-1's rows (`heads_at`, called before the contents replaced it) 1.74 to 1.79 s, 4.3 to 4.5 µs a head; counted 66 ms, 0.17 µs an event; three columns 219 to 224 ms, 0.55 to 0.56 µs a head; eight columns 433 to 437 ms; the columns equal to the rows |
+| every head after the history, over 600,276 events | the rows 1.82 to 1.86 s; counted 90 to 95 ms, 0.15 to 0.16 µs an event; three columns 236 to 241 ms |
+| the signed difference ending at the head, over 1, 1,000, 100,000 and 200,000 positions | its counts 0.02, 2.5, 279 to 305 and 560 to 604 ms; its two sides as columns 0.02 and 0.02, 0.4 and 1.9 to 2.0, 42 and 218 to 238, 83 to 90 and 448 to 463 ms, the rows come then the rows gone; read and sorted 0.08, 2.7 to 2.9, 318 to 362 and 657 to 682 ms. Two reads of every head and a set difference: 3.6 to 3.8 s at every span. Each side equal to the set difference |
+| the same from the bottom, every position | counts 144 to 147 ms; the rows come as columns 238 to 260 ms; the baseline 1.8 to 1.9 s |
+| a family of ten cuts from the horizon to the head | the count at each walked by the differences 435 to 487 ms, against 790 to 834 ms for ten counts, equal; what persisted through all 64 ms; what existed in any 99 ms; the pairwise sizes 315 to 319 ms, equal to the hundred differences' sizes |
+| the plans | what a cut holds on the primary key, `seq<?`; the rows come on it, `seq>? AND seq<?`; the rows gone on `landings_closed`, `closed_at>? AND closed_at<?`, chosen with no hint |
+
+Two findings. The rows gone cost five times what the rows come cost a row, 2.9 to 3.2 µs against
+0.57 at 100,000 positions: they are found on `landings_closed` and each is then read from the
+table by its position, where the rows come are one run of the primary key. Both grow with what
+changed and not with what is held. And every head as columns does not pass SNF-6's bar on the
+corpus chain, as the fixture predicted (§4.2): the count does, and three columns pass it near
+180,000 heads, which sets the size of §4.2's rule (D30). Not measured at SN-1b: a class of
+several chains, and so two cuts neither of which is under the other; holes, since the history
+purged nothing; the walk that finds a chain's horizon for a position the tool is given; and the
+tool's answers through the server.
+
 ## 12. The build order
 
 Nothing is built by this note. What the merge licenses is decision D12. The stages, each a pull
@@ -3084,6 +3134,48 @@ lists each revision.
 
   Rollback: reverting the pull request. The module is new and the log's tables do not change;
   `heads_at` returns with the revert and with nothing else.
+
+  As built, on 2026-11-13. The engine is `core/stores/cuts.py`: `Cut`, the value, with `join`,
+  `meet`, the pointwise order, `order` and its name; `Evaluation`, started by
+  `VaultCatalog.cuts(classes)`, which reads the chains of the classes and their heads once, with
+  the four forms `apply`, `combine`, `map` and `fold` and the named operations written on them
+  (`held`, `between`, `delta`, `persisted`, `existed`, `count_series`, `in_how_many`,
+  `pairwise`); `Versions`, the sets, with `|`, `&`, `-` and `^`, `count`, `tally` and
+  `columns`; `Delta`, with `counts`, `sizes`, `sorted`, `apply` and `then`; `Events`; and
+  `Columns`. `heads_at` is removed from `LandingLog` and `VaultCatalog`; the log's tests and
+  SN-1's bench read the contents, and the bench of the algebra keeps SN-1's statement, a row a
+  head, as the baseline it measures against. The tool's handler is
+  `agents/ambassador/cut_tool.py`, registered in `agents/ambassador/mcp.py` for the Ambassador,
+  over the classes `classes_of(AMBASSADOR.strata)` names; `GUEST_TOOLS` is unchanged. The tests
+  are `tests/property/test_cut_algebra.py` (properties 1 to 9), `tests/unit/test_cut_tool.py`
+  (property 10) and a test of the registration through the server's own dispatch
+  (`tests/unit/test_ambassador_surface.py`). Where the build settles what §4.4 and §7.5 left
+  open, or departs from them:
+  - *The bounds.* A set's statement carries, beside its predicate, the range its rows lie in by
+    the intervals: positions after a cut every row was stored after, and closing stamps up to a
+    cut every row was closed by. With them the planner takes the primary key for the rows come
+    and `landings_closed` for the rows gone, with no hint (§11).
+  - *Columns.* A column is one buffer: an integer column an array of 64-bit integers, a null
+    read as −1; a path's key 32 bytes a row; text one run of UTF-8 bytes with each value's
+    offset and a mask of the nulls. The rows come in position order, chain by chain.
+  - *Holes (D33).* A set counts the holes its predicate takes, the versions a purge emptied that
+    it would hold, in the statement that counts it; a signed difference counts those of its two
+    sides, events those among them, and a series or a table those of what some cut of the
+    family holds. That is §7.5's count of the holes in the ranges read, made exact.
+  - *The pairwise sizes* read what some cut of the family holds, exactly, and not the rows alive
+    at some position of the family's range, which also hold the rows stored and closed between
+    two of its cuts (§4.4's table).
+  - *A position under a horizon.* The tool resolves a cut's name with `Evaluation.served`, whose
+    statement walks the rows from the position named back to the chain's horizon row, since no
+    index finds a horizon row; a position at the head needs no walk. The engine reads a cut at
+    the positions it is given, as the laws are stated.
+  - *The tool.* `measure` takes `of`, `count` its one value and its default. What `in_how_many`
+    returns is an answer of the type `rows`, which §7.5's list of types lacks. `count` is a
+    number, refused as an operand like any number. A call nests at most 32 calls, a family has
+    at most 64 cuts, and at most 1,000 rows are listed. The answer's `cuts` lists the cuts named,
+    the head where an operand was left out, and the cuts a `join` or a `meet` made.
+  - *Measured* (§11): every head counted passes SNF-6's bar on the corpus chain and as columns
+    does not, which sets §4.2's size (D30); a signed difference costs what changed.
 
 - **SN-2 cuts.** The chain tables, each with its running hash and its genesis followed by a horizon,
   for `chat`, `att`, `staging` and `runs`; `att_head` filled from then on; on the chain-table row of
@@ -3428,7 +3520,9 @@ Proposed by this note, for the owner to confirm:
     set from SN-1b's measurement of the contents on the corpus's catalog. A reader of a chain
     over it reads the contents once and walks the differences, or reads heads kept at a
     recorded cut; which of the two is built is SN-c's and SN-4's. The alternative, no bar, lets
-    a chain's first read grow with the chain unseen.
+    a chain's first read grow with the chain unseen. SN-1b measured it (§11): three columns of
+    every head pass the bar near 180,000 heads, and the count near 600,000 events, so the size
+    is about 180,000 heads where a chain's events are its heads.
 31. **D31, a version is a landing. Proposed, as this note's reading of D23.** Recommended: the
     element of a cut's contents is a `store` row of the log, named by its chain and position, so
     a path that returns to bytes it held lands a new version with the same digest. Every row
@@ -3477,7 +3571,7 @@ Proposed by this note, for the owner to confirm:
 |---|---|---|---|
 | SN-a | the cadence of recorded cuts | a trough that moved, the owner's command | a date that resolves to a cut farther from it than a declared tolerance |
 | SN-b | the citation readings as rows valid over a range of commits | append-only rows a commit, stamped with their projection | the store's size on an instance |
-| SN-c | the heads kept at some recorded cuts | the shape is decided (D15): the read of every head is the contents of a cut, with no list of rows. The size is not: none kept for a chain whose contents read under a tenth of a second, 250,000 events until SN-1b measures; over it, from SN-4, the contents read once and walked over the differences, or heads kept at a recorded cut (§4.2, D30) | SN-1b's measurement of the contents on the corpus's catalog, which sets the size; and the owner's ruling on D30 |
+| SN-c | the heads kept at some recorded cuts | the shape is decided (D15): the read of every head is the contents of a cut, with no list of rows. The size is not: none kept for a chain whose contents read as columns under a tenth of a second, about 180,000 heads as SN-1b measured them (§11); over it, from SN-4, the contents read once and walked over the differences, or heads kept at a recorded cut (§4.2, D30) | the owner's ruling on D30 |
 | SN-d | a second embedder identity's vectors kept beside the first | none: the present's identity | dn-two-phase-ingestion's open question 4 |
 | SN-e | lexical statistics stored per class and per recorded cut | computed from the mask | a lexical query at a past cut over its budget |
 | SN-f | `repo` as a graph of commits, and a chain a repository | the line of the branch the sensor reads, one repository | an instance whose history has merges or that reads several repositories |
@@ -3514,7 +3608,9 @@ Proposed by this note, for the owner to confirm:
   contents of a cut (§4.4), which replace `heads_at`. The bar stays a tenth of a second, as a
   recommendation (D30), and from SN-1b on it is tested on the contents: their columns, or their
   count, past the bar on a chain under the size §4.2 gives, or kept heads costing more than the
-  read they save on one over.
+  read they save on one over. At SN-1b the corpus chain's 400,274 heads counted in 66 ms and read
+  as three columns in 0.22 s, over the bar on a chain over the size the measurement sets
+  (§4.2, §11), so the falsifier is not met.
 - **SNF-7 (the mask is too slow for the lexical statistics):** a lexical query at a past cut over
   its budget at the instance's size. Then SN-e; the rule that the statistics are the mask's does
   not change.
@@ -3642,6 +3738,11 @@ Each with the default the stages build on until it is decided.
 `ops/ci_witness.py`, `ops/supersede.py`, `core/ingest/founding.py`,
 `ops/heartbeat.py`, `ops/ledger.py`, `ops/effect_ledger.py`, `ops/lifecycle/launcher.py`,
 `ops/lifecycle/runs.py`; `eval/harness/store.py`, `eval/predictions/ledger.py`.
+
+**Code of the algebra of cuts as built (SN-1b):** `core/stores/cuts.py` (`Cut`, `Evaluation`,
+`Versions`, `Events`, `Delta`, `Columns`), `core/stores/catalog.py` (`VaultCatalog.cuts`),
+`agents/ambassador/cut_tool.py` and its registration in `agents/ambassador/mcp.py`,
+`tests/property/test_cut_algebra.py`, `tests/unit/test_cut_tool.py`, `eval/cut_algebra_bench.py`.
 
 **Code read for the algebra of cuts (at `8d4dff3d`, unchanged by this note):**
 `core/stores/landings.py` (the tables, the indexes, `heads_at` at `:603-615`),

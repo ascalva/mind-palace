@@ -15,7 +15,7 @@ The measurements, on the copy's largest chain:
    made, a row in Python a head, which the contents replaced (the harness keeps its statement as
    the baseline), against the contents of the cut (`core/stores/cuts.py`): counted, which builds
    no row, and read as columns, the three a head is named by (its position, its path's key, its
-   digest) and the seven a listing shows. The bar is SNF-6's tenth of a second.
+   digest) and the eight a listing reads. The bar is SNF-6's tenth of a second.
 2. **A history.** `--history` catalog writes after the genesis, landed through `record` and
    `tombstone` in batches of `--batch`, in a shuffled order: a new version of a held path for half
    of them, a retire of another held path for a quarter, a new path for the rest. Each appends one

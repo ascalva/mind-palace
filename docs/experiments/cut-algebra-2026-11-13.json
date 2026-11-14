@@ -1,0 +1,1095 @@
+{
+  "harness": "eval/cut_algebra_bench.py",
+  "harness_commit": "4e94b442",
+  "code_commit": "b210db03",
+  "baseline": "SN-1's heads_at, a Landing a head, called at the harness commit",
+  "machine": "Apple M2 Pro, 12 cores, 32 GB, macOS 27.0.1",
+  "runs": [
+    {
+      "catalog_copy": "catalog.sqlite",
+      "load_start": [
+        2.60302734375,
+        2.43212890625,
+        2.43359375
+      ],
+      "python": "3.15.2",
+      "sqlite": "3.54.1",
+      "numpy": "2.5.4",
+      "machine": "arm64",
+      "history": 200000,
+      "repeat": 5,
+      "batch": 10000,
+      "seed": 13,
+      "migration_s": 7.44883320806548,
+      "chain": 1,
+      "class": "observed",
+      "genesis": {
+        "position": 400276,
+        "heads": 400274,
+        "heads_at_rows": {
+          "median_ms": 1786.4847080782056,
+          "low_ms": 1759.1289579868317,
+          "high_ms": 1950.2384581137449,
+          "runs": 5,
+          "us_a_head": 4.463154509356604,
+          "under_the_bar": false
+        },
+        "count": {
+          "median_ms": 66.54283311218023,
+          "low_ms": 66.06354098767042,
+          "high_ms": 66.69954187236726,
+          "runs": 5,
+          "us_a_head": 0.1662432061842144,
+          "under_the_bar": true
+        },
+        "count_value": 400274,
+        "three_columns": {
+          "median_ms": 224.37670780345798,
+          "low_ms": 218.98995898663998,
+          "high_ms": 228.946290910244,
+          "runs": 5,
+          "us_a_head": 0.5605577874242593,
+          "under_the_bar": false
+        },
+        "listing_columns": {
+          "median_ms": 432.50191607512534,
+          "low_ms": 423.2540000230074,
+          "high_ms": 456.901540979743,
+          "runs": 5,
+          "us_a_head": 1.0805146376610155,
+          "under_the_bar": false
+        },
+        "columns_equal_rows": true
+      },
+      "load_before_history": [
+        2.890625,
+        2.52197265625,
+        2.4658203125
+      ],
+      "history_written": {
+        "new_versions": 100000,
+        "retires": 50000,
+        "new_paths": 50000
+      },
+      "history_s": 24.93899775017053,
+      "after_history": {
+        "position": 600276,
+        "heads": 400274,
+        "heads_at_rows": {
+          "median_ms": 1818.9401670824736,
+          "low_ms": 1760.1945418864489,
+          "high_ms": 1968.9878330100328,
+          "runs": 5,
+          "us_a_head": 4.54423761493995,
+          "under_the_bar": false
+        },
+        "count": {
+          "median_ms": 89.78445804677904,
+          "low_ms": 89.45195795968175,
+          "high_ms": 91.10591607168317,
+          "runs": 5,
+          "us_a_head": 0.2243074944832266,
+          "under_the_bar": true
+        },
+        "count_value": 400274,
+        "three_columns": {
+          "median_ms": 240.52354111336172,
+          "low_ms": 238.2343749050051,
+          "high_ms": 258.70395894162357,
+          "runs": 5,
+          "us_a_head": 0.6008972381752542,
+          "under_the_bar": false
+        },
+        "listing_columns": {
+          "median_ms": 441.6287501808256,
+          "low_ms": 433.0394589342177,
+          "high_ms": 461.46362484432757,
+          "runs": 5,
+          "us_a_head": 1.103316103920878,
+          "under_the_bar": false
+        },
+        "columns_equal_rows": true
+      },
+      "deltas": [
+        {
+          "from": 600275,
+          "to": 600276,
+          "events_between": 1,
+          "removed": 1,
+          "added": 0,
+          "replaced": 0,
+          "holes": 0,
+          "counts": {
+            "median_ms": 0.017083948478102684,
+            "low_ms": 0.015916069969534874,
+            "high_ms": 0.027708010748028755,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 0.011124880984425545,
+            "low_ms": 0.010458054021000862,
+            "high_ms": 0.05837506614625454,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 0.01645786687731743,
+            "low_ms": 0.014249933883547783,
+            "high_ms": 0.08941697888076305,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 0.018916092813014984,
+            "low_ms": 0.01791701652109623,
+            "high_ms": 0.05679205060005188,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 0.08370797149837017,
+            "low_ms": 0.07745809853076935,
+            "high_ms": 0.18229195848107338,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3727.5576249230653,
+            "low_ms": 3656.3079999759793,
+            "high_ms": 3781.5605411306024,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 599276,
+          "to": 600276,
+          "events_between": 1000,
+          "removed": 248,
+          "added": 224,
+          "replaced": 528,
+          "holes": 0,
+          "counts": {
+            "median_ms": 2.455167006701231,
+            "low_ms": 2.3747498635202646,
+            "high_ms": 2.8732498176395893,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 1.618832815438509,
+            "low_ms": 1.6112499870359898,
+            "high_ms": 1.6752080991864204,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 0.373166985809803,
+            "low_ms": 0.3684579860419035,
+            "high_ms": 0.4666249733418226,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 1.8711669836193323,
+            "low_ms": 1.842208905145526,
+            "high_ms": 1.9715831149369478,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 2.7379579842090607,
+            "low_ms": 2.723541809245944,
+            "high_ms": 2.7882501017302275,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3741.943374974653,
+            "low_ms": 3696.0534169338644,
+            "high_ms": 3782.730499980971,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 500276,
+          "to": 600276,
+          "events_between": 100000,
+          "removed": 24995,
+          "added": 25010,
+          "replaced": 49995,
+          "holes": 0,
+          "counts": {
+            "median_ms": 305.1412079948932,
+            "low_ms": 295.25108402594924,
+            "high_ms": 324.72920790314674,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 200.5719169974327,
+            "low_ms": 199.77475004270673,
+            "high_ms": 230.3748750127852,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 42.745749931782484,
+            "low_ms": 41.90279194153845,
+            "high_ms": 50.592083018273115,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 237.75179195217788,
+            "low_ms": 232.64820803888142,
+            "high_ms": 252.7281658258289,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 361.8501250166446,
+            "low_ms": 344.41562509164214,
+            "high_ms": 374.2012910079211,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3786.5932499989867,
+            "low_ms": 3694.097541971132,
+            "high_ms": 3870.0775001198053,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 400276,
+          "to": 600276,
+          "events_between": 200000,
+          "removed": 50000,
+          "added": 50000,
+          "replaced": 100000,
+          "holes": 0,
+          "counts": {
+            "median_ms": 604.0303749032319,
+            "low_ms": 589.3915831111372,
+            "high_ms": 612.1919590514153,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 411.692958092317,
+            "low_ms": 390.57666598819196,
+            "high_ms": 418.9133329782635,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 89.66729114763439,
+            "low_ms": 87.6938751898706,
+            "high_ms": 91.59979200921953,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 463.32320803776383,
+            "low_ms": 453.72474985197186,
+            "high_ms": 499.7913329862058,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 682.4499999638647,
+            "low_ms": 666.7612500023097,
+            "high_ms": 710.1297080516815,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3811.7812499403954,
+            "low_ms": 3742.0870000496507,
+            "high_ms": 3879.806167213246,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 0,
+          "to": 600276,
+          "events_between": 600276,
+          "removed": 0,
+          "added": 400274,
+          "replaced": 0,
+          "holes": 0,
+          "counts": {
+            "median_ms": 147.26729202084243,
+            "low_ms": 145.9038748871535,
+            "high_ms": 154.47312500327826,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 105.26966606266797,
+            "low_ms": 104.62475009262562,
+            "high_ms": 109.0328749269247,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 259.78579209186137,
+            "low_ms": 249.77808282710612,
+            "high_ms": 265.4809579253197,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 0.007207971066236496,
+            "low_ms": 0.006250105798244476,
+            "high_ms": 0.034125056117773056,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 447.73220806382596,
+            "low_ms": 429.8904170282185,
+            "high_ms": 541.7154999449849,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 1879.1241250000894,
+            "low_ms": 1869.466541800648,
+            "high_ms": 1988.8032909948379,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        }
+      ],
+      "family": {
+        "positions": [
+          400276,
+          422498,
+          444720,
+          466942,
+          489164,
+          511387,
+          533609,
+          555831,
+          578053,
+          600276
+        ],
+        "counts": [
+          400274,
+          400253,
+          400089,
+          400320,
+          400192,
+          400196,
+          400093,
+          400189,
+          400126,
+          400274
+        ],
+        "walked": {
+          "median_ms": 486.69337504543364,
+          "low_ms": 462.9527919460088,
+          "high_ms": 507.86666688509285,
+          "runs": 5
+        },
+        "ten_counts": {
+          "median_ms": 833.9648330584168,
+          "low_ms": 809.180665994063,
+          "high_ms": 837.5831670127809,
+          "runs": 5
+        },
+        "walked_equals_counted": true,
+        "persisted": {
+          "median_ms": 64.05925005674362,
+          "low_ms": 63.68287489749491,
+          "high_ms": 68.79070797003806,
+          "runs": 5,
+          "count": 250274
+        },
+        "existed": {
+          "median_ms": 98.54433289729059,
+          "low_ms": 98.40629203245044,
+          "high_ms": 102.91941603645682,
+          "runs": 5,
+          "count": 550274
+        },
+        "pairwise": {
+          "median_ms": 318.7847079243511,
+          "low_ms": 313.70508298277855,
+          "high_ms": 330.7187920436263,
+          "runs": 5,
+          "sizes": [
+            [
+              0,
+              16679,
+              33435,
+              49942,
+              66717,
+              83377,
+              100070,
+              116698,
+              133361,
+              150000
+            ],
+            [
+              16658,
+              0,
+              16756,
+              33263,
+              50038,
+              66698,
+              83391,
+              100019,
+              116682,
+              133321
+            ],
+            [
+              33250,
+              16592,
+              0,
+              16507,
+              33282,
+              49942,
+              66635,
+              83263,
+              99926,
+              116565
+            ],
+            [
+              49988,
+              33330,
+              16738,
+              0,
+              16775,
+              33435,
+              50128,
+              66756,
+              83419,
+              100058
+            ],
+            [
+              66635,
+              49977,
+              33385,
+              16647,
+              0,
+              16660,
+              33353,
+              49981,
+              66644,
+              83283
+            ],
+            [
+              83299,
+              66641,
+              50049,
+              33311,
+              16664,
+              0,
+              16693,
+              33321,
+              49984,
+              66623
+            ],
+            [
+              99889,
+              83231,
+              66639,
+              49901,
+              33254,
+              16590,
+              0,
+              16628,
+              33291,
+              49930
+            ],
+            [
+              116613,
+              99955,
+              83363,
+              66625,
+              49978,
+              33314,
+              16724,
+              0,
+              16663,
+              33302
+            ],
+            [
+              133213,
+              116555,
+              99963,
+              83225,
+              66578,
+              49914,
+              33324,
+              16600,
+              0,
+              16639
+            ],
+            [
+              150000,
+              133342,
+              116750,
+              100012,
+              83365,
+              66701,
+              50111,
+              33387,
+              16787,
+              0
+            ]
+          ]
+        },
+        "pairwise_equal_to_the_differences": true,
+        "persisted_horizon_to_head": {
+          "median_ms": 66.48391718044877,
+          "low_ms": 63.7301669921726,
+          "high_ms": 72.51195795834064,
+          "runs": 5,
+          "count": 250274
+        }
+      },
+      "plans": {
+        "held": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING PRIMARY KEY (chain=? AND seq<?) | SCAN (subquery-1)"
+        ],
+        "come": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING PRIMARY KEY (chain=? AND seq>? AND seq<?) | SCAN (subquery-1)"
+        ],
+        "gone": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING INDEX landings_closed (chain=? AND closed_at>? AND closed_at<?) | SCAN (subquery-1)"
+        ]
+      },
+      "load_end": [
+        2.98291015625,
+        2.810546875,
+        2.59814453125
+      ]
+    },
+    {
+      "catalog_copy": "catalog.sqlite",
+      "load_start": [
+        2.98291015625,
+        2.810546875,
+        2.59814453125
+      ],
+      "python": "3.15.2",
+      "sqlite": "3.54.1",
+      "numpy": "2.5.4",
+      "machine": "arm64",
+      "history": 200000,
+      "repeat": 5,
+      "batch": 10000,
+      "seed": 13,
+      "migration_s": 6.869834915967658,
+      "chain": 1,
+      "class": "observed",
+      "genesis": {
+        "position": 400276,
+        "heads": 400274,
+        "heads_at_rows": {
+          "median_ms": 1735.6356671079993,
+          "low_ms": 1714.2442921176553,
+          "high_ms": 1887.498291907832,
+          "runs": 5,
+          "us_a_head": 4.336118926305479,
+          "under_the_bar": false
+        },
+        "count": {
+          "median_ms": 66.24208320863545,
+          "low_ms": 65.49499998800457,
+          "high_ms": 67.37612490542233,
+          "runs": 5,
+          "us_a_head": 0.16549184610700532,
+          "under_the_bar": true
+        },
+        "count_value": 400274,
+        "three_columns": {
+          "median_ms": 219.08033289946616,
+          "low_ms": 215.80587490461767,
+          "high_ms": 229.57641584798694,
+          "runs": 5,
+          "us_a_head": 0.547325913997577,
+          "under_the_bar": false
+        },
+        "listing_columns": {
+          "median_ms": 437.2080001048744,
+          "low_ms": 432.0062908809632,
+          "high_ms": 442.1089158859104,
+          "runs": 5,
+          "us_a_head": 1.092271794083239,
+          "under_the_bar": false
+        },
+        "columns_equal_rows": true
+      },
+      "load_before_history": [
+        4.04736328125,
+        3.05419921875,
+        2.68994140625
+      ],
+      "history_written": {
+        "new_versions": 100000,
+        "retires": 50000,
+        "new_paths": 50000
+      },
+      "history_s": 25.09871087502688,
+      "after_history": {
+        "position": 600276,
+        "heads": 400274,
+        "heads_at_rows": {
+          "median_ms": 1859.1575839091092,
+          "low_ms": 1806.2630000058562,
+          "high_ms": 2016.0577078349888,
+          "runs": 5,
+          "us_a_head": 4.644712331825473,
+          "under_the_bar": false
+        },
+        "count": {
+          "median_ms": 95.42983304709196,
+          "low_ms": 89.44470901042223,
+          "high_ms": 102.53220796585083,
+          "runs": 5,
+          "us_a_head": 0.23841127089716535,
+          "under_the_bar": true
+        },
+        "count_value": 400274,
+        "three_columns": {
+          "median_ms": 236.17904190905392,
+          "low_ms": 233.77166711725295,
+          "high_ms": 260.8516248874366,
+          "runs": 5,
+          "us_a_head": 0.5900434250264917,
+          "under_the_bar": false
+        },
+        "listing_columns": {
+          "median_ms": 440.0654169730842,
+          "low_ms": 428.66745800711215,
+          "high_ms": 444.1583340521902,
+          "runs": 5,
+          "us_a_head": 1.0994104462770107,
+          "under_the_bar": false
+        },
+        "columns_equal_rows": true
+      },
+      "deltas": [
+        {
+          "from": 600275,
+          "to": 600276,
+          "events_between": 1,
+          "removed": 1,
+          "added": 0,
+          "replaced": 0,
+          "holes": 0,
+          "counts": {
+            "median_ms": 0.016416888684034348,
+            "low_ms": 0.015707919374108315,
+            "high_ms": 0.027665868401527405,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 0.011165859177708626,
+            "low_ms": 0.01016608439385891,
+            "high_ms": 0.05608284845948219,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 0.015958910807967186,
+            "low_ms": 0.01429184339940548,
+            "high_ms": 0.0855419784784317,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 0.018790829926729202,
+            "low_ms": 0.018042046576738358,
+            "high_ms": 0.05383417010307312,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 0.08229096420109272,
+            "low_ms": 0.07712491787970066,
+            "high_ms": 0.1916671171784401,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3669.6093750651926,
+            "low_ms": 3602.0633748266846,
+            "high_ms": 3739.519832888618,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 599276,
+          "to": 600276,
+          "events_between": 1000,
+          "removed": 248,
+          "added": 224,
+          "replaced": 528,
+          "holes": 0,
+          "counts": {
+            "median_ms": 2.5371671654284,
+            "low_ms": 2.4794579949229956,
+            "high_ms": 2.8782919980585575,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 1.7442500684410334,
+            "low_ms": 1.7126670572906733,
+            "high_ms": 1.7680840101093054,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 0.3894590772688389,
+            "low_ms": 0.38429093547165394,
+            "high_ms": 0.47337496653199196,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 2.041958039626479,
+            "low_ms": 1.9867089577019215,
+            "high_ms": 2.0899579394608736,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 2.9120000544935465,
+            "low_ms": 2.8942080680280924,
+            "high_ms": 2.9345829971134663,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3683.6357079446316,
+            "low_ms": 3634.2986670788378,
+            "high_ms": 3717.0066670514643,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 500276,
+          "to": 600276,
+          "events_between": 100000,
+          "removed": 24995,
+          "added": 25010,
+          "replaced": 49995,
+          "holes": 0,
+          "counts": {
+            "median_ms": 279.1637920308858,
+            "low_ms": 274.457624880597,
+            "high_ms": 291.1934999283403,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 184.4657079782337,
+            "low_ms": 181.7061670590192,
+            "high_ms": 199.41820786334574,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 42.407041881233454,
+            "low_ms": 40.59570794925094,
+            "high_ms": 46.91670904867351,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 218.19895808584988,
+            "low_ms": 211.25908312387764,
+            "high_ms": 228.29762496985495,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 317.5815420690924,
+            "low_ms": 314.3976670689881,
+            "high_ms": 337.80683390796185,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3654.6492918860167,
+            "low_ms": 3584.867457859218,
+            "high_ms": 3737.966707907617,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 400276,
+          "to": 600276,
+          "events_between": 200000,
+          "removed": 50000,
+          "added": 50000,
+          "replaced": 100000,
+          "holes": 0,
+          "counts": {
+            "median_ms": 560.4660829994828,
+            "low_ms": 559.0918329544365,
+            "high_ms": 605.9582498855889,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 372.75183387100697,
+            "low_ms": 365.8664170652628,
+            "high_ms": 401.622915873304,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 83.0626250244677,
+            "low_ms": 82.85304205492139,
+            "high_ms": 83.98312493227422,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 447.6322499103844,
+            "low_ms": 422.78445791453123,
+            "high_ms": 459.13258381187916,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 657.3527080472559,
+            "low_ms": 637.8002921119332,
+            "high_ms": 667.83441696316,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 3633.847540942952,
+            "low_ms": 3546.9529589172453,
+            "high_ms": 3711.9076668750495,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        },
+        {
+          "from": 0,
+          "to": 600276,
+          "events_between": 600276,
+          "removed": 0,
+          "added": 400274,
+          "replaced": 0,
+          "holes": 0,
+          "counts": {
+            "median_ms": 144.4603749550879,
+            "low_ms": 139.6244999486953,
+            "high_ms": 151.76724991761148,
+            "runs": 5
+          },
+          "sizes": {
+            "median_ms": 101.98154184035957,
+            "low_ms": 100.50212498754263,
+            "high_ms": 107.06616705283523,
+            "runs": 5
+          },
+          "come_columns": {
+            "median_ms": 238.05504199117422,
+            "low_ms": 236.23737506568432,
+            "high_ms": 251.30579201504588,
+            "runs": 5
+          },
+          "gone_columns": {
+            "median_ms": 0.0077500008046627045,
+            "low_ms": 0.006458023563027382,
+            "high_ms": 0.036833109334111214,
+            "runs": 5
+          },
+          "sorted": {
+            "median_ms": 397.8597919922322,
+            "low_ms": 393.1194997858256,
+            "high_ms": 450.45291585847735,
+            "runs": 5
+          },
+          "two_heads_at_and_a_set_difference": {
+            "median_ms": 1782.7447499148548,
+            "low_ms": 1770.8778749220073,
+            "high_ms": 1897.0797080546618,
+            "runs": 5
+          },
+          "equal_to_the_baseline": true
+        }
+      ],
+      "family": {
+        "positions": [
+          400276,
+          422498,
+          444720,
+          466942,
+          489164,
+          511387,
+          533609,
+          555831,
+          578053,
+          600276
+        ],
+        "counts": [
+          400274,
+          400253,
+          400089,
+          400320,
+          400192,
+          400196,
+          400093,
+          400189,
+          400126,
+          400274
+        ],
+        "walked": {
+          "median_ms": 434.53337508253753,
+          "low_ms": 429.84779202379286,
+          "high_ms": 444.03679203242064,
+          "runs": 5
+        },
+        "ten_counts": {
+          "median_ms": 790.064875036478,
+          "low_ms": 778.2287909649312,
+          "high_ms": 805.7174168061465,
+          "runs": 5
+        },
+        "walked_equals_counted": true,
+        "persisted": {
+          "median_ms": 64.78629214689136,
+          "low_ms": 63.35120904259384,
+          "high_ms": 66.32358394563198,
+          "runs": 5,
+          "count": 250274
+        },
+        "existed": {
+          "median_ms": 99.61791709065437,
+          "low_ms": 99.18445907533169,
+          "high_ms": 107.52241592854261,
+          "runs": 5,
+          "count": 550274
+        },
+        "pairwise": {
+          "median_ms": 315.0593340396881,
+          "low_ms": 314.1117091290653,
+          "high_ms": 332.67262508161366,
+          "runs": 5,
+          "sizes": [
+            [
+              0,
+              16679,
+              33435,
+              49942,
+              66717,
+              83377,
+              100070,
+              116698,
+              133361,
+              150000
+            ],
+            [
+              16658,
+              0,
+              16756,
+              33263,
+              50038,
+              66698,
+              83391,
+              100019,
+              116682,
+              133321
+            ],
+            [
+              33250,
+              16592,
+              0,
+              16507,
+              33282,
+              49942,
+              66635,
+              83263,
+              99926,
+              116565
+            ],
+            [
+              49988,
+              33330,
+              16738,
+              0,
+              16775,
+              33435,
+              50128,
+              66756,
+              83419,
+              100058
+            ],
+            [
+              66635,
+              49977,
+              33385,
+              16647,
+              0,
+              16660,
+              33353,
+              49981,
+              66644,
+              83283
+            ],
+            [
+              83299,
+              66641,
+              50049,
+              33311,
+              16664,
+              0,
+              16693,
+              33321,
+              49984,
+              66623
+            ],
+            [
+              99889,
+              83231,
+              66639,
+              49901,
+              33254,
+              16590,
+              0,
+              16628,
+              33291,
+              49930
+            ],
+            [
+              116613,
+              99955,
+              83363,
+              66625,
+              49978,
+              33314,
+              16724,
+              0,
+              16663,
+              33302
+            ],
+            [
+              133213,
+              116555,
+              99963,
+              83225,
+              66578,
+              49914,
+              33324,
+              16600,
+              0,
+              16639
+            ],
+            [
+              150000,
+              133342,
+              116750,
+              100012,
+              83365,
+              66701,
+              50111,
+              33387,
+              16787,
+              0
+            ]
+          ]
+        },
+        "pairwise_equal_to_the_differences": true,
+        "persisted_horizon_to_head": {
+          "median_ms": 63.157208962365985,
+          "low_ms": 62.424832955002785,
+          "high_ms": 65.41700009256601,
+          "runs": 5,
+          "count": 250274
+        }
+      },
+      "plans": {
+        "held": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING PRIMARY KEY (chain=? AND seq<?) | SCAN (subquery-1)"
+        ],
+        "come": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING PRIMARY KEY (chain=? AND seq>? AND seq<?) | SCAN (subquery-1)"
+        ],
+        "gone": [
+          "CO-ROUTINE (subquery-1) | SEARCH landings USING INDEX landings_closed (chain=? AND closed_at>? AND closed_at<?) | SCAN (subquery-1)"
+        ]
+      },
+      "load_end": [
+        2.306640625,
+        2.826171875,
+        2.67626953125
+      ]
+    }
+  ]
+}
