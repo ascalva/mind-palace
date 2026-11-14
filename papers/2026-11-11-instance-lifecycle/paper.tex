@@ -29,7 +29,7 @@
 \newcommand{\corpusentries}{389{,}745}
 \newcommand{\lexsec}{17.4}
 \newcommand{\lexload}{2.84}
-\newcommand{\ntests}{62}
+\newcommand{\ntests}{74}
 
 \title{Reset, Destroy and a Shared Cache: the Lifecycle of a Knowledge-Store Instance}
 \author{Alberto Serrano-Calva}
@@ -236,8 +236,8 @@ lock and writes no file, reading each SQLite file at rest (no \code{-wal}, or an
 \code{immutable=1}, since a read-only connection to a WAL database creates its \code{-wal} and
 \code{-shm} files, and asking the run ledger whether a run is live without opening it, so it
 creates no root that does not exist. A destroy reads the catalog read only and removes it whole,
-its landing log with it, so it needs no secret. It refuses a live run, a held lock, an installed
-agent, a root inside a git working tree, a root that is the home root, holds the cache, or
+its landing log with it, so it needs no secret. It refuses a live run, a held lock, a pending
+reset, an installed agent, a root inside a git working tree, a root that is the home root, holds the cache, or
 contains a symbolic link out of itself, a source file the cache would take that is a link, and a
 cache volume without room. Since it removes the whole root, it also refuses a root
 that holds anything but the instance's own state: a top-level entry no namespace of the instance
@@ -292,16 +292,20 @@ the rebuilt rows name. On a lazy instance with a backlog the reset builds no emb
 backlog stays. A purged transcript is skipped and the reset finishes. The dry run writes nothing,
 on an instance at rest not even a file's modification time, and names each store. A live run, a
 held lock, a changed geometry, a pruned ledgered commit and a derived store outside the data
-directory each refuse with every byte unchanged and no marker written. A failure injected at each
+directory each refuse with every byte unchanged and no marker written; the live run is held by a
+ledger of its own, as the daemon holds it, and each command reads it from the file. A failure injected at each
 of the nine steps leaves the marker, the daemon and the repository sync refuse, and a second reset
 converges; a held version purged before the rerun is skipped by it, a changed embedder while the
 reset is pending is refused with the way out, and every script that writes refuses while the
-marker stands. A destroy's refusals each write nothing, a root holding a repository, a foreign file
-or another instance among them, and its dry run leaves every file's size and modification time as
-they were. Run as commands in processes of their own, on a root at rest whose catalog has an empty
+marker stands, a scan of the scripts finding none that calls a writer and is not run so. A
+destroy's refusals each write nothing, a root holding a repository, a foreign file or another
+instance and a pending reset among them, after which the fill selects every vector again, and its
+dry run leaves every file's size and modification time as they were. Run as commands in processes of their own, on a root at rest whose catalog has an empty
 \code{-wal} beside it, the dry runs of destroy, reset and fill change no file, and on a root that
 does not exist they create none. A stream part linked to the catalog's file, by a symbolic or a
-hard link, or to a note, is refused by the destroy, the fill and the cache. With a dialogue turn, a
+hard link, or to a note, is refused by the destroy, the fill and the cache, and so is the
+catalog's file reached through a stream directory linked inside the root or a manifest part that
+climbs out of the stream. With a dialogue turn, a
 model's reply, an inbox item and a curated item added, a confirmed destroy leaves exactly the open
 digests, the atoms open items held, and the stream's downloaded files in the cache, and no note,
 dialogue, inbox item, transcript or vector only a private item held. A new instance takes a cached vector with no embedder
@@ -346,7 +350,10 @@ the fold needs a catalog write outside its logging methods; both are follow-ups,
 superseded before a catalog's genesis are in no ledger but the version chains. A reset excludes a
 writer that starts after it and one that holds the supervisor lock, but not an on-demand writer
 that takes no lock and started before it; closing that needs a lock every writer holds for its
-whole run, a decision left open. The vector key
+whole run, a decision left open. The retention ledger is seeded from the chat log once, so a
+transcript retained after the seed by code that writes no row is replayed from a later digest;
+a seed at every build closes that but cannot put a digest at its place in the retention order,
+and is left open. The vector key
 names the model but not the model file, so a requantized file under one name would share a key; a
 measurement would say whether to add its digest. Code membership vectors do not enter the cache,
 because no reader takes them back yet. The cost of a full reset of the corpus instance, and of the
