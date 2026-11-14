@@ -1062,31 +1062,40 @@ network** (only counts + the *shape* of activity). It is deliberately NOT sealed
 catalog with the landing log in its file, the version chains, the attestations, the chat sensor's
 retention ledger, the commit ledger, the reference edges, the verdicts, the authored
 supersessions, every model output and the queue, row for row; no step appends to the landing
-log. It rebuilds, in order: the lexical index, the plane's occupancies (the atoms are
-kept, so no embedder is called while they are held), the code and agent observations (re-projected
-without the attestor), the authored relation edges (parsed from raw), the chat log (replayed from
-the retention ledger, with no transcript directory), the chat events, the causal edges and the
-verdict dispositions. The plane step re-occupies only what the plane held current before the
-clearing, each at the version it held, so on a lazy instance the items still waiting for a vector
-stay with the embed job, and a note edited since it was embedded stays searchable at its old
-version until the embed job takes the new one. It
-refuses a live daemon, the supervisor lock held, an embedder whose geometry is not the plane's
-(that is `palace reembed`), a commit the commit ledger holds that the repository no longer has,
-and, when the catalog holds rows and no landing log yet, an environment without the instance's
-landing-log secret, since the rebuild's first open of the catalog writes the log's genesis; each
-refusal writes nothing. A transcript a purge erased is skipped by the chat log's replay, and the
-replay's report counts it as purged.
+log, and only on a catalog with rows and no log yet does the rebuild's first open of it write the
+log's genesis (below). It rebuilds, in order: the lexical index, the plane's occupancies (the
+atoms are kept, so no embedder is called while they are held), the code and agent observations
+(re-projected without the attestor), the authored relation edges (parsed from raw), the chat log
+(replayed from the retention ledger, with no transcript directory), the chat events, the causal
+edges and the verdict dispositions. The plane step re-occupies only what the plane held current
+before the clearing, each at the version it held, so on a lazy instance the items still waiting
+for a vector stay with the embed job, and a note edited since it was embedded stays searchable at
+its old version until the embed job takes the new one. It refuses a live daemon, the supervisor
+lock held, an embedder whose geometry is not the plane's (that is `palace reembed`), a derived
+store configured outside the data directory, a commit the commit ledger holds that the repository
+no longer has, and, when the catalog holds rows and no landing log yet, an environment without
+the instance's landing-log secret, since the rebuild's first open of the catalog writes the log's
+genesis; each refusal writes nothing, its marker included, and neither does the dry run. A
+transcript a purge erased is skipped by the chat log's replay, and a version the plane held that
+a purge erased while a reset was pending by the plane step; each step's report counts them.
 
 ```sh
 mind-palace reset              # dry run: each derived store with its rows, every kept store by class
 mind-palace reset --confirm    # under the supervisor lock, behind data/reset.pending
 ```
 
-While `data/reset.pending` exists the daemon's start, every on-demand writer and the corpus runner
-refuse. If a reset is interrupted, run `reset --confirm` again: it clears and rebuilds every store
-the marker names. A reset rebuilds the current version of each item only (decision D2); no query
-reads a superseded version's units or occupancies, and rebuilding every version from the landing
-log is a follow-up.
+While `data/reset.pending` exists the daemon's start and every command that lands or writes a
+derived store refuse: the on-demand verbs, and the scripts that write (`scripts/ingest.py`,
+`scripts/corpus.py ingest` and `embed`, `purge_raw`, `ingest_self_knowledge`, `mint_ids`, `watch`,
+and the migrations). Each reads the marker when it starts, so it does not stop a writer already
+running, and only some writers take the supervisor lock the reset takes (the daemon,
+`repo-sync`, `scripts/ingest.py`, the corpus runner, `watch`): run a reset when no on-demand
+command (`embed`, `vault-sync`, `lanes`, `dream` and the like) is running (the note's open question
+7). If a reset is interrupted, run `reset --confirm` again: it clears and rebuilds every store the
+marker names. If the embedder was changed meanwhile, the reset refuses: restore the embedder the
+plane was built with, finish the reset, then change it with `palace reembed --confirm`. A reset
+rebuilds the current version of each item only (decision D2); no query reads a superseded
+version's units or occupancies, and rebuilding every version from the landing log is a follow-up.
 
 **The landing log's secret, for reset and destroy.** A reset needs it only while the catalog holds
 rows and no landing log (an instance last written before the log came in): the rebuild's first open
@@ -1110,17 +1119,23 @@ instance this is a re-derivation of its whole index at the next `scripts/corpus.
 index predates the recorded tokenizer (checked read only on 2026-11-12).
 
 **Destroy** removes a named instance (never the default one) and leaves its open content in the
-shared cache, `~/.mind-palace/cache`: the raw objects, vectors and downloaded source files of the
-open-corpus sources, the repository sources and the curated class. Nothing of the mirror's notes,
-the dialogue or the transcripts enters it. It refuses a live run, the lock held, an installed
-LaunchAgent, a root inside a git working tree, a root that is the home root, holds the cache or
-holds a symbolic link out of itself, a root that holds anything but the instance's own state (a
-git repository below it, a file no namespace of the instance names, another instance's root), an
-embedder whose geometry is not the plane's, and a cache volume without room. The dry run writes
-nothing, lists the root's top-level entries, and names the sources the instance read, its overlay
-and its Keychain items, which a destroy leaves, `<id>.landing-log-key` among them: the catalog's
-file goes with the root, its landing log in it, and nothing of the log enters the cache, so the
-item keys nothing afterwards but a copy of that file kept elsewhere.
+shared cache, `~/.mind-palace/cache`: the raw objects and vectors of the open-corpus sources, the
+repository sources and the curated class, and the open-corpus sources' stream files. Nothing of
+the mirror's notes, the dialogue or the transcripts enters it, and no source file that is a link.
+It refuses a live run, the lock held, an installed LaunchAgent, a root inside a git working tree,
+a root that is the home root, holds the cache or holds a symbolic link out of itself, a root that
+holds anything but the instance's own state (a git repository below it, a file no namespace of
+the instance names, another instance's root), a source file the cache would take that is a link
+(a symbolic link, a hard link, a file that resolves out of its source), an embedder whose
+geometry is not the plane's, and a cache volume without room. The dry run writes nothing: it
+reads every store read only and opens no run ledger, so it creates no file, nor a root that does
+not exist. It lists the root's top-level entries; names the sources the instance read outside its
+root, which a destroy leaves, and those inside it, which go with the root, with the count and
+bytes of their files the cache does not take (the whole downloads some readers keep under `raw/`,
+the cursors, the state files); and names its overlay and its Keychain items, which a destroy
+leaves, `<id>.landing-log-key` among them: the catalog's file goes with the root, its landing log
+in it, and nothing of the log enters the cache, so the item keys nothing afterwards but a copy of
+that file kept elsewhere.
 
 ```sh
 MIND_PALACE_OVERLAY=config/instances/<id>.toml mind-palace destroy             # dry run
@@ -1136,8 +1151,12 @@ its SHA-256; `scripts/corpus.py fetch` copies a cached source stream in before t
 resumes it. `scripts/purge_raw.py` reaches the cache: the object and its chunks' vectors go, and the
 digest is recorded so no fill puts it back.
 
-A fill of the corpus is not offered yet: it would copy its 19 GB of raw and about 8.2 GB of
-vectors into the cache, and neither its time nor its disk use has been measured.
+A fill of the corpus is not offered yet. Its dry run (on a clone of the root, 2026-11-13) plans
+387,838 raw objects of 1,003,892,779 bytes, 468 source files of 1,372,531,168 bytes and 1,338,585
+vectors, 8,224,266,240 bytes as float64: 10,600,690,187 bytes by the plan's count, which the room
+check weighs. Its time, and the space SQLite takes for the vectors beyond their bytes, have not
+been measured. A destroy of the corpus refuses as its root stands: the root holds the corpus
+tooling's own files and leftovers no code here writes (dn-instance-lifecycle §7, open question 8).
 
 **The corpus instance** lives at `~/.mind-palace/instances/corpus` (`[instance] root` in
 `config/instances/corpus.toml`); its old location, `instances/corpus` in the corpus stage-1
@@ -1146,9 +1165,10 @@ with `immutable=1`, since a `mode=ro` connection to a WAL database creates its `
 files, and Lance read only. Never open its catalog through `VaultCatalog` to read it: the catalog
 holds 400,274 rows and no landing log yet, so that open would write under the root (the WAL
 files, the migration, the log's tables and a genesis of 400,274 rows), or, without
-`corpus.landing-log-key`, refuse after creating the log's two empty tables. Nothing but
-`scripts/corpus.py ingest` writes under it, and its next ingest, like a reset of the corpus,
-needs `corpus.landing-log-key` placed first.
+`corpus.landing-log-key`, refuse after creating the log's two empty tables. Only the corpus's own
+tooling writes under it (`scripts/corpus.py`, and the stage-1 measurements into `results/`), and a
+lifecycle command run under its overlay writes only when confirmed. Its next ingest, like a reset
+of the corpus, needs `corpus.landing-log-key` placed first.
 
 ## Code-execution sandbox — libraries, data-piping, WASM (BUILD-SPEC §11, owner-operated)
 
