@@ -169,10 +169,10 @@ def test_a_call_reads_the_heads_a_horizon_once_and_one_statement_for_its_result(
 def test_the_head_is_read_once_a_call_whatever_lands_while_it_runs(
         cat: VaultCatalog, monkeypatch: pytest.MonkeyPatch) -> None:
     """Writes that land after a call has read the heads change nothing in its answer: an operand
-    left out is the head the call read when it started, in a signed difference, a set and a join
-    alike, and the answer's cuts, its note and its counts are those of that head (D27, SNF-19).
-    The writes land from the catalog's own connection right after the call's evaluation reads the
-    heads, two a call."""
+    left out is the head the call read when it started, in a signed difference, a set, a join and
+    a family alike, and so is the cut the `head` operator names; the answer's cuts, its note and
+    its counts are those of that head (D27, SNF-19). The writes land from the catalog's own
+    connection right after the call's evaluation reads the heads, two a call."""
 
     class Racing(Evaluation):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -197,7 +197,13 @@ def test_the_head_is_read_once_a_call_whatever_lands_while_it_runs(
     joined = ask(cat, op="join", a=A, **SOLO_ONLY)                 # read at 11; 12 and 13 land
     assert joined["cut"] == "land.1@11" and joined["note"].startswith(said("land.1@11"))
     assert joined["cuts"] == [{"read": "land.1@4"}, {"read": "land.1@11"}]
-    assert cat.head(1) == 13
+    series = ask(cat, op="measure", **SOLO_ONLY)                   # read at 13; 14 and 15 land
+    assert [(s["cut"], s["value"]) for s in series["series"]] == [("land.1@13", 3)]
+    assert series["cuts"] == [{"read": "land.1@13"}]
+    assert series["note"].startswith(said("land.1@13"))
+    named = ask(cat, op="head", **SOLO_ONLY)                       # read at 15; 16 and 17 land
+    assert named["cut"] == "land.1@15" and named["cuts"] == [{"read": "land.1@15"}]
+    assert cat.head(1) == 17
 
 
 def test_a_call_is_bounded_by_the_cuts_its_statement_names(cat: VaultCatalog) -> None:

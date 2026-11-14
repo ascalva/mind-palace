@@ -853,8 +853,7 @@ def test_a_cut_can_split_a_change_of_class_and_is_read_as_asked() -> None:
     """A change of class writes a `leave` in the chain the path leaves, then its `store` in the
     chain of its new class. No reference of §3.5 joins the two rows, so a cut that holds one of
     them and not the other is served as asked: one holds the path in both chains, the other in
-    neither, and neither is a state the catalog had. The head, and a cut of either chain alone,
-    hold it once (§3.5, §7.5)."""
+    neither, and neither is a state the catalog had. The head holds it once (§3.5, §7.5)."""
     cat = VaultCatalog(Path(":memory:"))
     cat.record("a.md", "d1", "A", provenance=Provenance.AUTHORED_SOLO)
     cat.record("b.md", "d2", "B", provenance=Provenance.CURATED)
