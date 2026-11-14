@@ -7,8 +7,8 @@
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
 [![attacks](https://img.shields.io/badge/attacks-253_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3721-brightgreen)](docs/runbook.md)
-[![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
+[![tests](https://img.shields.io/badge/tests-3757-brightgreen)](docs/runbook.md)
+[![coverage](https://img.shields.io/badge/coverage-78%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
 [![python](https://img.shields.io/badge/python-3.15-blue)](pyproject.toml)
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,721 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,757 tests
 uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
@@ -185,7 +185,7 @@ uv run python -m ops.type_gate                     # every core-reaching package
 bin/mind-palace query 'top 5 near "sleep" and diffuse S from "health.md"' --trace   # from the live checkout
 ```
 
-The suite is tiered by intent (unit, integration, property, metamorphic, adversarial, integrity, longitudinal, emergent), so an invariant regression reads differently from a flaky assertion; the property tier is the ledger's Python falsifiers. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates and are skipped when absent. Line-and-branch coverage over the deterministic tier is 77%, reported rather than gated: a structural test that deletes an illegal state matters more than a line touched.
+The suite is tiered by intent (unit, integration, property, metamorphic, adversarial, integrity, longitudinal, emergent), so an invariant regression reads differently from a flaky assertion; the property tier is the ledger's Python falsifiers. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates and are skipped when absent. Line-and-branch coverage over the deterministic tier is 78%, reported rather than gated: a structural test that deletes an illegal state matters more than a line touched.
 
 ## Running it
 
