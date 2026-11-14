@@ -38,43 +38,52 @@ warrant: null
 > the merge. Agent-drafted, filed `draft` on a branch; the merge is ratification. When the design
 > was merged nothing was built: `core/` was untouched and no store of any instance was read.
 > Every nontrivial claim carries a grade: `[THEOREM]` is machine-checked in
-> `formal/Palace/Snapshot.lean` and names its declaration; `[ESTABLISHED]` is a ratified note's,
-> a fact of the code read at the line cited, or a figure of the repository's own experiment
-> records, cited by file and line; `[DERIVED]` is argued here from those; `[MEASURED]` is a
-> figure taken for this note, for the design on a synthetic fixture by a probe that is not in the
-> repository (§11 says how, and which stage commits its harness), and from SN-1 on by a stage's
-> committed harness, on a copy of an instance's store where its record says so; `[INFERENCE]` is
-> a design call with a named falsifier; `[HYPOTHESIS]` is a claim nothing here checks, with what
-> would check it named. Code claims were read on `origin/main` at `e3e3ee47`. The article
+> `formal/Palace/Snapshot.lean` and names its declaration; `[ESTABLISHED]` is a ratified note's, a
+> fact of the code read at the line cited, or a figure of the repository's own experiment records,
+> cited by file and line; `[DERIVED]` is argued here from those; `[MEASURED]` is a figure taken
+> for this note, for the design on a synthetic fixture by a probe that is not in the repository
+> (§11 says how, and which stage commits its harness), and from SN-1 on by a stage's committed
+> harness, on a copy of an instance's store where its record says so; `[INFERENCE]` is a design
+> call with a named falsifier; `[HYPOTHESIS]` is a claim nothing here checks, with what would
+> check it named. Code claims were read on `origin/main` at `e3e3ee47`. The article
 > `papers/2026-11-10-temporal-snapshot/paper.tex` states the same theorems with proof sketches
-> and the references.  Two things were added on 2026-11-11, after the design was merged, and each
-> is marked where it stands. The owner decided what a retire does to the past (D3, §6.2), against
-> the recommendation this note had made, and the note now carries the decision wherever the
-> design rested on the seal. And six findings the review of the design left open are closed
-> (§3.1, §3.5, §5.1, §5.4). The code cited for both was read at `f969904e`.  Stage SN-1, the
-> landing log, was built the same day (§12), with its tests, its ledger rows (SNP-1 to SNP-5,
-> `docs/LAWS.md` family XVI) and its measurements on a copy of the corpus instance's catalog
-> (§11, `docs/experiments/landing-log-2026-11-11.md`). Where the build departed from §3.2 the
-> section says so where it stands: the key of a path takes half of its key from the instance's
-> secret, outside the file; a path that changes class leaves its chain by a sixth kind, `leave`;
-> and the genesis writes a renamed path's tombstone as a `move`. The review of the build added
-> three things, each marked where it stands: a purge by digest empties the tombstones of a path
-> none of whose versions keeps its content (§6.1); the first open writes the genesis for a reader
-> too, which is open for the owner (§12, SN-1); and every head costs what building the answer
-> costs, which meets SNF-6 (§4.2, §11).  On 2026-11-12 and 2026-11-13 the note was amended for
-> the cut as a lazy object and its algebra (§4.4, with §5.7, §6.5, §7.4 to §7.6, SNP-11 to SNP-17
-> in §10 and the stage SN-1b in §12). The owner decided the shape of the read of every head at a
-> cut on 2026-11-11 and 2026-11-12, and §13 records those decisions as decided (D15 to D23) and,
-> apart from them, what this amendment proposes, each as a proposal with its recommendation (D24
-> to D36). The amendment was written before its code: `core/stores/landings.py` and the code it
-> cites were read at `8d4dff3d`, the seven laws are proved in
-> `formal/Palace/SnapshotAlgebra.lean`, and the figures it adds to §11 are of probes on synthetic
-> fixtures. One rule the owner gave for every change, that a change replaces what it changes, is
-> applied to the stages of §12, and each revision it makes is listed in §13 (D29). Stage SN-1b was
-> built on 2026-11-13, the second part of the same pull request: `core/stores/cuts.py`, the cut
-> tool, their property tests and their figures on a copy of the corpus instance's catalog (§11,
+> and the references.
+>
+> Two things were added on 2026-11-11, after the design was merged, and each is marked where it
+> stands. The owner decided what a retire does to the past (D3, §6.2), against the
+> recommendation this note had made, and the note now carries the decision wherever the design
+> rested on the seal. And six findings the review of the design left open are closed (§3.1,
+> §3.5, §5.1, §5.4). The code cited for both was read at `f969904e`.
+>
+> Stage SN-1, the landing log, was built the same day (§12), with its tests, its ledger rows
+> (SNP-1 to SNP-5, `docs/LAWS.md` family XVI) and its measurements on a copy of the corpus
+> instance's catalog (§11, `docs/experiments/landing-log-2026-11-11.md`). Where the build
+> departed from §3.2 the section says so where it stands: the key of a path takes half of its
+> key from the instance's secret, outside the file; a path that changes class leaves its chain
+> by a sixth kind, `leave`; and the genesis writes a renamed path's tombstone as a `move`. The
+> review of the build added three things, each marked where it stands: a purge by digest empties
+> the tombstones of a path none of whose versions keeps its content (§6.1); the first open writes
+> the genesis for a reader too, which is open for the owner (§12, SN-1); and every head costs
+> what building the answer costs, which meets SNF-6 (§4.2, §11).
+>
+> On 2026-11-12 and 2026-11-13 the note was amended for the cut as a lazy object and its algebra
+> (§4.4, with §5.7, §6.5, §7.4 to §7.6, SNP-11 to SNP-17 in §10 and the stage SN-1b in §12). The
+> owner decided the shape of the read of every head at a cut on 2026-11-11 and 2026-11-12, and §13
+> records those decisions as decided (D15 to D23) and, apart from them, what this amendment
+> proposes, each as a proposal with its recommendation (D24 to D36). The amendment was written
+> before its code: `core/stores/landings.py` and the code it cites were read at `8d4dff3d`, the
+> seven laws are proved in `formal/Palace/SnapshotAlgebra.lean`, and the figures it adds to §11 are
+> of probes on synthetic fixtures. One rule the owner gave for every change, that a new form takes
+> the place of the old with nothing kept beside it, is applied to the stages of §12, and each
+> revision it makes is listed in §13 (D29). Stage SN-1b was built on 2026-11-13, the second part of
+> the same pull request: `core/stores/cuts.py`, the cut tool, their property tests and their
+> figures on a copy of the corpus instance's catalog (§11,
 > `docs/experiments/cut-algebra-2026-11-13.md`). Where the build departed from §4.4 or §7.5, §12
-> says so under SN-1b.
+> says so under SN-1b. The review of that build corrected four things the amendment had said, each
+> marked where it stands: a cut can split a change of class, which no reference of §3.5 joins
+> (§3.5, §7.5); a grant's test of rows inside a chain shows the rows it hides through the stamps of
+> those it shows (§6.5); what three of its citations state (§4.4, §10); and what the tool reads
+> before its outermost operator (§4.4, §7.5).
 
 ## 1. Purpose and scope
 
@@ -742,6 +751,20 @@ A causal edge reads from the turn that witnessed it and, when it ends at a commi
 commit (`causal_edges.py:58-60`, `integrator.py:134-137`); it is recomputed at a cut (§5.5), so
 it is a filter of a read and no row of a chain.
 
+**A change of class, which neither list holds (added 2026-11-13).** A `record` that gives a path
+another class writes two rows in one transaction: a `leave` that closes the path in the chain of
+its old class, then its `store` in a chain of the new one (`core/stores/landings.py:446-457`,
+§3.2). The `store` follows the `leave`, and no reference above says so; the review of SN-1b found
+the pair missing from the list. So a frontier can split it. One that holds the `store` and not the
+`leave` holds the path in both chains, and one that holds the `leave` and not the `store` holds
+it in neither: a state the catalog never had, either way. Were the `store` a resolved reference
+of the `leave`, the first frontier would be inconsistent, and the resolver would lower the new
+chain under the `store`; the second would stay consistent, as a message sent and not yet received
+leaves a cut of a distributed computation consistent, and would still hold the path in no class.
+Which the pair becomes, and where its bound is recorded, is open (Open questions); until it is
+decided, such a frontier is read as asked and the tool says so (§7.5). `[ESTABLISHED: read off
+the writer; DERIVED for the two frontiers, checked by tests/property/test_cut_algebra.py]`
+
 A cut is **consistent** when every source of an event inside it is inside it (`Consistent`): no
 fact whose sources lie after the cut, every cross-chain reference closed. `[THEOREM: SNP-8]`
 
@@ -996,8 +1019,10 @@ contents replace `heads_at`, and no eager list is kept beside them (D20, D29). W
 on a synthetic chain of 150,002 rows with 100,000 heads: the count walks the prefix and builds
 nothing, 19 ms, 0.13 µs an event; three columns of every head, the position, the path's key and
 the digest, come back as three buffers in 49 ms, 0.49 µs a head, against 381 ms for a row a
-head; and a difference from another cut costs what changed between the two, 0.6 ms for a
-thousand positions, against 150 to 170 ms for two reads and a set difference. `[MEASURED §11]`
+head. And on one of 200,002 rows with 100,000 heads, a difference from another cut costs what
+changed between the two: over a thousand positions 0.6 ms for the rows come and 2.0 ms for the
+rows gone, against 150 to 170 ms for two reads and a set difference. `[MEASURED §11, at a load
+average that was not recorded; the corpus figures below, which carry theirs, supersede them]`
 
 The size half is not decided: the owner did not rule on the threshold. This note keeps SNF-6's
 bar, a tenth of a second, as a recommendation (§13, D30), and keeps the rule a rule by size. The
@@ -1035,10 +1060,10 @@ already.
 ### 4.4 The cut as a lazy object, and its algebra
 
 Added on 2026-11-12. The owner decided on 2026-11-11 and 2026-11-12 what the object is (§13,
-D15 to D23): a cut is a graph object and it is lazy; two cuts act on each other through
-operators; any operation can run on one cut and a set of cuts can be operated on; union and
-intersection are wanted in both meanings, on positions and on contents; and a cut holds, for each
-node, the version alive at it. This section is the design that carries those decisions out over
+D15 to D23): the palace's graph at a cut, evaluated lazily; operators that take one cut with
+another, and operations of any kind on one cut or on a set of cuts; the two meanings of a union
+and an intersection, of positions and of contents, both kept; and each node held at a cut in the
+version alive there. This section is the design that carries those decisions out over
 the landing log. What it adds to them is this note's proposal, recorded as such in §13 (D24 to
 D36). Its laws are SNP-11 to SNP-17 (§10), proved in `formal/Palace/SnapshotAlgebra.lean`; stage
 SN-1b builds it (§12); what a cut's graph is beyond its versions, the edges and the mathematics
@@ -1046,11 +1071,12 @@ on them, is §5.7 and stage SN-4.
 
 **The objects.** Each is a value that names something and reads nothing. The table says what
 each holds before anything is read and what reading it costs; the costs are of the probes of
-§11, on synthetic chains. `[MEASURED §11 for the costs]`
+§11, on synthetic chains, at a load average that was not recorded, and SN-1b's figures on the
+corpus's catalog, which carry theirs, are in §11. `[MEASURED §11 for the costs]`
 
 | object | what it is | what it holds, unread | what reading it costs |
 |---|---|---|---|
-| a cut | a frontier: one position a chain (§3.3). Before SN-2 the chains it names are the landing chains; SN-2 adds the others to the same value | the positions, a few integers. It is immutable and hashable, and equal cuts are one key | nothing. A cut is never read; its contents and its events are |
+| a cut | a frontier: one position a chain (§3.3). Before SN-2 the chains it names are the landing chains; SN-2 adds the others to the same value | the positions, a few integers. It is immutable and hashable, and equal cuts are one key | nothing of what it holds: its contents and its events are read, not the cut. A position named under a chain's head is checked against the chain's horizon, a walk of the chain made once an evaluation (§7.5) |
 | the events between two cuts | the difference on positions: on each chain, the events after the first cut's position and up to the second's (`readBetween`) | the two cuts | a range of the log's primary key: 0.6 ms a thousand events |
 | the contents of a cut, under a grant | the versions the cut holds on the chains the grant names: the `store` rows alive at it that no purge emptied | the cut, the chains, and a predicate on a row's position and its closing stamp | a count walks the prefix and builds nothing, 0.13 µs an event; the rows come back as columns, 0.49 µs a head for three columns |
 | a set of versions | the contents of a cut, or the union, the intersection or the difference of two sets | an expression: the cuts it names and how they are combined | one statement, whose predicate is the expression |
@@ -1063,16 +1089,18 @@ is this note's reading of the owner's decision that a change to a node makes a n
 the node and not a new node (D23), and it is proposed as such (D31). A path that returns to
 bytes it held before lands a new version, as it appends a new row to the log and, in the place
 that keeps version chains, a new version there (§2.3, item 2). The digest, the title, the
-identity and the version number are columns of the version. What the version is made of, its
-chunks and their vectors, is the node design's, a separate track, and nothing here assumes its
-shape (§5.7).
+identity and the version number are columns of the version. What the version is made of is the
+node design's, a separate track, and nothing here assumes its shape (§5.7).
 
-**The operators and their types.** Every operator takes values of the table and returns one, so
-a result is an operand again. `[THEOREM: SNP-11, SNP-13, SNP-14 for the closure]`
+**The operators and their types.** A cut, a set and a signed difference that an operator returns
+are operands of the next, so those results compose. `[THEOREM: SNP-11, SNP-13, SNP-14 for the
+closure]` The other results are answers and no operand: the events between two cuts are counted
+or listed, and a truth value, an order, a number, a series, a table and rows are typed as what
+they are, and no operator takes one.
 
 | operator | takes | returns |
 |---|---|---|
-| the order, equality | two cuts | a truth value |
+| the order, equality | two cuts | a truth value; with `order`, which of equal, before, after and unordered |
 | the join and the meet | two cuts | a cut |
 | the bottom; the head | nothing; the store | a cut |
 | between | two cuts | the events between them |
@@ -1081,7 +1109,8 @@ a result is an operand again. `[THEOREM: SNP-11, SNP-13, SNP-14 for the closure]
 | the signed difference | two cuts | a pair of sets, the rows gone and the rows come |
 | a difference applied; two differences composed | a set and a difference; two differences through a cut between | a set; a difference |
 | what every cut holds; what some cut holds | a family | a set |
-| the count; in how many cuts | a set; a family and a version | a number |
+| the count | a set | a number |
+| in how many | a set and a family | the rows of the set, each with the number of the family's cuts that hold it |
 | a measure at each cut; the sizes of the pairwise differences | a family | a series; a table |
 | the rows | a set | columns |
 
@@ -1188,22 +1217,25 @@ the rows gone, which the first holds and the second does not, and the rows come 
   (`Witness.delta_through_outside`): it rests on contiguity.
 - *Counted.* A sum over the rows at the second cut is the sum at the first, less the sum over
   the rows gone, with the sum over the rows come, between any two cuts (`Held.sum_rows_delta`);
-  the count is the case of the measure one (`Held.length_rows_delta`). The sizes of the
-  differences obey the triangle inequality (`Held.has_gone_triangle`).
-- *Sorted.* Read, the rows sort by the path's key within a chain: a path with a row on each
-  side is **replaced**, its head having moved to another version; a path with a row gone only is
-  **removed**; with a row come only, **added**. Every row is in one class
-  (`mem_gone_iff`, `not_replacedOf_of_removedOf`, `mem_come_iff`), and a side holds one row a
-  path, since a cut does. The pairing is within a chain: a path that changes class leaves one
-  chain and lands in another (§3.2), so it is removed in the first and added in the second, and
-  a rename is a removal at the old path and an addition at the new one, both rows carrying the
-  one identity (D32).
+  the count is the case of the measure one (`Held.length_rows_delta`). A row gone from a first
+  cut to a third is gone in one of the two steps through any cut (`Held.has_gone_triangle`), so
+  the sizes of the differences obey the triangle inequality; the library states the rows, and
+  the sizes follow. `[DERIVED for the sizes]`
+- *Sorted.* Read, the rows sort by the path's key within a chain: a path with a row on each side is
+  **replaced**, its head having moved to another version; a path with a row gone only is
+  **removed**; with a row come only, **added**. Each row gone is removed or the first of a replaced
+  pair, and not both (`mem_gone_iff`, `not_replacedOf_of_removedOf`); each row come is added or the
+  second of a pair (`mem_come_iff`), and that it is not both is attacked (seed 547) and tested, not
+  proved. A side holds one row a path, since a cut does. The pairing is within a chain: a path that
+  changes class leaves one chain and lands in another (§3.2), so it is removed in the first and
+  added in the second, and a rename is a removal at the old path and an addition at the new one,
+  both rows carrying the one identity (D32).
 - *On the log.* The two range reads of the table above, and the pairing in the reader over the
   rows read. The cost grows with what changed: on the fixture 0.6 µs an event between for the
   rows come and 2.0 µs a row closed between for the rows gone, against two reads of the contents
   and a set difference, 150 to 170 ms at 100,000 heads whatever changed. When the two cuts span
   the whole chain the range reads walk everything, 235 ms there, about one and a half times the
-  two reads. `[MEASURED §11]`
+  two reads. `[MEASURED §11, the load not recorded; SN-1b's corpus figures are in §11]`
 - *Against §7.4.* Every row of the signed difference belongs to a path that an event between
   the two cuts names (`key_mem_of_mem_delta`), so the region of §7.4 is sound for the signed
   difference as it is for the state: outside it nothing is gone and nothing has come. The region
@@ -1214,17 +1246,18 @@ the rows gone, which the first holds and the second does not, and the rows come 
   version left and which arrived: a path that returned to the bytes it had is a member of both,
   and the difference carries the two digests, which are equal, so a use can set it aside.
 
-**Contents against positions.** `[THEOREM: SNP-15]` The owner decided that union and
-intersection are kept in both meanings (D22). They are two operators each, and they differ.
-What either of two cuts holds is what their join holds, with the rows closed between their meet
-and their join; what both hold is what their meet holds, less those rows (`Held.has_union_cut`,
-`Held.has_inter_cut`). So the union on contents holds both versions of a note edited between two
-cuts, and the cut at the joined positions holds the later one alone
-(`Witness.union_ne_join`). The two meanings agree exactly on the rows that are never closed
-(`Gen.aliveAt_sup_of_open`, `Gen.aliveAt_inf_of_open`): in a class where every path lands once
-and nothing is edited, renamed, retired or reclassified, the contents of the join are the union
-of the contents. The types tell them apart: a join and a meet return a cut, a union and an
-intersection a set of versions (D26).
+**Contents against positions.** `[THEOREM: SNP-15]` The owner decided that union and intersection
+are kept in both meanings (D22). They are two operators each, and they differ. What either of two
+cuts holds is what their join holds, with the rows closed between their meet and their join
+(`Held.has_union_cut`). What both hold is what their meet and their join both hold
+(`Held.has_inter_cut`): on each chain the two cuts in their order, which reads as the rows the meet
+holds less those closed by the join, one range read. `[DERIVED for the range read]` So the union on
+contents holds both versions of a note edited between two cuts, and the cut at the joined positions
+holds the later one alone (`Witness.union_ne_join`). The two meanings agree exactly on the rows
+that are never closed (`Gen.aliveAt_sup_of_open`, `Gen.aliveAt_inf_of_open`): in a class where
+every path lands once and nothing is edited, renamed, retired or reclassified, the contents of the
+join are the union of the contents. The types tell them apart: a join and a meet return a cut, a
+union and an intersection a set of versions (D26).
 
 **A family of cuts.** Each operation is built on the four forms. `[THEOREM: SNP-12, SNP-13,
 SNP-14; DERIVED where said]`
@@ -1233,9 +1266,9 @@ SNP-14; DERIVED where said]`
 |---|---|---|---|
 | what persisted through all | what the family's meet and its join both hold: on each chain, the least and the greatest of its positions (`Held.has_all_eq_kept`) | the third statement above, once a chain | the prefix at the meet, whatever the size of the family |
 | what existed in any | the union of the contents (`Held.has_any`). It lies inside the rows alive at some position between the meet and the join, `seq <= :hi AND (closed_at IS NULL OR closed_at > :lo)`, and is less by the rows stored and closed between two cuts of the family (`Gen.exists_aliveAt_iff` for the range) | the disjunction of the family's predicates | the prefix at the join |
-| in how many | the number of the family's cuts in the row's interval (`countIn_pos_iff`, `countIn_eq_length_iff`) | read with the row, from its position and its stamp | with the rows it is asked of |
+| in how many | the number of the family's cuts in the row's interval (`countIn_pos_iff`, `countIn_eq_length_iff`) | read with the row, from its position and its stamp; how many rows every cut holds is the count of the set and what persisted through the family | with the rows it is asked of, and a count |
 | a measure at each cut | a map; for a measure that is a sum over the rows, the first cut's value and then each next value from the last by the signed difference (`Held.sum_rows_delta`) | one read of the first cut and two range reads a step | the first cut's prefix, then what changed |
-| the sizes of the pairwise differences | a table `D` with `D[i][j]` the count of what cut `i` holds and cut `j` does not. `D[i][j] − D[j][i]` is the difference of the two counts, and `D[i][k] ≤ D[i][j] + D[j][k]` (`Held.length_rows_delta`, `Held.has_gone_triangle`) | one read of the rows alive at some position of the family's range, each counted into the table by the run of cuts its interval covers | that range once, and the square of the family for the table |
+| the sizes of the pairwise differences | a table `D` with `D[i][j]` the count of what cut `i` holds and cut `j` does not. `D[i][j] − D[j][i]` is the difference of the two counts (`Held.length_rows_delta`), and `D[i][k] ≤ D[i][j] + D[j][k]`, since a row gone from `i` to `k` is gone from `i` to `j` or from `j` to `k` (`Held.has_gone_triangle`) | one read of the rows alive at some position of the family's range, each counted into the table by the run of cuts its interval covers | that range once, and the square of the family for the table |
 
 A family need not be ordered. The signed difference between two cuts neither of which is under
 the other is taken chain by chain, each chain in its own direction, and the count walks it all
@@ -1477,18 +1510,15 @@ SN-1b, whose contents are the nodes and no edge (§12).
 
 **A node and its version.** A node persists across its versions: an edit lands a new version of
 the node and not a new node (D23), and the cut holds, for each node, the version alive at it.
-What a version is made of is the node design's, a separate track. It rests on the owner's
-decisions of 2026-11-11 and 2026-11-12, which are recorded with that track and not in §13: a
-node's chunk vectors are never averaged into one vector, every use reads them the same way, and
-a version is made of chunks at every size, a tree in which a larger chunk is composed of smaller
-ones, each a hash and optionally a vector. So this note fixes three things about a node and no
-more. The interface hands an operator the node's version at the cut as its parts. An
-operation on a node is taken from the node design's one definition, the same in every instance,
-and a use chooses which operations it applies and never how one is computed (D21). And nothing
-here assumes a version has one vector or one size of chunk. The universe as built does assume it:
-it averages a node's rows into one vector (`core/sentence/universe.py:204-207`) and compares
-those (`universe.py:930-937`). That is the present's code, which the node design replaces, and
-SN-4 is built on what replaces it. `[ESTABLISHED for the code, read at 8d4dff3d]`
+What a version is made of is the node design's, a separate track, and this note does not record
+it. The interface assumes three things about a node and no more. It hands an operator the node's
+version at the cut as its parts, with no one vector standing for the version. An operation on a
+node is taken from one definition, the same in every instance, and a use chooses which operations
+it applies and never how one is computed (D21). And nothing here assumes a version has one vector
+or one size of part. The universe as built does: it averages a node's rows into one vector
+(`core/sentence/universe.py:204-207`) and compares those (`universe.py:930-937`). That is the
+present's code, and SN-4 is built on what the node design gives in its place. `[ESTABLISHED for
+the code, read at 8d4dff3d; INFERENCE for the interface, D25]`
 
 **Which species follow from the node difference.** The signed difference of two cuts (§4.4)
 names the nodes removed, added and replaced. An edge species follows from it when the edges that
@@ -1588,7 +1618,7 @@ this note's proposal, D25; falsifier SNF-18]`
 |---|---|---|
 | the cut | the cut read, chain by chain on the chains the grant names (§7.1) | nothing |
 | the nodes, of some classes or of all the grant reads | a set of versions (§4.4), one a node: an operand of every set operator, with its count and its columns | as §4.4: a count walks the prefix, columns are read as buffers, a difference from another cut's nodes costs what changed |
-| a node's version | the version alive at the cut, as its parts: the tree of chunks the node design defines, each part with its hash and, where it is derived, its vector. A part that is pending says so | on the call: the version's rows in the stores that hold them, by the digest the log names (§5.2, §5.3) |
+| a node's version | the version alive at the cut, as its parts, as the node design defines them: each part with what names it and, where it is derived, its vector. A part that is pending says so | on the call: the version's rows in the stores that hold them, by the digest the log names (§5.2, §5.3) |
 | the edges of a species, among some nodes or all | columns: the source, the target, the weight, and the sign for a signed relation | on the read, by the species' rule at a cut (§7.2) |
 | a sparse matrix of a species | the matrix in compressed rows with the index of its nodes, weights as the species defines them | on the call; built from the edge columns |
 | a neighbourhood of a node | the nodes and the edges within a number of steps along a species | on the call, by a seek where the species' store has one (`F`, `C`, the relations) and by the node's own comparisons for `S`; the species is not loaded whole |
@@ -1917,17 +1947,26 @@ the algebra as they are of a read, and neither is a function of a cut.
   chain and lands in another (§3.2): an asker whose grant names the first and not the second is
   shown the removal and not the addition, which is what a read of its own class shows it at the
   head.
-- A test of a row that a grant applies inside a chain is applied after the set is read, with
-  which it commutes (`Held.rows_filter`). Applied to the chain before its closing stamps are
-  computed it moves the positions and the stamps (`Witness.filter_before_gens`), the same
-  failure as an event filter applied before the cut (§6.3). What must be hidden in number is
-  hidden by chain: a count of the events between two positions of a chain counts every event of
-  it (`Witness.position_channel`).
+- A test of a row that a grant applies inside a chain is applied after the set is read, with which
+  it commutes (`Held.rows_filter`). Applied to the chain before its closing stamps are computed it
+  moves the positions and the stamps (`Witness.filter_before_gens`), the same failure as an event
+  filter applied before the cut (§6.3). Applied after, it leaves the stamps computed over every row
+  of the chain, and a row's stamp is the position of its path's next event
+  (`exists_next_of_mem_gens`). So a row the test shows names, by its stamp, the position of the row
+  that closed it, a row of the same path that the test may hide: whether a version is in the set at
+  a cut then shows whether the hidden row after it is of its path, where the read at the cut under
+  the same test (`snapshot`) shows only the rows the test keeps (added 2026-11-13). `[DERIVED from
+  the stamp's definition]` What must be hidden is hidden by chain, in position as in number: a
+  count of the events between two positions of a chain counts every event of it
+  (`Witness.position_channel`), and a stamp names an event of the chain whatever the test.
 
-No operator opens a channel the read at a cut did not have, since each is a function of reads
-the grant already restricts. One thing a cut's name shows is not content and is said here: a
-landing chain's id is given in the order the chains were opened, over every class, so an asker
-shown the id of one of its chains can bound how many chains were opened before it. That is a
+For a grant that names whole chains, no operator opens a channel the read at a cut did not have,
+since each is a function of reads the grant already restricts (`Held.across_congr`). A test of rows
+inside a chain is not such a grant, as the last item says. SN-1b's grants name whole classes, and
+its one test of rows, the version's own, hides nothing from the asker: the events between two cuts
+list every row of the chains it reads. One thing a cut's name shows is not content and is said
+here: a landing chain's id is given in the order the chains were opened, over every class, so an
+asker shown the id of one of its chains can bound how many chains were opened before it. That is a
 count of classes and merges of the instance, not of any class's landings. `[DERIVED]` The tool
 names a cut on the chains the asker's grant names and on no other (§7.5), and a cut given to it
 that names another chain is refused in the words it uses for a chain that does not exist.
@@ -2066,7 +2105,7 @@ The mode of a clause follows from its scope (`core/query.py:273-281`).
 
 | species | at a cut |
 |---|---|
-| `S`, similarity | recomputed from the versions alive at the cut, within a stratum. Today the comparison is of one averaged vector a node (`core/sentence/universe.py:733-739`), which the node design replaces; §5.7 says which edges follow from the difference of two cuts. No edge at a pending node |
+| `S`, similarity | recomputed from the versions alive at the cut, within a stratum. Today the comparison is of one averaged vector a node (`core/sentence/universe.py:204-207`, `:930-937`, read at `8d4dff3d`); §5.7 says what the interface assumes in its place and which edges follow from the difference of two cuts. No edge at a pending node |
 | `F`, citation | the edges of the reading at the commit; a reading is whole, so nothing is inferred between commits |
 | `D`, supersession | consecutive versions of the chain's prefix; at the node grain it is empty today and stays so (`universe.py:810`) |
 | `C`, causal witness | an edge whose witness turn is inside the cut on `chat` and whose commit, if it ends at one, is inside the cut on `repo` |
@@ -2172,11 +2211,13 @@ through the tool (§7.5), and where the sentence surface takes it later is §7.6
 
 ### 7.5 The tool
 
-Added on 2026-11-12. The engine and a tool come first and the sentence grammar later (D18). The
-tool is one tool of the palace's MCP server, `cut`, whose handler is a module of its own
-(`agents/ambassador/cut_tool.py`) over the engine (`core/stores/cuts.py`); SN-1b builds both and
-registers the tool for the Ambassador (§12). Everything about its surface is this note's
-proposal (D26, D27, D28, D34, D36). `[INFERENCE, falsifiers SNF-19, SNF-20]`
+Added on 2026-11-12. The engine and its tool are built before the grammar takes the algebra
+(D18). The tool is one tool of the palace's MCP server, `cut`, whose handler is a module of its
+own (`agents/ambassador/cut_tool.py`) over the engine (`core/stores/cuts.py`); SN-1b builds both
+and registers the tool for the Ambassador (§12). The server opens the catalog's file to only read
+for each call (`read_only`), so a call takes no lock a writer waits on and writes nothing.
+Everything about its surface is this note's proposal (D26, D27, D28, D34, D36). `[INFERENCE,
+falsifiers SNF-19, SNF-20]`
 
 **What it delivers.** The cut as a value, the contents of a cut and the algebra over them, on
 the landing log. It is not yet the graph: the edges and the graph mathematics at a cut arrive
@@ -2195,7 +2236,11 @@ with SN-4, through the interface of §5.7. Every answer of the tool says so in i
 
 An operand that is a call is how a result is an operand again: the union of two differences is
 `union` with a `difference` in `a` and another in `b`. The whole call composes to one
-expression, and nothing is read before the outermost operator needs it (§4.4).
+expression. Before its outermost operator reads, a call reads the heads, when it starts, and the
+horizon of a chain a position is named on (below); a set of any depth is then one statement
+(§4.4). A call's sets name at most 256 cuts, counted each time their statement names one, so that
+a short call cannot ask for a statement of any size; a call over the bound is refused before a
+statement is written.
 
 **How a cut is named.** By one of four forms, and an answer prints every cut it read in the
 third, so that a cut is copied from an answer into a question.
@@ -2210,9 +2255,15 @@ third, so that a cut is copied from an answer into a question.
 
 A cut is read as §7.1 says. A position past a chain's head is refused, and the refusal names the
 head. A position under a chain's horizon is not served (§8): the chain is read at its empty
-prefix and the answer says so. Before SN-2 no landing chain reads another chain that a cut
-names, so every frontier of landing chains is consistent and the cut read is the cut asked with
-each chain at the greatest position it serves.
+prefix and the answer says so. No index finds a chain's horizon row, so a position named under a
+chain's head walks the chain back to it; an evaluation walks no row twice, so a call walks a
+chain once, and a position at the head not at all. Before SN-2 no reference of §3.5 lowers a
+landing chain, so the cut read is the cut asked with each chain at the greatest position it
+serves. That does not make every frontier of landing chains a state the catalog had, as this
+paragraph said until 2026-11-13: a change of class writes a `leave` in one chain and the `store`
+in another, which no reference joins (§3.5), and a cut over two chains that is neither the head
+nor the bottom can hold one of the two rows without the other, and so the path in both classes or
+in neither. Such a cut is read as asked, and the note says so (below).
 
 **The default.** An operand left out is the head, and so is an operand of a family when the
 family is given none. The head is read once, when the evaluation starts, and every operand that
@@ -2235,7 +2286,7 @@ names, and their results differ in type (D22, D26).
 | `compose` | `a`, `b` two signed differences that share a cut between their outer ones | a signed difference; refused when the shared cut is not between | composed |
 | `persisted`, `existed` | `cuts` | a set: what every cut of the family holds; what some cut holds | a family |
 | `count` | `a` a cut or a set | a number | the count |
-| `in_how_many` | `cuts`, and `a` a set | the rows of the set, each with the number of the family's cuts that hold it | a family |
+| `in_how_many` | `cuts`, and `a` a set | rows: the set's first `limit` rows, each with the number of the family's cuts that hold it, the set's count, and how many of its rows every cut holds | a family |
 | `measure` | `cuts`, and `of`, the measure's name | a series, one value a cut. At SN-1b the one measure is `count`; SN-4 adds the measures of a graph | a family |
 | `pairwise` | `cuts` | a table: for each ordered pair, the count of what the first holds and the second does not | a family |
 
@@ -2246,18 +2297,22 @@ one the operator takes: a `join` of two sets is the mistake the two names exist 
 **The answer.** One object:
 
 - `op` and `type`: what was asked, and whether the result is a cut, events, a set, a signed
-  difference, a number, a series, a table or an order.
+  difference, a number, rows, a series, a table or an order.
 - `cuts`: every cut the evaluation read, in the order the expression names them, each by its
-  positions on the chains the grant names, with the cut asked beside it where the two differ.
+  positions on the chains the grant names, and once beside each cut asked for it where the two
+  differ, so a cut read for two names that differ is listed beside each.
 - the result: for a cut, its positions; for a set, its `count`; for a signed difference,
   `removed`, `added` and `replaced`; for the others, the number, the series or the table.
 - `rows`, when `list` is set: for each row its chain, its position, its path, its identity, its
   digest, its title and its version number; for a replaced path, the two rows. `truncated` says
   whether `limit` cut the list.
-- `note`: sentences, in this order where each applies. That no cut was named and the head was
-  read, with its positions. Each chain read below the position asked, and why (§7.1). How many
-  rows of the ranges read are holes (D33). That the result is of the versions the landing log
-  holds, and that edges and graph mathematics at a cut arrive with SN-4.
+- `note`: sentences, in this order where each applies. That no cut was named and the head was read,
+  with its positions. Each chain read below the position asked, and why (§7.1). That a cut that is
+  neither the head nor the bottom can split a change of class, when the answer reads what cuts hold
+  on two chains or more at such a cut: the tool cannot tell whether one is split without reading
+  every change of class in the range (§3.5). How many rows of the ranges read are holes (D33). That
+  the result is of the versions the landing log holds, and that edges and graph mathematics at a
+  cut arrive with SN-4.
 
 The same call with the cuts of `cuts` in place of its defaults returns the same result whatever
 has landed since, under the same grant and the same erasure (§4.4, the default operand).
@@ -2709,27 +2764,29 @@ transcribes it.
   of the four statements of §4.4 against the reference fold at every pair of positions of a
   random log; a row alive at two positions alive at every position between; and one row a path
   in the contents of every cut.
-- **SNP-13 the signed difference.** Each side of the signed difference is one range read
-  between two cuts in order (`Held.has_come`, `Held.has_gone`). Applied to what the first cut
-  holds it gives what the second holds (`Held.has_cut_eq_apply`). Differences compose through a
-  cut between the two, a row that came and went on the way being on neither side, and their
-  sizes obey the triangle inequality (`Held.has_come_trans`, `Held.has_gone_trans`,
-  `Held.has_trans_of_transient`, `Held.has_gone_triangle`). A sum over the rows at the second
-  cut is the sum at the first less the rows gone, with the rows come, and so is the count
-  (`Held.sum_rows_delta`, `Held.length_rows_delta`). The rows sort by key into removed, added
-  and replaced, each row in one class (`mem_gone_iff`, `not_replacedOf_of_removedOf`,
-  `mem_come_iff`). Every row of the difference belongs to a key the events between the two cuts
-  name (`key_mem_of_mem_delta`). By construction: the pairing is by key within one chain; a
-  path's identity, a rename and a change of class are the code's (D32). Controls: a composition
-  through a cut outside the two (`Witness.delta_through_outside`, 544); the count that forgets
-  the rows gone (546); the events between two cuts taken for the signed difference
-  (`Witness.changed_not_delta`, 549). Attacks 543, 545, 547, 548. The test, at SN-1b: the two
-  sides against the set difference of the reference fold's contents at the two cuts, in both
-  orders and for cuts neither of which is under the other; the contents of the second cut from
+- **SNP-13 the signed difference.** Each side of the signed difference is one range read between
+  two cuts in order (`Held.has_come`, `Held.has_gone`). Applied to what the first cut holds it
+  gives what the second holds (`Held.has_cut_eq_apply`). Differences compose through a cut between
+  the two, a row that came and went on the way being on neither side (`Held.has_come_trans`,
+  `Held.has_gone_trans`, `Held.has_trans_of_transient`), and a row gone from a first cut to a third
+  is gone in one of the two steps through any cut (`Held.has_gone_triangle`), from which their
+  sizes obey the triangle inequality. A sum over the rows at the second cut is the sum at the first
+  less the rows gone, with the rows come, and so is the count (`Held.sum_rows_delta`,
+  `Held.length_rows_delta`). The rows sort by key into removed, added and replaced: each row gone
+  is removed or the first of a replaced pair and not both, and each row come is added or the second
+  of a pair (`mem_gone_iff`, `not_replacedOf_of_removedOf`, `mem_come_iff`); that a row come is not
+  both is attacked (547) and tested, not proved. Every row of the difference belongs to a key the
+  events between the two cuts name (`key_mem_of_mem_delta`). By construction: the pairing is by key
+  within one chain; a path's identity, a rename and a change of class are the code's (D32).
+  Controls: a composition through a cut outside the two (`Witness.delta_through_outside`, 544); the
+  count that forgets the rows gone (546); the events between two cuts taken for the signed
+  difference (`Witness.changed_not_delta`, 549). Attacks 543, 545, 547, 548. The test, at SN-1b:
+  the two sides against the set difference of the reference fold's contents at the two cuts, in
+  both orders and for cuts neither of which is under the other; the contents of the second cut from
   those of the first and the difference; composition through every cut between, and its failure
-  through one outside as the control; the count at each cut of a family walked by the
-  differences against the count read; the three classes disjoint and covering, with one row a
-  path a side; and every path of the difference among the paths `read_between` names.
+  through one outside as the control; the count at each cut of a family walked by the differences
+  against the count read; the three classes disjoint and covering, with one row a path a side; and
+  every path of the difference among the paths `read_between` names.
 - **SNP-14 closure.** A set of rows is an expression over the contents of cuts under union,
   intersection and difference, and a set read is the set operation on the reads, so every
   result is an operand again (`Held.mem_rows_union`, `Held.mem_rows_inter`,
@@ -2901,11 +2958,13 @@ at a recorded cut shortens the walk, not the building of the answer (§4.2).
 
 **Measured for the algebra of cuts, before its code (added 2026-11-12).** Four probes, none in the
 repository: SN-1b commits the harness of what it builds and measures it again on a copy of the
-corpus instance's catalog (§12). The fixtures are synthetic and are built by the probes in temporary
-files or in memory. The same machine with other work running, the load average near 3 during the
-fourth probe and not recorded for the others; Python 3.15.2, SQLite 3.54.1, NumPy 2.5.4, SciPy
-1.18.1; the log's tables and indexes as `core/stores/landings.py` creates them, with the landing-log
-secret a test value from the environment. `[MEASURED]`
+corpus instance's catalog (§12). The fixtures are synthetic and are built by the probes in
+temporary files or in memory. The same machine with other work running, the load average near 3
+during the fourth probe. It was not recorded for the second and the third, whose times §4.2 and
+§4.4 use and mark so, and the first times nothing; SN-1b's figures on the corpus's catalog, below,
+carry their load. Python 3.15.2, SQLite 3.54.1, NumPy 2.5.4, SciPy 1.18.1; the log's tables and
+indexes as `core/stores/landings.py` creates them, with the landing-log secret a test value from
+the environment. `[MEASURED]`
 
 | probe | fixture | result |
 |---|---|---|
@@ -3167,13 +3226,26 @@ lists each revision.
     two of its cuts (§4.4's table).
   - *A position under a horizon.* The tool resolves a cut's name with `Evaluation.served`, whose
     statement walks the rows from the position named back to the chain's horizon row, since no
-    index finds a horizon row; a position at the head needs no walk. The engine reads a cut at
-    the positions it is given, as the laws are stated.
+    index finds a horizon row; a position at the head needs no walk, and an evaluation walks no
+    row twice (`Evaluation.serves`), so a call walks each chain once. The engine reads a cut at
+    the positions it is given, as the laws are stated, and a frontier that splits a change of
+    class as asked (§3.5).
   - *The tool.* `measure` takes `of`, `count` its one value and its default. What `in_how_many`
-    returns is an answer of the type `rows`, which §7.5's list of types lacks. `count` is a
-    number, refused as an operand like any number. A call nests at most 32 calls, a family has
-    at most 64 cuts, and at most 1,000 rows are listed. The answer's `cuts` lists the cuts named,
-    the head where an operand was left out, and the cuts a `join` or a `meet` made.
+    returns is an answer of the type `rows`, added to §7.5's list of types. `count` is a number,
+    refused as an operand like any number. A call nests at most 32 calls, a family has at most
+    64 cuts, and at most 1,000 rows are listed. The answer's `cuts` lists the cuts named, the
+    head where an operand was left out, and the cuts a `join` or a `meet` made.
+  - *Repaired after review, 2026-11-13.* A call's sets name at most 256 cuts, counted each time
+    their statement names one (`TERMS`, `Versions.terms`): the nesting bound does not bound a
+    statement's size, since a composition of differences repeats its operands, and the
+    symmetric difference, which wrote each operand twice, is now one node whose statement names
+    each once. `in_how_many` reads the rows it lists, the first `limit`, and counts the rows
+    every cut holds as what the set and the family's persisted set both hold. A cut read for two
+    names that differ is listed beside each. The server opens the catalog's file to only read
+    for each call (`core.stores.cuts.read_only`): opening the catalog itself runs its migration,
+    a write transaction, at every open, so a call had waited on a writer and failed after five
+    seconds. And the note of an answer that reads what cuts hold says that a cut can split a
+    change of class (§3.5, §7.5).
   - *Measured* (§11): every head counted passes SNF-6's bar on the corpus chain and as columns
     does not, which sets §4.2's size (D30); a signed difference costs what changed.
 
@@ -3436,26 +3508,30 @@ and the default the design is written on until the owner confirms or changes it.
 
 Decided by the owner on 2026-11-11 and 2026-11-12:
 
-15. **D15, what a cut is. Decided.** A cut is a graph object and it is lazy: it stands for the
-    palace's graph as of the cut, and nothing is read until an operation needs it. This decides
-    the shape half of SN-c (§4.2): the read of every head is no list of rows.
-16. **D16, two cuts. Decided.** Two cuts act on each other through operators: a difference,
-    which subtracts one cut from another to find what changed, a union and an intersection.
-17. **D17, the operations. Decided.** Any mathematical operation can run on a single cut, and a
-    set of cuts can be operated on. The operations named are examples and not the list.
-18. **D18, the order of the surfaces. Decided.** The engine and a tool come first, and the
-    sentence grammar later.
-19. **D19, the default operand. Decided.** With no cut named, the current cut is used, as the
-    top value of a stack is the implicit operand of an operation on it.
-20. **D20, a change replaces. Decided, for every change.** A change replaces what it changes. No
-    compatibility is kept: no switch back, no legacy version, no old interface beside its
-    replacement.
-21. **D21, one definition. Decided.** A node is defined the same way everywhere, and so is each
-    operation on it. There is no setting. Which operations a use applies is the use's choice.
-22. **D22, both meanings. Decided.** Union and intersection are wanted in both meanings, on
-    positions and on contents, and which one applies depends on what is being done.
-23. **D23, a version. Decided.** A change to a node creates a new version of the node, not a new
-    node. A cut holds, for each node, the version alive at the cut.
+15. **D15, what a cut is. Decided.** The value a cut names is the palace's graph at its
+    positions, evaluated lazily: holding or passing a cut reads no store, and the stores are
+    read when an operation asks for something of it. That settles the shape half of SN-c
+    (§4.2): reading every head at a cut yields no list of rows.
+16. **D16, two cuts. Decided.** Operators take one cut with another. Among them are a
+    difference, which shows what changed from the first to the second, and the union and the
+    intersection of the two.
+17. **D17, the operations. Decided.** The operators are open: an operation of any kind may take
+    one cut, or a set of cuts, and the operations named when this was decided illustrate the
+    range rather than close it.
+18. **D18, the order of the surfaces. Decided.** The engine, and a tool over it, are built before
+    any word of the sentence grammar takes the algebra.
+19. **D19, the default operand. Decided.** An operation given no cut works on the current one,
+    the way an operation on a stack works on the value at its top when it is given none.
+20. **D20, a change replaces. Decided, for every change.** When something changes, its new form
+    takes the place of the old one entirely: nothing keeps the old behaviour reachable, and no
+    earlier version or earlier interface is kept next to the new one.
+21. **D21, one definition. Decided.** A node has one definition, the same wherever it is used,
+    and each operation on a node has one as well; nothing configures either. A use decides only
+    which of the operations it applies.
+22. **D22, both meanings. Decided.** Union and intersection are kept twice over, once on
+    positions and once on contents, and the task at hand determines which of the two is meant.
+23. **D23, a version. Decided.** Editing a node gives it a new version and leaves it the same
+    node. At each cut a node is held in the one version alive there.
 
 Proposed by this note, for the owner to confirm:
 
@@ -3542,18 +3618,18 @@ Proposed by this note, for the owner to confirm:
 33. **D33, holes in an answer. Proposed.** Recommended: the answer's note says how many rows of
     the ranges it read are holes (§6.5). The alternative, to say nothing, leaves a count that
     fell between two askings without its reason, and hides nothing the positions do not show.
-34. **D34, what a guest may call. Proposed; the default is that it calls nothing.** The tool
-    is registered for the Ambassador, and the guest's table is unchanged until the owner rules.
-    Recommended, when he does: every operator of the tool under the guest's own grant, over the
-    classes its strata name (`classes_of(GUEST.strata)`, `core/kernel/clearance.py:207-212`).
+34. **D34, what a guest may call. Proposed; the default is that it calls nothing.** The tool is
+    registered for the Ambassador, and the guest's table is unchanged until the owner rules.
+    Recommended, when the owner rules: every operator of the tool under the guest's own grant, over
+    the classes its strata name (`classes_of(GUEST.strata)`, `core/kernel/clearance.py:207-212`).
     Each operator commutes with the grant and holds no erased row (SNP-16, SNP-17), so the tool
-    shows a guest no class it does not read. What the ruling weighs is not a class but the
-    past. A retired item is in the contents of the cuts where it existed (§6.2), so a guest
-    with the tool can list, at a past cut, the path, the title and the digest of an item of its
-    classes that was since deleted, where its one read today shows the present. And a chain's
-    id bounds the number of chains opened before it (§6.5). The alternatives: counts only for
-    a guest, with `list` refused, which shows how many and never which; or no tool for a guest,
-    which is the default as built.
+    shows a guest no class it does not read. What the ruling weighs is not a class but the past. A
+    retired item is in the contents of the cuts where it existed (§6.2), so a guest with the tool
+    can list, at a past cut, the path, the title and the digest of an item of its classes that was
+    since deleted, where its one read today shows the present. And a chain's id bounds the number
+    of chains opened before it (§6.5). The alternatives: counts only for a guest, with `list`
+    refused, which shows how many and never which; or no tool for a guest, which is the default as
+    built.
 35. **D35, no complement. Proposed.** Recommended: the sets have a difference and no
     complement, so every set lies inside the contents of the cuts it names. The alternative, a
     complement against everything the log holds, is a set that grows with every landing
@@ -3670,7 +3746,8 @@ Proposed by this note, for the owner to confirm:
 - **SNF-22 (an operator opens a channel):** a result under a grant that changes with writes to
   a class the grant does not name or with the positions named on that class's chains, or that
   names such a chain. Then the operator is not a function of the reads the grant restricts, and
-  it does not land.
+  it does not land. A grant that tests rows inside a chain is outside this falsifier: §6.5 says
+  what the stamps of the rows it shows tell of the rows it hides.
 - **SNF-23 (a species does not follow the node difference):** the node design's comparison of
   two nodes uses a statistic of the stratum or a rank among the other nodes; or, at SN-4, the
   edges of `S` at a later cut reached by the differences are not the edges computed there. Then
@@ -3696,6 +3773,15 @@ Each with the default the stages build on until it is decided.
   can be.
 - The `cuts` chain under a reset: the records name chains by id, and a reset makes new chains.
   Default: the records are in the catalog's file and go with it.
+- A change of class writes a `leave` in one chain and the `store` in another, and no reference
+  of §3.5 joins the two, so a frontier can hold one without the other (§3.5). Open: whether the
+  `store` becomes a resolved reference of the `leave`, which needs the old chain's position
+  recorded on the `store`, as `att_head` records a landing's bound, and a fourth bound for SN-2's
+  descent to read, so that the resolver lowers a frontier holding the `store` without the
+  `leave`; and what an answer says of a frontier holding the `leave` without the `store`, which
+  no reference makes inconsistent and which shows the path in no class. Default: such a frontier
+  is read as asked, and the tool's note says that a cut that is neither the head nor the bottom
+  can split a change of class (§7.5).
 
 ## Cross-references
 
@@ -3740,12 +3826,14 @@ Each with the default the stages build on until it is decided.
 `ops/lifecycle/runs.py`; `eval/harness/store.py`, `eval/predictions/ledger.py`.
 
 **Code of the algebra of cuts as built (SN-1b):** `core/stores/cuts.py` (`Cut`, `Evaluation`,
-`Versions`, `Events`, `Delta`, `Columns`), `core/stores/catalog.py` (`VaultCatalog.cuts`),
-`agents/ambassador/cut_tool.py` and its registration in `agents/ambassador/mcp.py`,
-`tests/property/test_cut_algebra.py`, `tests/unit/test_cut_tool.py`, `eval/cut_algebra_bench.py`.
+`Versions`, `Events`, `Delta`, `Columns`, `read_only`), `core/stores/catalog.py`
+(`VaultCatalog.cuts`), `agents/ambassador/cut_tool.py` and its registration in
+`agents/ambassador/mcp.py`, `tests/property/test_cut_algebra.py`, `tests/unit/test_cut_tool.py`,
+`eval/cut_algebra_bench.py`.
 
-**Code read for the algebra of cuts (at `8d4dff3d`, unchanged by this note):**
-`core/stores/landings.py` (the tables, the indexes, `heads_at` at `:603-615`),
+**Code read for the algebra of cuts (at `8d4dff3d`, before SN-1b changed some of it):**
+`core/stores/landings.py` (the tables, the indexes, and `heads_at`, then at `:603-615`, which
+SN-1b removed),
 `core/stores/catalog.py` (`:410-444`, the reads), `core/sentence/universe.py` (`:204-207`,
 `:930-937`), `core/kernel/clearance.py` (`classes_of`), `core/query.py` (`GUEST`),
 `agents/ambassador/mcp.py` (`TOOLS`, `GUEST_TOOLS`, `Server.handle`),
