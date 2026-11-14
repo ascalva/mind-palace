@@ -1902,16 +1902,17 @@ class Launcher:
     def destroy(self, *, confirm: bool) -> int:
         """Remove a named instance's root, after filling the shared cache with its open content
         (raw objects by digest, vectors by embedder and atom, downloaded source files). A dry run
-        unless confirmed. Refuses the default instance, a live run, the supervisor lock held, an
-        installed LaunchAgent, a root inside a git working tree or holding or inside the cache or
-        the home root itself, a root at, inside or around another declared instance's, a root
-        that holds a git repository or anything that is not the instance's own state, a symbolic
-        link out of the root, a source file the cache would take that is a link, a configured
-        embedder that is not the plane's geometry, and a cache volume without room; each refusal
-        writes nothing, the dry run included. Leaves the sources the instance read outside its
-        root, its overlay, and its Keychain items, which it names for the owner; the sources
-        inside the root go with it, and of them the cache keeps the stream files alone."""
+        unless confirmed. Refuses the default instance, a live run, the supervisor lock held, a
+        pending reset, an installed LaunchAgent, a root inside a git working tree or holding or
+        inside the cache or the home root itself, a root at, inside or around another declared
+        instance's, a root that holds a git repository or anything that is not the instance's own
+        state, a symbolic link out of the root, a source file the cache would take that is a link,
+        a configured embedder that is not the plane's geometry, and a cache volume without room;
+        each refusal writes nothing, the dry run included. Leaves the sources the instance read
+        outside its root, its overlay, and its Keychain items, which it names for the owner; the
+        sources inside the root go with it, and of them the cache keeps the stream files alone."""
         from ops.lifecycle import destroy as d
+        from ops.lifecycle.inventory import refusal
 
         cfg = self.cfg
         cache = self._cache()
@@ -1919,6 +1920,12 @@ class Launcher:
         if why:
             for w in why:
                 print(f"refusing destroy — {w}.")
+            return 1
+        # a reset interrupted after its clearing leaves the plane without the occupancies the fill
+        # selects vectors by, so a destroy then would keep none of them: it refuses, as a fill does
+        pending = refusal(cfg, "destroy")
+        if pending is not None:
+            print(pending)
             return 1
         run = self._live_supervisor()
         if run is not None:

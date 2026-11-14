@@ -965,6 +965,40 @@ def test_p11_destroy_refuses_a_live_run_and_the_lock_held(named: Built, home: Pa
     assert not (home / ".mind-palace" / "cache").exists()
 
 
+def test_p11_destroy_refuses_a_pending_reset(
+        named: Built, home: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """A reset interrupted after its clearing leaves the plane without the occupancies a fill
+    selects vectors by, so a destroy then would keep none of the instance's vectors. While the
+    marker stands a destroy refuses, its dry run too, and writes nothing; once the reset has
+    finished, the fill selects every vector again and the destroy proceeds."""
+    from core.stores.cache import Cache
+    from ops.lifecycle import destroy as d
+
+    cache_root = home / ".mind-palace" / "cache"
+    lau, _ = launcher_for(named, cache=cache_root)
+    atoms = d.plan_fill(named.cfg, Cache(cache_root)).atoms
+    assert atoms
+
+    def boom(_ctx: Any) -> str:
+        raise RuntimeError("injected at the plane step")
+
+    with monkeypatch.context() as m:                    # the fixture's HOME stays patched
+        m.setitem(rebuild.STEPS, "vectors.lance", boom)
+        with pytest.raises(RuntimeError, match="injected"):
+            lau.reset(confirm=True)
+    assert (Path(named.cfg.paths.data_dir) / "reset.pending").exists()
+    assert d.plan_fill(named.cfg, Cache(cache_root)).atoms == []    # what a fill would keep now
+    capsys.readouterr()
+    for confirm in (False, True):
+        _unchanged(named, lambda c=confirm: lau.destroy(confirm=c))
+        assert "a reset of this instance is pending" in capsys.readouterr().out
+    assert named.root.exists() and not cache_root.exists()
+    assert lau.reset(confirm=True) == 0
+    assert d.plan_fill(named.cfg, Cache(cache_root)).atoms == atoms
+    assert lau.destroy(confirm=False) == 0
+
+
 def test_p11_destroy_refuses_a_root_that_holds_the_cache_or_links_out(
         named: Built, home: Path, tmp_path: Path) -> None:
     lau, _ = launcher_for(named, cache=named.root / "cache")
