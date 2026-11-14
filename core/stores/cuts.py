@@ -33,6 +33,7 @@ A read (`Read`) is a cut with what it holds and the events up to it.
 
 Every statement names the chains of the evaluation and no other, so a result under a grant is a
 function of the chains the grant reads (SNP-16), and a row a purge emptied is in no set (SNP-17).
+An evaluation needs only a connection, and one that only reads (`read_only`) takes no lock.
 It is not yet the graph: edges and graph mathematics at a cut arrive with SN-4. Apart from the
 cut tool (`agents/ambassador/cut_tool.py`), nothing in the palace reads this module yet.
 """
@@ -42,8 +43,9 @@ from __future__ import annotations
 import re
 import sqlite3
 from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
-from typing import Any, Literal
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -204,15 +206,23 @@ class _Held:
     """What a cut holds."""
 
     cut: Cut
+    terms: ClassVar[int] = 1
 
 
 @dataclass(frozen=True, slots=True)
 class _Node:
-    """What either set holds, what both hold, or what the first holds and the second does not."""
+    """What either set holds, what both hold, what the first holds and the second does not, or
+    what exactly one of the two holds. `terms` is how many times the statement the set runs as
+    names a cut, the size of the predicate on a chain: an operand the expression shares is
+    counted each time, since the statement writes it out each time."""
 
-    op: Literal["union", "inter", "diff"]
+    op: Literal["union", "inter", "diff", "xor"]
     p: _Expr
     q: _Expr
+    terms: int = field(init=False, compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "terms", self.p.terms + self.q.terms)
 
 
 type _Expr = _Held | _Node
@@ -235,10 +245,12 @@ def _predicate(e: _Expr, chain: int) -> tuple[str, list[int]] | None:
             return None
         return "(seq <= ? AND (closed_at IS NULL OR closed_at > ?))", [c, c]
     p, q = _predicate(e.p, chain), _predicate(e.q, chain)
-    if e.op == "union":
+    if e.op in ("union", "xor"):
         if p is None or q is None:
             return p if q is None else q
-        return f"({p[0]} OR {q[0]})", p[1] + q[1]
+        # a predicate is never null (`seq` is not, and a stamp is tested for null first), so two
+        # of them differ exactly when one row is in one set: each operand is written once
+        return f"({p[0]} {'OR' if e.op == 'union' else '<>'} {q[0]})", p[1] + q[1]
     if e.op == "inter":
         if p is None or q is None:
             return None
@@ -281,7 +293,7 @@ def _range(e: _Expr, chain: int) -> _Range | None:
         c = e.cut.at(chain)
         return _Range(0, c, c, None) if c else None
     p, q = _range(e.p, chain), _range(e.q, chain)
-    if e.op == "union":
+    if e.op in ("union", "xor"):            # what exactly one holds lies inside what either does
         if p is None or q is None:
             return p if q is None else q
         hi = None if p.died_hi is None or q.died_hi is None else max(p.died_hi, q.died_hi)
@@ -337,7 +349,8 @@ class Versions:
     intersection, the difference or the symmetric difference of two sets (`|`, `&`, `-`, `^`).
     There is no complement, so a set lies inside the contents of the cuts it names. Combining
     reads nothing; `count` runs one statement and builds no row, and `columns` reads the rows as
-    one buffer a column."""
+    one buffer a column. The statement grows with `terms`, which an operator adds and never
+    multiplies: each names its operands once."""
 
     __slots__ = ("_ev", "_e")
 
@@ -345,7 +358,13 @@ class Versions:
         self._ev = ev
         self._e = e
 
-    def _with(self, op: Literal["union", "inter", "diff"], other: Versions) -> Versions:
+    @property
+    def terms(self) -> int:
+        """How many times the set's statement names a cut: the size of its predicate on a
+        chain, which bounds the statement's text and its parameters (two a cut a chain)."""
+        return self._e.terms
+
+    def _with(self, op: Literal["union", "inter", "diff", "xor"], other: Versions) -> Versions:
         if not isinstance(other, Versions):
             raise CutError(f"a set of versions combines with a set of versions, not with "
                            f"{_kind(other)}")
@@ -366,8 +385,10 @@ class Versions:
         return self._with("diff", other)
 
     def __xor__(self, other: Versions) -> Versions:
-        """What exactly one of the two sets holds."""
-        return (self - other) | (other - self)
+        """What exactly one of the two sets holds: the rows of `Held.symm`, the union less the
+        intersection (`Held.has_symm`), as a node of its own whose statement names each operand
+        once. Written as `(a - b) | (b - a)` it would name both twice, and nested, double."""
+        return self._with("xor", other)
 
     @property
     def cuts(self) -> tuple[Cut, ...]:
@@ -713,7 +734,9 @@ class Series[T]:
 class Table:
     """The sizes of the pairwise differences of a family: `sizes[i][j]` is how many versions cut
     `i` holds and cut `j` does not. `sizes[i][j] - sizes[j][i]` is the difference of the two
-    counts, and `sizes[i][k] <= sizes[i][j] + sizes[j][k]` (`Held.has_gone_triangle`)."""
+    counts (`Held.length_rows_delta`), and `sizes[i][k] <= sizes[i][j] + sizes[j][k]`, since a
+    row gone from `i` to `k` is gone from `i` to `j` or from `j` to `k`
+    (`Held.has_gone_triangle`, which states the rows; the sizes follow)."""
 
     cuts: tuple[Cut, ...]
     sizes: tuple[tuple[int, ...], ...]
@@ -757,6 +780,10 @@ class Evaluation:
         self.chains: tuple[int, ...] = tuple(self.classes)
         self.head = Cut.of({int(k): int(h or 0) for k, _, h in rows})
         self.bottom = BOTTOM
+        # what `served` has learnt of each chain's horizon, so that it walks a chain once: the
+        # horizon found, or the greatest position found to lie under it
+        self._horizon: dict[int, int] = {}
+        self._under: dict[int, int] = {}
 
     # reading -----------------------------------------------------------------------------------
 
@@ -818,31 +845,46 @@ class Evaluation:
                 raise CutError(f"there is no chain land.{k}; the chains read here are {read}")
         return self.cut(c)
 
-    def horizon(self, chain: int, position: int) -> int | None:
-        """The horizon a chain declares at or under `position`, or `None` when it declares none
-        there: a chain's positions before its horizon are under it and are not served (§8). At
-        this stage a chain has one horizon row, at the end of its genesis block. The statement
-        walks the rows from `position` back to that row."""
+    def serves(self, chain: int, position: int) -> bool:
+        """Whether a chain serves a position under its head: whether the position is at or
+        after the chain's horizon. A chain's positions before its horizon are its genesis block,
+        which is not history, and are not served (§8). At this stage a chain has one horizon
+        row, at the end of its genesis block, and no index finds it, so the statement walks the
+        rows from the position back to it, or to the chain's first row when the position lies
+        under it. No row is walked twice in one evaluation: the horizon found answers every later
+        position on its chain, a later position under one found to lie under the horizon needs no
+        walk, and one above it walks only down to it."""
+        if chain in self._horizon:
+            return position >= self._horizon[chain]
+        under = self._under.get(chain, 0)
+        if position <= under:
+            return False
         row = self._conn.execute(
-            "SELECT horizon FROM landings WHERE chain = ? AND seq <= ? AND kind = 'horizon' "
-            "ORDER BY seq DESC LIMIT 1", [chain, position]).fetchone()
-        return None if row is None or row[0] is None else int(row[0])
+            "SELECT horizon FROM landings WHERE chain = ? AND seq <= ? AND seq > ? "
+            "AND kind = 'horizon' ORDER BY seq DESC LIMIT 1", [chain, position, under]).fetchone()
+        if row is None or row[0] is None:
+            self._under[chain] = position
+            return False
+        self._horizon[chain] = int(row[0])
+        return position >= int(row[0])
 
     def served(self, c: Cut) -> tuple[Cut, list[tuple[int, int]]]:
         """The cut read for the cut asked (§7.1): each chain at the greatest position it serves at
         or under the one asked. A position under a chain's horizon is not served, and the chain is
-        read at its empty prefix. Before SN-2 no landing chain reads another chain a cut names, so
-        every frontier of landing chains is consistent and nothing else is lowered. Returns the
-        cut read and the chains read below the position asked, with that position."""
+        read at its empty prefix (`serves`); the head serves itself and needs no walk. No
+        reference of §3.5 lowers a landing chain before SN-2, so nothing else is lowered. One
+        pair of rows is not among those references: a change of class writes a `leave` in the
+        old class's chain and then the `store` in the new class's chain, and a cut of two chains
+        or more that is neither the head nor the bottom can hold one of the two rows without the
+        other, and so the path in both classes or in neither (§3.5, §7.5). It is read as asked.
+        Returns the cut read and the chains read below the position asked, with that position."""
         lowered: list[tuple[int, int]] = []
         out = c.as_dict()
         for k, p in c.positions:
-            if p == self.head.at(k):
-                continue            # the head serves itself: no walk
-            h = self.horizon(k, p)
-            if h is None or p < h:
-                lowered.append((k, p))
-                out[k] = 0
+            if p == self.head.at(k) or self.serves(k, p):
+                continue
+            lowered.append((k, p))
+            out[k] = 0
         return Cut.of(out), lowered
 
     # the interface: apply, combine, map and fold --------------------------------------------------
@@ -934,7 +976,9 @@ class Evaluation:
     def in_how_many(self, s: Versions, cuts: Sequence[Cut] | None = None,
                     names: Sequence[str] = (), limit: int | None = None) -> Counted:
         """The rows of `s`, each with the number of the family's cuts that hold it: a row is held
-        at `c` exactly when `seq <= c < closed_at`, read off its interval (`countIn`)."""
+        at `c` exactly when `seq <= c < closed_at`, read off its interval (`countIn`). Only the
+        first `limit` rows are read when it is given; how many rows every cut holds is a count,
+        `s & self.persisted(cuts)`, and needs none of them."""
         fam = self.family(cuts)
         rows = s.columns(*dict.fromkeys((*names, "closed_at")), limit=limit)
         return Counted(fam, rows, self._held_by(rows, fam).sum(axis=1).astype(np.int64))
@@ -959,6 +1003,14 @@ class Evaluation:
         pos = at[np.searchsorted(np.array(self.chains, dtype=np.int64), chain)]
         held: npt.NDArray[np.bool_] = (seq[:, None] <= pos) & (pos < died[:, None])
         return held
+
+
+def read_only(path: Path) -> sqlite3.Connection:
+    """A connection that only reads a catalog's file, for an evaluation that writes nothing. It
+    takes no lock a writer waits on, and a writer's transaction does not hold it up: it reads
+    the log as the last commit left it. Opening the catalog itself (`VaultCatalog`) runs its
+    migration, a write transaction at every open, and may write the log's genesis."""
+    return sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True)
 
 
 def _kind(v: object) -> str:

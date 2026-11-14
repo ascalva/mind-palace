@@ -481,6 +481,31 @@ def test_a_count_builds_no_row_and_the_rows_are_one_buffer_a_column() -> None:
     cat.close()
 
 
+def test_a_symmetric_difference_names_each_operand_once() -> None:
+    """`^` is a node of its own, whose statement names each operand once: sixty-three of them
+    nested over three cuts name sixty-four cuts and run as a statement of that size, where `(a -
+    b) | (b - a)` would double the statement at every level. Its rows are what an odd number of
+    the cuts it names hold, as the fold's symmetric differences give them."""
+    cat = VaultCatalog(Path(":memory:"))
+    cuts: list[Cut] = []
+    for i in range(6):
+        cat.record(f"notes/n{i % 4}.md", f"d{i}", "t")
+        cuts.append(Cut.of(heads(cat)))
+    ev = cat.cuts(ALL)
+    fold = Fold.of(cat)
+    picked = [cuts[1], cuts[3], cuts[5]]
+    s, want = ev.held(picked[0]), fold.held(picked[0], ev.chains)
+    for i in range(1, 64):
+        s, want = s ^ ev.held(picked[i % 3]), want ^ fold.held(picked[i % 3], ev.chains)
+    assert s.terms == 64
+    with statements(cat) as seen:
+        assert s.count() == len(want)
+    (q,) = seen
+    assert q.count("closed_at IS NULL OR closed_at >") <= 64 + 1 and len(q) < 8_000
+    assert rows_of(s) == want
+    cat.close()
+
+
 def test_each_side_of_a_difference_walks_what_changed() -> None:
     """The rows come between two cuts are read on the primary key from the first cut's position,
     and the rows gone on `landings_closed` between the two positions: neither walks the prefix,
@@ -792,6 +817,63 @@ def test_a_position_under_a_chains_horizon_is_read_at_its_empty_prefix() -> None
         assert ev.served(Cut.of({solo: p})) == (Cut.of({solo: p}), [])
     assert ev.served(BOTTOM) == (BOTTOM, [])
     assert ev.held(Cut.of({solo: horizon})).count() == 2
+    cat.close()
+
+
+def test_each_chain_is_walked_for_its_horizon_once_an_evaluation() -> None:
+    """No index finds a chain's horizon row, so the first position named under a chain's head
+    walks back to it, and no row is walked twice in one evaluation: every later position on the
+    chain is then answered with no statement, a position found to lie under the horizon answers
+    every position under it, and one above it walks only down to it."""
+    db_rows: list[tuple[str, str, str, Provenance, bool, str | None]] = [
+        (f"v/{i}.md", f"d{i}", "t", Provenance.AUTHORED_SOLO, True, None) for i in range(6)]
+    cat = from_legacy(db_rows)
+    (solo,) = cat.chains(Provenance.AUTHORED_SOLO)
+    horizon = cat.head(solo)                        # the genesis, six stores, the horizon: 8
+    for i in range(4):
+        cat.record(f"v/{i}.md", f"e{i}", "t")
+    ev = cat.cuts(ALL)
+    with statements(cat) as seen:
+        assert [ev.serves(solo, p) for p in (3, 2, 1, 3)] == [False] * 4
+    assert len(seen) == 1                           # 3 walked down to the first row; 2, 1 known
+    with statements(cat) as seen:
+        assert ev.serves(solo, 5) is False          # walks 5 down to 4 only
+    assert len(seen) == 1 and "seq <= 5 AND seq > 3 " in seen[0]
+    with statements(cat) as seen:
+        assert [ev.serves(solo, p) for p in (10, horizon, 9, 6, 11)] == [
+            True, True, True, False, True]
+    assert len(seen) == 1                           # 10 found the horizon; the rest read nothing
+    with statements(cat) as seen:
+        read, lowered = ev.served(Cut.of({solo: 7}))
+    assert (read, lowered, seen) == (BOTTOM, [(solo, 7)], [])
+    cat.close()
+
+
+def test_a_cut_can_split_a_change_of_class_and_is_read_as_asked() -> None:
+    """A change of class writes a `leave` in the chain the path leaves, then its `store` in the
+    chain of its new class. No reference of §3.5 joins the two rows, so a cut that holds one of
+    them and not the other is served as asked: one holds the path in both chains, the other in
+    neither, and neither is a state the catalog had. The head, and a cut of either chain alone,
+    hold it once (§3.5, §7.5)."""
+    cat = VaultCatalog(Path(":memory:"))
+    cat.record("a.md", "d1", "A", provenance=Provenance.AUTHORED_SOLO)
+    cat.record("b.md", "d2", "B", provenance=Provenance.CURATED)
+    cat.record("a.md", "d1", "A", provenance=Provenance.CURATED)
+    (solo,), (cur,) = cat.chains(Provenance.AUTHORED_SOLO), cat.chains(Provenance.CURATED)
+    assert [r.kind for r in cat.read_at(solo, cat.head(solo))][-2:] == ["store", "leave"]
+    ev = cat.cuts(ALL)
+
+    def paths(c: Cut) -> list[str | None]:
+        text = ev.held(c).columns("source_path")["source_path"]
+        assert isinstance(text, Text)
+        return sorted(str(text[i]) for i in range(len(text)))
+
+    twice, neither = Cut.of({solo: 3, cur: 4}), Cut.of({solo: 4, cur: 3})
+    for c in (twice, neither):
+        assert ev.served(c) == (c, [])
+    assert paths(twice) == ["a.md", "a.md", "b.md"]
+    assert paths(neither) == ["b.md"]
+    assert paths(ev.head) == ["a.md", "b.md"]
     cat.close()
 
 
