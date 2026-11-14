@@ -18,7 +18,8 @@ its atom id, the hash of its text, and the text is not stored with the vector. T
 whole trust decision: a raw object is checked against its digest when it is taken, and a mismatch
 is refused and the entry deleted. Which content may enter is decided by the instance that fills
 the cache (`ops/lifecycle/destroy.py`), by an allow-list of open sources; this module stores and
-returns entries, refuses a purged digest, and erases what a purge names.
+returns entries, refuses a purged digest and a source file that is not a plain file of its source
+(a link, which would carry bytes no allow-list chose), and erases what a purge names.
 
 Reading never creates the cache: a lookup in a cache that does not exist finds nothing. The
 location is a constant of the code (`cache_home`), as the instances' home is; the tests pass a
@@ -32,6 +33,7 @@ import json
 import os
 import shutil
 import sqlite3
+import stat
 import time
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -309,15 +311,22 @@ class Cache:
 
     def put_source_files(self, source: str, base: Path, files: Sequence[str]) -> int:
         """Copy `files` (relative to `base`) into the source's namespace, each named in its
-        MANIFEST with its size, SHA-256 and when it was fetched; returns the files added."""
+        MANIFEST with its size, SHA-256 and when it was fetched; returns the files added. A file
+        that is not a plain file of its source (`plain_file`) is refused before anything is
+        written: the selection is by name, and a link would carry another file's bytes in."""
         if not files:
             return 0
+        for rel in files:
+            _relative(rel)
+            if not plain_file(base / rel, base):
+                raise ValueError(f"{base / rel} is not a plain file of its source: a symbolic "
+                                 "link, a file with another hard link, or one that resolves out "
+                                 "of the source's directory")
         self._ensure()
         d = self._source_dir(source)
         manifest = {m["file"]: m for m in self.source_manifest(source)}
         added = 0
         for rel in files:
-            _relative(rel)
             src = base / rel
             sha = _file_sha256(src)
             if rel in manifest and manifest[rel]["sha256"] == sha:
@@ -504,6 +513,19 @@ def _under(path: Path, root: Path) -> bool:
     """Whether `path` resolves inside `root` (a link in the cache cannot carry a name out)."""
     real_root = Path(os.path.realpath(root))
     return real_root in Path(os.path.realpath(path)).parents
+
+
+def plain_file(path: Path, base: Path) -> bool:
+    """Whether `path` is a plain file of the source directory `base`: a regular file, not a
+    symbolic link, with no other hard link, that resolves inside `base`. What a fill copies is
+    chosen by name, so a file that fails this could hold another file's bytes (an instance's
+    catalog, a note outside the root), which no allow-list chose; the writing side refuses it as
+    `take_source` refuses a name that climbs out on the reading side."""
+    try:
+        st = path.lstat()
+    except FileNotFoundError:
+        return False
+    return (stat.S_ISREG(st.st_mode) and st.st_nlink == 1 and _under(path, base))
 
 
 def same_volume_free(path: Path) -> int:

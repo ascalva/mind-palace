@@ -16,11 +16,12 @@ the atoms are held; a second reset leaves what the first left. The version-keyed
 for the current versions only (decision D2); a replay of the landing log's rows, which would give
 every version landed since its genesis, is a follow-up (§3.6).
 
-No step writes the catalog or appends to its landing log: each reads the catalog's active rows and
-nothing else. Three steps open it (`OPENS_CATALOG`), and its first open through `VaultCatalog`
+No step writes the catalog or appends to its landing log: the two steps that open it
+(`OPENS_CATALOG`) read its active rows and nothing else. But its first open through `VaultCatalog`
 writes the log's genesis when it holds rows and no log yet, which needs the instance's landing-log
 secret. So that case is found read only before anything is cleared, and the reset refuses without
-the secret (`missing_inputs`) rather than stopping after the clearing.
+the secret (`missing_inputs`) rather than stopping after the clearing; with the secret, that
+genesis is the one write a reset makes to a ledger.
 """
 
 from __future__ import annotations
@@ -149,12 +150,18 @@ def _remove_file(path: Path) -> None:
         p.unlink(missing_ok=True)
 
 
+def under_data(cfg: Any, path: Path) -> bool:
+    """Whether `path` lies under the instance's data directory, by real path."""
+    data = Path(os.path.realpath(cfg.paths.data_dir))
+    return data in Path(os.path.realpath(path)).parents
+
+
 def _inside_data(cfg: Any, path: Path) -> None:
     """Refuse to clear a store that does not lie under the instance's data directory: the class
-    table computes each path from the configuration, and a path mistake must not reach outside."""
-    data = Path(os.path.realpath(cfg.paths.data_dir))
-    real = Path(os.path.realpath(path))
-    if data not in real.parents:
+    table computes each path from the configuration, and a path mistake must not reach outside.
+    The reset finds this before it writes its marker (`missing_inputs`); this is the clearing's own
+    guard."""
+    if not under_data(cfg, path):
         raise RuntimeError(f"refusing to clear {path}: it does not lie under the data directory "
                            f"{cfg.paths.data_dir}")
 
@@ -211,6 +218,18 @@ def _lexical(ctx: Context) -> str:
     return f"lexical index: {derive_lexical(stores)}"
 
 
+def _readable(raw: Any, digest: str) -> bool:
+    """Whether the raw store can give the bytes of `digest`: it holds them, or its fallback (the
+    shared cache) gives them, checked against the digest and copied in."""
+    if raw.exists(digest):
+        return True
+    try:
+        raw.get(digest)
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def _plane(ctx: Context) -> str:
     """Re-occupy what the plane held before the clearing, and nothing more: an item still waiting
     for its vector (a lazy instance's backlog) is left to the embed job, so the plane comes back to
@@ -218,7 +237,12 @@ def _plane(ctx: Context) -> str:
     held pair is rebuilt from raw at the digest the plane held, with the occupancy's title and
     class, whether or not that digest is still the catalog's head: raw keeps every version, and a
     note edited since it was embedded stays searchable at the version the plane held until the
-    embed job takes the new one."""
+    embed job takes the new one. The step reads no catalog row, so it does not open the catalog.
+
+    A held pair whose raw object is gone is skipped and counted, as the chat log's replay skips a
+    purged transcript: a purge is the raw store's one deletion, and one run between an interrupted
+    reset and its rerun erases a version the marker still names (`plane_held`), so the rerun
+    finishes with the erasure standing instead of failing at this step every time (§4.3)."""
     from types import SimpleNamespace
 
     from core.ingest.derive import derive_entries
@@ -231,17 +255,20 @@ def _plane(ctx: Context) -> str:
         from core.stores.cache import key_of
 
         view = ctx.cache.view(key_of(cfg)[0])
-    stores = SimpleNamespace(catalog=ctx.catalog(), raw=ctx.raw(), plane=vectors,
-                             lexical=ctx.lexical(),
+    raw = ctx.raw()
+    stores = SimpleNamespace(raw=raw, plane=vectors, lexical=ctx.lexical(),
                              embedder=_LazyEmbedder(lambda: ctx.embedder_factory(cfg)),
                              cache=view)
+    held = sorted(ctx.plane_held)
+    kept = [h for h in held if _readable(raw, h[1])]
     entries = [CatalogEntry(source_path=p, digest=d, title=t, active=True, provenance=c)
-               for p, d, t, c in sorted(ctx.plane_held)]
+               for p, d, t, c in kept]
     report = derive_entries(stores, entries, batch=cfg.embedding.batch,
                             streams=cfg.embedding.streams)
     dropped = vectors.plane.drop_unheld()
     repaired = vectors.plane.repair()
-    return (f"plane: {report}; {dropped} atom(s) no rebuilt row holds dropped; held cache "
+    return (f"plane: {report}; {len(held) - len(kept)} held version(s) whose raw object a purge "
+            f"erased skipped; {dropped} atom(s) no rebuilt row holds dropped; held cache "
             f"{repaired.held_fixed} fixed")
 
 
@@ -369,11 +396,12 @@ def _dispositions(ctx: Context) -> str:
     return f"verdict dispositions: {len(records)} verdict(s) applied"
 
 
-#: The rebuild steps that open the catalog (`Context.catalog`): the lexical index, the plane and the
-#: authored relation edges read its active rows. Its first open writes the landing log's genesis
-#: when the catalog holds rows and no log yet (`catalog_without_log`). A test checks that these are
-#: exactly the steps that open it.
-OPENS_CATALOG = frozenset({"lexical.sqlite", "vectors.lance", "edges.sqlite"})
+#: The rebuild steps that open the catalog (`Context.catalog`): the lexical index and the authored
+#: relation edges, which read its active rows. The plane step reads none (it rebuilds what the
+#: plane held, from raw), so it does not open it. The catalog's first open writes the landing
+#: log's genesis when it holds rows and no log yet (`catalog_without_log`). A test checks that
+#: these are exactly the steps that open it.
+OPENS_CATALOG = frozenset({"lexical.sqlite", "edges.sqlite"})
 
 #: The rebuild step of each derived store, by name. A test replaces one to inject a failure.
 STEPS: dict[str, Callable[[Context], str]] = {
@@ -452,6 +480,40 @@ def plane_heads(cfg: Any) -> set[tuple[str, str]]:
     return {(p, d) for p, d, _, _ in plane_held(cfg)}
 
 
+def recorded_geometry(cfg: Any) -> str | None:
+    """The geometry the plane recorded at its first landing (its `meta` fingerprint: model,
+    document template, dimension), read only; None when there is no plane or no record."""
+    from core.stores.plane import PLANE_FILE
+
+    db = Path(cfg.paths.vector_store) / PLANE_FILE
+    if not db.is_file():
+        return None
+    try:
+        conn = read_only(db)
+    except sqlite3.Error:
+        return None
+    try:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'fingerprint'").fetchone()
+    except sqlite3.Error:
+        row = None
+    finally:
+        conn.close()
+    return None if row is None else str(row[0])
+
+
+def geometry_mismatch(cfg: Any) -> str | None:
+    """Why the configured embedder is not the geometry the plane recorded, or None: the comparison
+    `SharedPlane.check_geometry` makes, read only, since opening the plane to ask would create its
+    `-wal` and `-shm` and a refusal writes nothing."""
+    from core.stores.vectorstore import fingerprint_of
+
+    recorded = recorded_geometry(cfg)
+    mine = fingerprint_of(cfg).as_json()
+    if recorded is None or recorded == mine:
+        return None
+    return f"the plane's vectors came from {recorded}; the configured embedder is {mine}"
+
+
 def catalog_without_log(cfg: Any) -> int:
     """The catalog's rows when it holds rows and no landing log yet, else 0, read only. That is
     the catalog whose first open through `VaultCatalog`, the rebuild's own included, writes the
@@ -497,16 +559,20 @@ def landing_log_secret() -> str | None:
 
 
 def missing_inputs(cfg: Any, repo: Path, stores: list[Store]) -> list[str]:
-    """What a rebuild step would need and cannot read, found before anything is cleared, so a
-    reset that could not finish refuses with nothing written instead of failing after the
-    clearing. Two inputs can go missing under a step. A commit the commit ledger holds that the
-    repository no longer has (pruned by a rewrite and a garbage collection), which the code
-    observations' re-projection reads. And the landing log's secret, when the catalog holds rows
-    and no log yet: the first step that opens the catalog writes the log's genesis there, and
-    without the secret that open refuses, after it has created the log's two empty tables, so the
-    case is found here, read only, before any open. A retained transcript whose raw object a purge
-    erased is not missing: the chat log's replay skips it and says so (§6.6)."""
-    out: list[str] = []
+    """What would stop a rebuild the same way on every run, found before anything is written, the
+    marker included, so a reset that could not finish refuses with nothing written instead of
+    failing after the clearing and leaving the marker to block every writer. A derived store that
+    does not lie under the data directory (a store beside `derived_store` configured elsewhere),
+    which the clearing refuses to touch. A commit the commit ledger holds that the repository no
+    longer has (pruned by a rewrite and a garbage collection), which the code observations'
+    re-projection reads. And the landing log's secret, when the catalog holds rows and no log yet:
+    the first step that opens the catalog writes the log's genesis there, and without the secret
+    that open refuses, after it has created the log's two empty tables, so the case is found here,
+    read only, before any open. A raw object a purge erased is not missing: the chat log's replay
+    and the plane step skip it and say so (§4.3, §6.6)."""
+    out = [f"the derived store {s.path(cfg)} does not lie under the data directory "
+           f"{cfg.paths.data_dir}, and a reset clears nothing outside it. Configure it under the "
+           "data directory first" for s in stores if not under_data(cfg, s.path(cfg))]
     if any(s.name in OPENS_CATALOG for s in stores):
         rows = catalog_without_log(cfg)
         why = landing_log_secret() if rows else None

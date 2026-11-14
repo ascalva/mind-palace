@@ -40,9 +40,10 @@ from typing import Any
 LANDING_LOG = ("landing_chains", "landings")
 
 #: Written before a reset clears anything, removed when its last rebuild step has run. While it is
-#: there the daemon's start and every on-demand writer refuse, so nothing lands into a
-#: half-rebuilt instance; it names the derived stores the reset found, so a reset run again after
-#: an interruption rebuilds every one of them, a store whose file it had already removed included.
+#: there the daemon's start and every command that lands or writes a derived store refuse (each
+#: reads it when it starts, through `refusal`), so nothing starts to land into a half-rebuilt
+#: instance; it names the derived stores the reset found, so a reset run again after an
+#: interruption rebuilds every one of them, a store whose file it had already removed included.
 RESET_MARKER = "reset.pending"
 
 
@@ -191,13 +192,17 @@ def unclassified(cfg: Any) -> list[Path]:
 
 
 def read_only(path: Path) -> sqlite3.Connection:
-    """A read of a SQLite store that creates no file. A database at rest has no `-wal` file, and
-    a `mode=ro` connection to a WAL database creates its `-wal` and `-shm` files, so it is read
-    `immutable=1`. A database with a `-wal` or `-journal` file beside it may hold committed pages
-    outside its main file, which `immutable=1` would not see, so it is read `mode=ro`, beside the
-    files that are already there."""
-    open_elsewhere = any(Path(f"{path}{s}").exists() for s in ("-wal", "-journal"))
-    query = "mode=ro" if open_elsewhere else "immutable=1"
+    """A read of a SQLite store that creates and touches no file when the store is at rest. A
+    database at rest has every committed page in its main file: it has no `-wal` file, or an empty
+    one a reader left behind (a `mode=ro` reader cannot remove the files it made), and no
+    `-journal`. It is read `immutable=1`, since a `mode=ro` connection to a WAL database creates its
+    `-wal` and `-shm` files, and rewrites a `-shm` already there. A database whose `-wal` holds
+    frames, or that has a `-journal`, may hold committed pages outside its main file, which
+    `immutable=1` would not see, so it is read `mode=ro`, beside the files already there, and that
+    read updates its `-shm`."""
+    wal, journal = Path(f"{path}-wal"), Path(f"{path}-journal")
+    pending = journal.exists() or (wal.exists() and wal.stat().st_size > 0)
+    query = "mode=ro" if pending else "immutable=1"
     return sqlite3.connect(f"file:{path}?{query}", uri=True)
 
 

@@ -20,6 +20,7 @@ import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from config.loader import Config
 
@@ -87,9 +88,12 @@ class RunLedger:
     path: Path
 
     def __post_init__(self) -> None:
+        self._lock = threading.RLock()
+        self._connect()
+
+    def _connect(self) -> None:
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
@@ -153,6 +157,53 @@ class RunLedger:
     def close(self) -> None:
         with self._lock:
             self._conn.close()
+
+
+def last_run(path: Path) -> RunRecord | None:
+    """The last run the ledger at `path` holds, read without creating or touching a file of it
+    (`read_only`): None when there is no ledger, or no table in it yet."""
+    if not Path(path).is_file():
+        return None
+    from ops.lifecycle.inventory import read_only
+
+    conn = read_only(Path(path))
+    conn.row_factory = sqlite3.Row
+    try:
+        r = conn.execute("SELECT * FROM runs ORDER BY id DESC LIMIT 1").fetchone()
+    except sqlite3.Error:
+        return None
+    finally:
+        conn.close()
+    return _row(r) if r else None
+
+
+class LazyRunLedger(RunLedger):
+    """The run ledger of a command that may only ask about runs: opened, and created when absent,
+    at the first use that needs the open ledger, and not before. Until then `last` reads the file
+    read only (`last_run`), so a dry run or a refusal that asks whether a run is live creates no
+    file, under a root that does not exist either (dn-instance-lifecycle §4.6, §6.1).
+    `build_launcher` gives the launcher this one; every other use of the ledger is unchanged."""
+
+    def __post_init__(self) -> None:
+        self._lock = threading.RLock()
+
+    def __getattr__(self, name: str) -> Any:
+        # only the connection is made late; any other missing attribute is a plain error
+        if name != "_conn":
+            raise AttributeError(name)
+        with self._lock:
+            if "_conn" not in self.__dict__:
+                self._connect()
+        return self.__dict__["_conn"]
+
+    def last(self) -> RunRecord | None:
+        if "_conn" in self.__dict__:
+            return super().last()
+        return last_run(self.path)
+
+    def close(self) -> None:
+        if "_conn" in self.__dict__:
+            super().close()
 
 
 def open_run_ledger(config: Config | None = None) -> RunLedger:

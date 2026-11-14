@@ -32,6 +32,13 @@ def main(argv: list[str]) -> int:
     from ops.lifecycle.runs import open_run_ledger
 
     cfg = get_config()
+    if "--confirm" in argv:
+        from ops.lifecycle.inventory import refusal
+
+        pending = refusal(cfg, "the id migration")   # it lands; a pending reset refuses writers
+        if pending is not None:
+            print(pending)
+            return 1
     sync = build_vault_sync(cfg)
 
     if "--confirm" not in argv:                          # dry-run is the default (fail-safe)

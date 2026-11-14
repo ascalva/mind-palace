@@ -6,14 +6,17 @@ everything else is refused. An item is **open** when its catalog path lies in th
 open-corpus source (`corpus/<name>/`) or a repository source (`code/<name>/`), or its class is
 `curated`. Then a raw object enters when a catalog row, active or tombstoned, names its digest at
 an open item's path; a vector enters when its atom is held, current or not, by an open item's
-occupancy in the plane; and a source file enters when it is a downloaded file of an open-corpus
-source (a stream's named parts, its manifest and its items' metadata; never a cursor or a
-checkpoint). Nothing of the mirror's notes, the dialogue, an observed item outside an open-corpus
-source, or a transcript enters, and no digest a purge recorded. An entry carries no path, title or
-class, so it says only that some open item held these bytes, which that item's source holds in
-public. Nothing of the catalog's file enters either: the fill reads the digests of open items'
-rows and nothing else of it, so no row of the catalog, no row of its landing log and no part of
-the log's secret reaches the cache.
+occupancy in the plane; and a source file enters when it is a stream file of an open-corpus
+source (a stream's named parts, its manifest and its items' metadata), and a plain file of that
+source (`plain_file`). Never a cursor, a checkpoint or a whole download a reader keeps under
+`raw/`, which nothing reads back from the cache and a destroy removes with the root. Nothing of
+the mirror's notes, the dialogue, an observed item outside an open-corpus source, or a transcript
+enters, and no digest a purge recorded. An entry carries no path, title or class, so it says only
+that some open item held these bytes, which that item's source holds in public. Nothing of the
+catalog's file enters either: the fill reads the digests of open items' rows and nothing else of
+it, and the source files are chosen by name, so a fill and a destroy refuse a source file that is
+a link (`link_refusal`), which could name the catalog's file or a note; no row of the catalog, no
+row of its landing log and no part of the log's secret reaches the cache.
 
 A destroy fills the cache by this selection and then removes the instance's root, without
 following a symbolic link out of it, the catalog's file and its landing log with it. It reads the
@@ -21,7 +24,9 @@ catalog read only and never opens it through `VaultCatalog`, so it needs no land
 even for a catalog that holds no log yet. `palace cache fill` is the same fill without the removal.
 Both refuse when the configured embedder is not the geometry the plane recorded, so a vector is
 filed only under the key of the embedder that made it. The plan counts what a fill would add and
-holds no vector; the fill reads the vectors in batches, so neither grows with the plane.
+holds no vector; the fill reads the vectors in batches, so neither grows with the plane. The dry
+run of either creates and touches no file of an instance at rest (`read_only`, and the launcher's
+run ledger read only until a write opens it).
 
 A root is removed only when it holds nothing but the instance's own state: every top-level entry
 is one the instance's namespaces name, every entry of its data directory is in the class table,
@@ -34,14 +39,13 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from core.ingest.table import CODE_SPACE, CORPUS
 from core.kernel.provenance import Provenance
-from core.stores.cache import Cache, key_of, same_volume_free
+from core.stores.cache import Cache, key_of, plain_file, same_volume_free
 from ops.lifecycle.inventory import read_only
 
 #: Free space the cache's volume keeps beyond what a fill adds.
@@ -118,8 +122,10 @@ def _open_atoms(cfg: Any, open_paths: set[str], purged: set[str]) -> set[str]:
 
 
 def _source_files(base: Path) -> list[str]:
-    """A source's downloaded files, relative to its directory: the stream's manifest and the
-    parts it names, and the items' metadata. Cursors and checkpoints are not downloads."""
+    """The files of a source the cache takes, relative to its directory: the stream's manifest and
+    the parts it names, and the items' metadata, which are what `scripts/corpus.py fetch` copies
+    back into an empty source. Cursors, checkpoints and the whole downloads some readers keep
+    under `raw/` are not taken: nothing reads them back from the cache."""
     man = base / "stream" / "manifest.json"
     if not man.is_file():
         return []
@@ -130,29 +136,84 @@ def _source_files(base: Path) -> list[str]:
     return [f for f in files if (base / f).is_file()]
 
 
+def linked_source_files(cfg: Any) -> list[Path]:
+    """The files the cache would take from the open-corpus sources that are not plain files of
+    their source (`plain_file`): a symbolic link, a file with another hard link, or one that
+    resolves out of its source. Their bytes may be another file's, the catalog's or a note's,
+    which the selection by name did not choose, so a fill and a destroy refuse them."""
+    if not cfg.ingestion.corpus.enabled:
+        return []
+    root = Path(cfg.ingestion.corpus.root)
+    out: list[Path] = []
+    for name in cfg.ingestion.corpus.sources:
+        base = root / name
+        out += [base / f for f in _source_files(base) if not plain_file(base / f, base)]
+    return out
+
+
+def link_refusal(cfg: Any) -> str | None:
+    """Why a fill may not take the sources' files as they stand, or None (`linked_source_files`)."""
+    linked = linked_source_files(cfg)
+    if not linked:
+        return None
+    return (f"{', '.join(str(p) for p in linked)} would enter the cache as a source's download "
+            "and is a link (a symbolic link, a file with another hard link, or a file that "
+            "resolves out of its source), whose bytes may be another file's; remove it first")
+
+
+def left_behind(cfg: Any) -> tuple[list[Path], list[Path]]:
+    """The sources the instance read, split by where they are: those outside its root, which a
+    destroy leaves (the vault, the transcript directory, each repository, the corpus sources'
+    directory when it is elsewhere), and those inside it, which go with the root."""
+    paths: list[Path] = []
+    ing = cfg.ingestion
+    if ing.vault.enabled:
+        paths.append(Path(ing.vault.path))
+    if ing.transcripts.enabled:
+        paths.append(Path(ing.transcripts.transcripts_dir))
+    if ing.code.enabled:
+        paths += [Path(r.path) for r in ing.code.repositories]
+    if ing.corpus.enabled:
+        paths.append(Path(ing.corpus.root))
+    real_root = Path(os.path.realpath(cfg.instance.root))
+    inside = [p for p in paths if _inside(Path(os.path.realpath(p)), real_root)]
+    return [p for p in paths if p not in inside], inside
+
+
+def uncached_source_files(cfg: Any) -> tuple[int, int]:
+    """The files under the open-corpus sources' directories inside the root that the cache does
+    not take, with their bytes: the whole downloads some readers keep under `raw/`, the cursors
+    and the state files. A destroy removes them with the root and keeps nothing of them."""
+    if not cfg.ingestion.corpus.enabled:
+        return 0, 0
+    root = Path(cfg.ingestion.corpus.root)
+    real_root = Path(os.path.realpath(cfg.instance.root))
+    files = size = 0
+    for name in cfg.ingestion.corpus.sources:
+        base = root / name
+        if not base.is_dir() or not _inside(Path(os.path.realpath(base)), real_root):
+            continue
+        taken = {base / f for f in _source_files(base)}
+        for here, _dirs, names in os.walk(base, followlinks=False):
+            for n in names:
+                p = Path(here) / n
+                if p not in taken:
+                    files += 1
+                    size += p.lstat().st_size
+    return files, size
+
+
 def geometry_refusal(cfg: Any) -> str | None:
     """Why this instance's vectors may not be filed under its configured key, or None: the plane
     recorded another geometry (model, document template, dimension), as it does after a change
-    of embedder in the overlay and before `palace reembed`. Read only."""
-    from core.stores.plane import PLANE_FILE
-    from core.stores.vectorstore import fingerprint_of
+    of embedder in the overlay and before `palace reembed`. Read only (`geometry_mismatch`)."""
+    from ops.lifecycle.rebuild import geometry_mismatch
 
-    db = Path(cfg.paths.vector_store) / PLANE_FILE
-    if not cfg.embedding.enabled or not db.is_file():
+    why = geometry_mismatch(cfg) if cfg.embedding.enabled else None
+    if why is None:
         return None
-    conn = read_only(db)
-    try:
-        row = conn.execute("SELECT value FROM meta WHERE key = 'fingerprint'").fetchone()
-    except sqlite3.Error:
-        row = None
-    finally:
-        conn.close()
-    mine = fingerprint_of(cfg).as_json()
-    if row is not None and str(row[0]) != mine:
-        return (f"the plane's vectors came from {row[0]}, and the configured embedder is {mine}; "
-                "a fill would file them under the configured embedder's key. Re-embed first "
-                "(`palace reembed --confirm`), or restore the configuration")
-    return None
+    return (f"{why}; a fill would file them under the configured embedder's key. Re-embed first "
+            "(`palace reembed --confirm`), or restore the configuration")
 
 
 def plan_fill(cfg: Any, cache: Cache) -> FillPlan:
@@ -346,9 +407,9 @@ def refusals(cfg: Any, cache: Cache, *, installed: bool, home: Path | None = Non
         if foreign:
             out.append(f"its root {root} holds what is not the instance's own state: "
                        + ", ".join(foreign) + "; move it out first")
-    why = geometry_refusal(cfg)
-    if why is not None:
-        out.append(why)
+    for why in (link_refusal(cfg), geometry_refusal(cfg)):
+        if why is not None:
+            out.append(why)
     return out
 
 

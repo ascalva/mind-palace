@@ -71,6 +71,12 @@ def main() -> int:
     from scheduler.vault_sync import VAULT_SYNC_KIND, build_vault_watcher
 
     cfg = get_config()
+    from ops.lifecycle.inventory import refusal
+
+    pending = refusal(cfg, "to start")       # a reset's marker refuses the daemon's start too
+    if pending is not None:
+        print(pending)
+        return 1
 
     # FIRST — before the queue, the loader, or the watcher exist. Nothing may be claimed, swept
     # or even opened until this process is established as the sole supervisor.

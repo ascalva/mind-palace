@@ -25,7 +25,7 @@ from ops.lifecycle import rebuild
 from ops.lifecycle.inventory import STORES, Kind, unclassified
 from ops.lifecycle.launcher import Launcher
 from ops.lifecycle.lock import SupervisorLock
-from ops.lifecycle.runs import RunLedger
+from ops.lifecycle.runs import LazyRunLedger, RunLedger
 from tests.fixtures.lifecycle import (
     CORPUS_SOURCE,
     REPO,
@@ -56,7 +56,8 @@ def palace(tmp_path: Path, repo: Path) -> Built:
 
 def launcher_for(b: Built, *, cache: Path | None = None,
                  embedder: CountingEmbedder | None = None) -> tuple[Launcher, list[Any]]:
-    """The palace's launcher, its embedder factory recording each embedder it builds."""
+    """The palace's launcher, its embedder factory recording each embedder it builds, and its run
+    ledger opened at the first write, as `build_launcher` gives it."""
     made: list[Any] = []
 
     def factory(_cfg: Any) -> Any:
@@ -64,7 +65,7 @@ def launcher_for(b: Built, *, cache: Path | None = None,
         made.append(e)
         return e
 
-    lau = Launcher(cfg=b.cfg, runs=RunLedger(Path(b.cfg.paths.data_dir) / "runs.sqlite"),
+    lau = Launcher(cfg=b.cfg, runs=LazyRunLedger(Path(b.cfg.paths.data_dir) / "runs.sqlite"),
                    repo_root=b.repo, embedder_factory=factory,
                    cache_root=cache or b.root.parent / "cache",
                    installed_plist=b.root / "no-agent.plist")
@@ -395,6 +396,20 @@ def test_p6_the_dry_run_writes_nothing_and_names_every_store_it_would_clear(
     assert "DRY RUN" in out
 
 
+def test_p6_the_dry_run_at_rest_creates_and_touches_no_file(palace: Built) -> None:
+    """On an instance at rest, every store closed: the dry run reads each SQLite file, the plane's
+    included, without creating or touching a file, asks the plane's geometry read only, and reads
+    the run ledger read only, so nothing under the root changes, not even a modification time."""
+    from tests.fixtures.lifecycle import close_stores
+
+    lau, _ = launcher_for(palace)
+    close_stores(palace)
+    before = _files(palace.root)
+    assert not [f for f in before if f.endswith(("-wal", "-shm"))], "the fixture is not at rest"
+    assert lau.reset(confirm=False) == 0
+    assert _files(palace.root) == before
+
+
 # ── P7: the refusals ────────────────────────────────────────────────────────────────────────
 
 
@@ -424,6 +439,29 @@ def test_p7_a_changed_embedder_geometry_refuses(palace: Built) -> None:
     lau, _ = launcher_for(palace)
     lau.cfg = replace(palace.cfg, embedding=replace(palace.cfg.embedding, model="another-model"))
     _unchanged(palace, lambda: lau.reset(confirm=True))
+
+
+def test_p7_a_derived_store_outside_the_data_directory_refuses_before_the_marker(
+        palace: Built, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """`derived_store` configured outside the data directory puts the dispositions beside it, where
+    the clearing refuses to reach. The reset finds that before it writes anything, the marker
+    included, so no writer is left refusing behind a marker every rerun would leave again."""
+    import shutil
+
+    lau, _ = launcher_for(palace)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    data = Path(palace.cfg.paths.data_dir)
+    for name in ("derived.sqlite", "verdicts.sqlite", "verdict_dispositions.sqlite"):
+        shutil.copy2(data / name, elsewhere / name)
+    lau.cfg = replace(palace.cfg, paths=replace(palace.cfg.paths,
+                                                derived_store=elsewhere / "derived.sqlite"))
+    before = _files(elsewhere)
+    for confirm in (True, True, False):
+        _unchanged(palace, lambda c=confirm: lau.reset(confirm=c))
+        assert not (data / "reset.pending").exists()
+    assert "does not lie under the data directory" in capsys.readouterr().out
+    assert _files(elsewhere) == before
 
 
 # ── P17: the landing log through a reset and a destroy ──────────────────────────────────────
@@ -489,8 +527,12 @@ def test_p17_a_reset_that_would_write_the_genesis_refuses_without_the_secret(
     tables = sqlite_rows(Path(b.cfg.paths.vault_catalog))
     assert set(tables) == {"vault_files"} and tables["vault_files"] == rows
     monkeypatch.setenv(LANDING_LOG_KEY, LANDING_LOG_TEST_KEY)
+    before_dry = dump(b.cfg)
     assert lau.reset(confirm=False) == 0
     assert "writes the log's genesis" in capsys.readouterr().out
+    # with the secret at hand the dry run still writes nothing: no genesis, no log table
+    assert dump(b.cfg) == before_dry
+    assert set(sqlite_rows(Path(b.cfg.paths.vault_catalog))) == {"vault_files"}
     assert lau.reset(confirm=True) == 0
     assert sqlite_rows(Path(b.cfg.paths.vault_catalog))["vault_files"] == rows
     assert chains_verify(b.cfg) and heads(b.cfg) == before
@@ -638,6 +680,109 @@ def test_p9_a_reset_interrupted_at_any_step_leaves_the_marker_and_finishes(
     assert lau.reset(confirm=True) == 0
     assert not (Path(b.cfg.paths.data_dir) / "reset.pending").exists()
     assert heads(b.cfg) == before and landing_log(b.cfg) == log
+
+
+def _interrupt_at_the_plane(lau: Launcher, monkeypatch: pytest.MonkeyPatch) -> None:
+    def boom(_ctx: Any) -> str:
+        raise RuntimeError("injected at the plane step")
+
+    monkeypatch.setitem(rebuild.STEPS, "vectors.lance", boom)
+    with pytest.raises(RuntimeError, match="injected"):
+        lau.reset(confirm=True)
+    monkeypatch.undo()
+
+
+def test_p9_a_purge_while_a_reset_is_pending_leaves_it_to_finish(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """The marker names the versions the plane held. A purge between the interrupted run and the
+    rerun (the core's `purge_raw`; `scripts/purge_raw.py` itself refuses while the marker stands)
+    erases one of them: the rerun skips it and says so, as the chat log's replay skips a purged
+    transcript, and finishes, the erasure standing."""
+    from core.ingest.derive import drain
+    from core.ingest.purge import purge_raw
+
+    cfg = instance_config(tmp_path / "lazy", None, lazy=True)
+    stores = stores_for(cfg, CountingEmbedder())
+    for i in range(3):
+        (Path(cfg.ingestion.vault.path) / f"n{i}.md").write_text(f"note {i}, embedded later\n")
+    perform(cfg, stores, "do sync_vault")
+    drain(stores, max_items=1)
+    held_path, old = next((r[0], r[1]) for rows in heads(cfg)["plane.occupancies"].values()
+                          for r in rows)
+    (Path(cfg.ingestion.vault.path) / held_path).write_text("note edited, embedded later\n")
+    perform(cfg, stores, "do sync_vault")                   # the plane holds the old version
+    lau = Launcher(cfg=cfg, runs=LazyRunLedger(tmp_path / "runs.sqlite"), repo_root=tmp_path,
+                   embedder_factory=lambda _c: CountingEmbedder(),
+                   cache_root=tmp_path / "cache", installed_plist=tmp_path / "no.plist")
+    _interrupt_at_the_plane(lau, monkeypatch)
+    purge_raw(old, raw=stores.raw, store=stores.plane, catalog=stores.catalog, confirm=True)
+    assert not stores.raw.exists(old)
+    capsys.readouterr()
+    assert lau.reset(confirm=True) == 0
+    assert "1 held version(s) whose raw object a purge erased skipped" in capsys.readouterr().out
+    assert not (Path(cfg.paths.data_dir) / "reset.pending").exists()
+    assert not any(heads(cfg)["plane.occupancies"].values())       # the erasure stands
+
+
+def test_p9_a_changed_embedder_while_a_reset_is_pending_names_the_way_out(
+        palace: Built, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """`reembed` refuses while a reset is pending and names the reset; the reset refuses a changed
+    embedder. So the reset's refusal names the one way out: finish the reset under the embedder the
+    plane was built with, then change the embedder."""
+    lau, _ = launcher_for(palace)
+    _interrupt_at_the_plane(lau, monkeypatch)
+    capsys.readouterr()
+    lau.cfg = replace(palace.cfg, embedding=replace(palace.cfg.embedding, model="another-model"))
+    assert lau.reset(confirm=True) == 1
+    out = capsys.readouterr().out
+    assert "a reset of this instance is pending" in out and "restore that embedder" in out
+    assert lau.reembed_now(confirm=True) == 1
+    assert "`palace reset --confirm` again" in capsys.readouterr().out
+    lau.cfg = palace.cfg                                    # restored: the reset finishes
+    assert lau.reset(confirm=True) == 0
+    assert not (Path(palace.cfg.paths.data_dir) / "reset.pending").exists()
+
+
+# ── the scripts that write refuse while a reset is pending ──────────────────────────────────
+
+#: Each script that lands into an instance or writes a store the reset rebuilds, with the
+#: arguments of its writing run.
+WRITER_SCRIPTS = (("purge_raw", ["0" * 64, "--confirm"]), ("ingest_self_knowledge", None),
+                  ("mint_ids", ["--confirm"]), ("migrate_chunk_keys", ["--apply"]),
+                  ("migrate_provenance_split", ["--apply"]), ("reembed_bodyonly", ["--confirm"]),
+                  ("watch", None), ("corpus", ["embed"]))
+
+
+@pytest.mark.parametrize(("script", "argv"), WRITER_SCRIPTS, ids=[s for s, _ in WRITER_SCRIPTS])
+def test_p9_every_writing_script_refuses_while_a_reset_is_pending(
+        script: str, argv: list[str] | None, tmp_path: Path, repo: Path, home: Path,
+        monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """LCF-5: the marker refuses every writer, the scripts as the launcher's verbs, and each
+    refuses before it opens anything, so the instance holds nothing but the marker after it."""
+    import argparse
+    import importlib
+
+    root = home / ".mind-palace" / "instances" / "t"
+    monkeypatch.setenv(loader.OVERLAY_ENV, str(_lexical_overlay(tmp_path, "t", root, repo)))
+    loader.get_config.cache_clear()
+    cfg = loader.get_config()
+    Path(cfg.paths.data_dir).mkdir(parents=True)
+    (Path(cfg.paths.data_dir) / "reset.pending").write_text('{"stores": []}')
+    module = importlib.import_module(f"scripts.{script}")
+    monkeypatch.setattr(module, "seal", lambda: None, raising=False)    # process-wide otherwise
+    if script == "corpus":
+        monkeypatch.setattr(module, "corpus_config", lambda: cfg)
+        with pytest.raises(SystemExit) as refused:
+            module.cmd_embed(argparse.Namespace())
+        out = str(refused.value.code)
+    else:
+        assert (module.main() if argv is None else module.main(argv)) == 1
+        out = capsys.readouterr().out
+    assert "a reset of this instance is pending" in out
+    assert sorted(str(p.relative_to(root)) for p in root.rglob("*")) == \
+        ["data", "data/reset.pending"]
 
 
 # ── the chat sensor's retention ledger ──────────────────────────────────────────────────────
@@ -790,23 +935,77 @@ def _files(root: Path) -> dict[str, tuple[int, int, bool]]:
     return out
 
 
-def test_p11_the_destroy_dry_run_writes_nothing(named: Built, home: Path) -> None:
-    """On an instance at rest: its stores closed, so no SQLite file but the launcher's own run
-    ledger has a `-wal` or `-shm` beside it, and a reader that opened one `mode=ro` would create
-    them."""
+def test_p11_the_destroy_dry_run_writes_nothing(
+        named: Built, home: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """On an instance at rest: its stores closed, so no SQLite file has a `-wal` or `-shm` beside
+    it, and a reader that opened one `mode=ro` would create them; the run ledger is read only. The
+    dry run names the sources it leaves and those it removes with the root."""
     from tests.fixtures.lifecycle import close_stores
 
     lau, _ = launcher_for(named, cache=home / ".mind-palace" / "cache")
     before = dump(named.cfg)
     close_stores(named)
     before_files = _files(home)
-    assert [f for f in before_files if f.endswith(("-wal", "-shm"))
-            and not f.endswith(("runs.sqlite-wal", "runs.sqlite-shm"))] == []
+    assert [f for f in before_files if f.endswith(("-wal", "-shm"))] == []
     assert lau.destroy(confirm=False) == 0
     # the tree first: a read of a WAL database (the dump's own) creates its -wal and -shm
     assert _files(home) == before_files                 # no file added, removed or touched
     assert dump(named.cfg) == before and not (home / ".mind-palace" / "cache").exists()
     assert not (Path(named.cfg.paths.data_dir) / "supervisor.lock").exists()
+    out = capsys.readouterr().out
+    left = [line for line in out.splitlines() if line.strip().startswith("left:")]
+    assert len(left) == 1
+    for kept in (named.cfg.ingestion.vault.path, named.cfg.ingestion.transcripts.transcripts_dir,
+                 named.repo):
+        assert str(kept) in left[0]
+    assert str(named.cfg.ingestion.corpus.root) not in left[0]       # inside the root: removed
+    assert f"sources inside the root, removed with it: {named.cfg.ingestion.corpus.root}" in out
+
+
+def _palace(env: dict[str, str], *argv: str) -> Any:
+    """`scripts/palace.py` in a process of its own, as a shell runs it."""
+    import subprocess
+    import sys
+
+    return subprocess.run([sys.executable, str(Path(loader.REPO_ROOT) / "scripts" / "palace.py"),
+                           *argv], capture_output=True, text=True, timeout=300, env=env)
+
+
+def test_p11_the_commands_dry_runs_create_and_touch_no_file(
+        tmp_path: Path, repo: Path, home: Path) -> None:
+    """`palace destroy`, `palace reset` and `palace cache fill`, each run as a shell runs it under
+    a named instance's overlay, on an instance at rest whose catalog has an empty `-wal` and a
+    `-shm` beside it, as a `mode=ro` reader leaves them (the corpus's catalog has both): no file
+    under the home is created, removed or touched, the launcher's run ledger included. On a root
+    that does not exist, none of the three creates it."""
+    from tests.conftest import LANDING_LOG_TEST_KEY
+
+    root = home / ".mind-palace" / "instances" / "t"
+    env = {**os.environ, "HOME": str(home),
+           loader.OVERLAY_ENV: str(_lexical_overlay(tmp_path, "t", root, repo))}
+    landed = _palace({**env, "t.landing-log-key": LANDING_LOG_TEST_KEY}, "repo-sync")
+    assert landed.returncode == 0, landed.stdout + landed.stderr
+    for db in root.rglob("*.sqlite"):           # at rest: each database checkpointed and closed
+        con = sqlite3.connect(db)
+        con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        con.close()
+    catalog = root / "data" / "vault_catalog.sqlite"
+    con = sqlite3.connect(f"file:{catalog}?mode=ro", uri=True)   # it leaves an empty -wal, a -shm
+    con.execute("SELECT count(*) FROM vault_files").fetchone()
+    con.close()
+    assert Path(f"{catalog}-wal").stat().st_size == 0 and Path(f"{catalog}-shm").is_file()
+    before = _files(home)
+    for argv in (["destroy"], ["reset"], ["cache", "fill"]):
+        done = _palace(env, *argv)
+        assert done.returncode == 0 and "DRY RUN" in done.stdout, (argv, done.stdout, done.stderr)
+        assert _files(home) == before, argv
+    absent = home / ".mind-palace" / "instances" / "u"
+    env[loader.OVERLAY_ENV] = str(_lexical_overlay(tmp_path, "u", absent, repo))
+    for argv in (["destroy"], ["reset"], ["cache", "fill"]):
+        done = _palace(env, *argv)
+        assert done.returncode == 0 and "DRY RUN" in done.stdout, (argv, done.stdout, done.stderr)
+        assert not absent.exists(), argv
+        assert argv != ["destroy"] or "it does not exist" in done.stdout
 
 
 def test_p11_destroy_refuses_a_root_that_holds_a_checkout_or_foreign_files(
@@ -947,6 +1146,43 @@ def test_p12_destroy_keeps_exactly_the_cache_classes(named: Built, home: Path) -
     assert not any("cursor" in m["file"] or "state" in m["file"]
                    for m in cache.source_manifest(CORPUS_SOURCE))
     assert not stream.exists()
+
+
+def test_p12_a_source_file_that_is_a_link_enters_no_cache(
+        named: Built, home: Path, tmp_path: Path) -> None:
+    """The fill takes a source's stream files by name, so a name that is a link would carry other
+    bytes in: a symbolic link to the catalog's file inside the root, a hard link to it, or a link
+    to a note outside the root. A destroy and a fill refuse each, writing nothing, and the cache
+    itself refuses to store one."""
+    import json
+    import os
+
+    from core.stores.cache import Cache
+
+    b = named
+    base = Path(b.cfg.ingestion.corpus.root) / CORPUS_SOURCE
+    manifest = json.loads((base / "stream" / "manifest.json").read_text())
+    part = base / "stream" / str(manifest["parts"][0]["file"])
+    original = part.read_bytes()
+    catalog = Path(b.cfg.paths.vault_catalog)
+    note = Path(b.cfg.ingestion.vault.path) / "alpha.md"
+    cache_root = home / ".mind-palace" / "cache"
+    lau, _ = launcher_for(b, cache=cache_root)
+    for make in (lambda: part.symlink_to(catalog), lambda: os.link(catalog, part),
+                 lambda: part.symlink_to(note)):
+        part.unlink()
+        make()
+        _unchanged(b, lambda: lau.destroy(confirm=True))
+        _unchanged(b, lambda: lau.destroy(confirm=False))
+        _unchanged(b, lambda: lau.cache_fill(confirm=True))
+        assert not cache_root.exists() and b.root.exists()
+        with pytest.raises(ValueError, match="not a plain file"):
+            Cache(tmp_path / "direct").put_source_files(CORPUS_SOURCE, base,
+                                                        [str(part.relative_to(base))])
+        assert not (tmp_path / "direct").exists()
+    part.unlink()
+    part.write_bytes(original)
+    assert lau.destroy(confirm=False) == 0                  # a plain stream again: it proceeds
 
 
 def test_a_fill_streams_its_vectors_in_batches(

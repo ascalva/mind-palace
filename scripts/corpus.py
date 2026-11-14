@@ -419,6 +419,11 @@ def cmd_embed(a: argparse.Namespace) -> int:
     from ops.corpus.embedder import EmbedderStopped, Gate, GatedEmbedder
 
     cfg = corpus_config()
+    from ops.lifecycle.inventory import refusal
+
+    pending = refusal(cfg, "embed")
+    if pending is not None:
+        raise SystemExit(pending)
     root = cfg.instance.root
     lock = _writer_lock(cfg)
     stopping = {"why": ""}

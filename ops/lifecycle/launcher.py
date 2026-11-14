@@ -1832,13 +1832,17 @@ class Launcher:
         (dn-instance-lifecycle §4; the class table is `ops/lifecycle/inventory.py`). A dry run
         unless confirmed. Refused beside a live daemon, while another writer holds the supervisor
         lock, and when the configured embedder is not the plane's geometry; each refusal writes
-        nothing. Runs under the lock, behind a marker that makes the daemon and every on-demand
-        writer refuse until the last step has run; run again, it finishes an interrupted reset.
-        A step input that has gone missing (a ledgered commit the repository no longer holds, or
-        the landing log's secret when the catalog's first open would write the log's genesis)
-        refuses before anything is cleared, so no deterministic failure is left behind the
-        marker. The catalog's file is kept whole, its landing log with it, and no step appends to
-        the log."""
+        nothing, and neither does the dry run. Runs under the supervisor lock, which the daemon,
+        `repo-sync`, `scripts/ingest.py` and the corpus runner take as well, behind a marker that
+        makes the daemon's start and every command that lands or writes a derived store refuse
+        until the last step has run; run again, it finishes an interrupted reset. A writer reads
+        the marker when it starts, so one that takes no lock and started before the reset is not
+        excluded from it (the note's open question 7). Whatever would stop a rebuild the same way
+        on every run (a derived store outside the data directory, a ledgered commit the
+        repository no longer holds, the landing log's secret when the catalog's first open would
+        write the log's genesis) refuses before anything is written, the marker included. The
+        catalog's file is kept whole, its landing log with it; no step appends to the log, and on
+        a catalog with rows and no log yet the rebuild's first open writes its genesis."""
         from ops.lifecycle import rebuild
         from ops.lifecycle.inventory import reset_pending
 
@@ -1847,15 +1851,20 @@ class Launcher:
             print(f"refusing reset — run #{run.id} (pid {run.pid}) is live. `palace stop` first.")
             return 1
         stores = rebuild.found(self.cfg)
-        if any(s.clear == "relations" for s in stores) and self.cfg.paths.vector_store.exists():
-            from core.stores.plane import GeometryMismatch
-            from core.stores.vectorstore import open_vector_store
-            try:
-                open_vector_store(self.cfg).plane.check_geometry()
-            except GeometryMismatch as e:
-                print(f"refusing reset — {e}. A reset keeps the atoms of one geometry; a change of "
-                      "embedder is `palace reembed --confirm`.")
-                return 1
+        why = (rebuild.geometry_mismatch(self.cfg)
+               if any(s.clear == "relations" for s in stores) else None)
+        if why is not None and reset_pending(self.cfg) is not None:
+            # `reembed` refuses while the marker stands, so naming it here would send the owner
+            # back and forth between the two refusals
+            print(f"refusing reset — {why}, and a reset of this instance is pending. Finish it "
+                  "under the embedder the plane was built with: restore that embedder in the "
+                  "configuration and run `palace reset --confirm` again; change the embedder "
+                  "after it, with `palace reembed --confirm`. Nothing was written.")
+            return 1
+        if why is not None:
+            print(f"refusing reset — {why}. A reset keeps the atoms of one geometry; a change of "
+                  "embedder is `palace reembed --confirm`. Nothing was written.")
+            return 1
         missing = rebuild.missing_inputs(self.cfg, self.repo_root, stores)
         if missing:
             for m in missing:
@@ -1897,9 +1906,11 @@ class Launcher:
         installed LaunchAgent, a root inside a git working tree or holding or inside the cache or
         the home root itself, a root at, inside or around another declared instance's, a root
         that holds a git repository or anything that is not the instance's own state, a symbolic
-        link out of the root, a configured embedder that is not the plane's geometry, and a cache
-        volume without room; each refusal writes nothing, the dry run included. Leaves the sources
-        the instance read, its overlay, and its Keychain items, which it names for the owner."""
+        link out of the root, a source file the cache would take that is a link, a configured
+        embedder that is not the plane's geometry, and a cache volume without room; each refusal
+        writes nothing, the dry run included. Leaves the sources the instance read outside its
+        root, its overlay, and its Keychain items, which it names for the owner; the sources
+        inside the root go with it, and of them the cache keeps the stream files alone."""
         from ops.lifecycle import destroy as d
 
         cfg = self.cfg
@@ -1954,10 +1965,20 @@ class Launcher:
             print(f"refusing destroy — {short}.")
             return None
         root = cfg.instance.root
+        outside, inside = d.left_behind(cfg)
         print(f"destroy instance {cfg.instance.id!r} at {root}:")
         print(f"  the cache ({cache.root}) takes: {plan}")
-        print(f"  removed: {root}, holding " + (", ".join(d.top_entries(root)) or "nothing"))
-        print("  left: its sources, its overlay in config/instances/, and its Keychain items: "
+        print(f"  removed: {root}, holding " + (", ".join(d.top_entries(root)) or "nothing")
+              + ("" if root.exists() else " (it does not exist)"))
+        if inside:
+            files, size = d.uncached_source_files(cfg)
+            print("  sources inside the root, removed with it: "
+                  + ", ".join(str(p) for p in inside)
+                  + f"; the cache keeps their stream files above and none of their other {files:,} "
+                  f"file(s) ({size:,} bytes): whole downloads, cursors and state")
+        print("  left: the sources it read outside its root ("
+              + (", ".join(str(p) for p in outside) or "none") + "), its overlay in "
+              "config/instances/, and its Keychain items: "
               + (", ".join(d.keychain_items(cfg)) or "(none)"))
         return plan
 
@@ -1982,10 +2003,10 @@ class Launcher:
         if self._refuse_if_live("cache fill"):
             return 1
         cache = self._cache()
-        why = d.geometry_refusal(self.cfg)
-        if why is not None:
-            print(f"refusing cache fill — {why}.")
-            return 1
+        for why in (d.link_refusal(self.cfg), d.geometry_refusal(self.cfg)):
+            if why is not None:
+                print(f"refusing cache fill — {why}.")
+                return 1
         plan = d.plan_fill(self.cfg, cache)
         print(f"cache fill from {self.cfg.instance.id!r} into {cache.root}: {plan}")
         short = d.room(cache, plan)
@@ -2016,8 +2037,11 @@ class Launcher:
 
 def build_launcher(config: Config | None = None, **kw) -> Launcher:
     from config.loader import REPO_ROOT, get_config
-    from ops.lifecycle.runs import open_run_ledger
+    from ops.lifecycle.runs import LazyRunLedger
 
     cfg = config or get_config()
     kw.setdefault("launchd_label", cfg.instance.label("palace"))   # this instance's job, DI-2
-    return Launcher(cfg=cfg, runs=open_run_ledger(cfg), repo_root=REPO_ROOT, **kw)
+    # the ledger is opened at its first write, so a command that only asks whether a run is live
+    # (the dry runs and refusals of reset, destroy and cache fill) creates no file
+    return Launcher(cfg=cfg, runs=LazyRunLedger(cfg.paths.data_dir / "runs.sqlite"),
+                    repo_root=REPO_ROOT, **kw)

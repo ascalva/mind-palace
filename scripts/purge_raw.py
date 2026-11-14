@@ -7,7 +7,8 @@ A vault delete only TOMBSTONES (derived dropped, raw kept). This removes the raw
 deliberate, irreversible, and refused unless `--confirm` is passed AND the digest is held by
 no active note (tombstone it from the vault first). Lists tombstoned digests with `--list`. The
 shared cache (`~/.mind-palace/cache`) loses the object and its chunks' vectors as well, and records
-the digest so no instance puts it back (dn-instance-lifecycle §6.6).
+the digest so no instance puts it back (dn-instance-lifecycle §6.6). Refused while a reset of the
+instance is pending (`data/reset.pending`), as every writer is.
 """
 
 from __future__ import annotations
@@ -31,9 +32,18 @@ def main(argv: list[str]) -> int:
     from core.stores.catalog import VaultCatalog
 
     cfg = get_config()
+    listing = "--list" in argv or not argv
+    if not listing:
+        # a purge beside a pending reset could erase a version the reset's marker names
+        from ops.lifecycle.inventory import refusal
+
+        pending = refusal(cfg, "a purge")
+        if pending is not None:
+            print(pending)
+            return 1
     catalog = VaultCatalog(cfg.paths.vault_catalog)
 
-    if "--list" in argv or not argv:
+    if listing:
         tombstoned: dict[str, list[str]] = {}
         for entry in catalog._conn.execute(  # noqa: SLF001 (admin script, read-only)
             "SELECT source_path, digest FROM vault_files WHERE active = 0 ORDER BY digest"

@@ -38,9 +38,14 @@ def main(argv: list[str]) -> int:
     seal()  # structural egress guard first (Invariant 1) — this touches local stores only
     from config.loader import get_config
     from core.stores.catalog import VaultCatalog
+    from ops.lifecycle.inventory import refusal
 
     apply = "--apply" in argv
     cfg = get_config()
+    pending = refusal(cfg, "the relabel") if apply else None   # a pending reset refuses writers
+    if pending is not None:
+        print(pending)
+        return 1
     store = open_vector_store(cfg)
     catalog = VaultCatalog(cfg.paths.vault_catalog)
 
