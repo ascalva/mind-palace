@@ -511,6 +511,71 @@ def test_a_failing_tool_is_an_error_result_not_a_crash(monkeypatch: pytest.Monke
     assert "refused" in reply["result"]["content"][0]["text"]
 
 
+def test_the_cut_tool_is_the_ambassadors_and_answers_through_the_dispatch(
+        tmp_path: Path) -> None:
+    """The algebra of cuts is a tool of the Ambassador's table (dn-temporal-snapshot §7.5): it is
+    listed with its schema, and a call through the server's own dispatch reads the instance's
+    catalog under the classes the Ambassador's grant reads, a call written as an operand
+    included; a refusal is an error result. The call reads through a connection that only reads,
+    so it answers while a writer holds the catalog's write lock, and writes nothing. The guest's
+    table is unchanged, so a guest is told the tool does not exist (D34, until the owner rules)."""
+    import sqlite3
+    from types import SimpleNamespace
+
+    from agents.ambassador import mcp
+    from core.stores.catalog import VaultCatalog
+
+    db = tmp_path / "vault_catalog.sqlite"
+    cat = VaultCatalog(db)
+    cat.record("a.md", "d1", "A")                  # land.1@3, after the chain's genesis
+    cat.record("b.md", "d2", "B")                  # land.1@4
+    cat.record("a.md", "d3", "A")                  # land.1@5: a.md replaced
+    cat.close()
+    amb = mcp.Ambassador.__new__(mcp.Ambassador)   # no query engine: the tool reads the catalog
+    amb.engine = cast(Any, SimpleNamespace(config=SimpleNamespace(
+        paths=SimpleNamespace(vault_catalog=db))))
+    server = mcp.Server()
+    server._amb = amb
+    listed = server.handle({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+    assert listed is not None
+    (tool,) = [t for t in listed["result"]["tools"] if t["name"] == "cut"]
+    assert tool["inputSchema"]["required"] == ["op"]
+
+    def call(arguments: dict[str, Any]) -> dict[str, Any]:
+        reply = server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+                               "params": {"name": "cut", "arguments": arguments}})
+        assert reply is not None
+        return cast(dict[str, Any], reply["result"])
+
+    result = call({"op": "delta", "a": "land.1@4"})
+    assert result["isError"] is False
+    body = json.loads(result["content"][0]["text"])
+    assert (body["removed"], body["added"], body["replaced"]) == (0, 0, 1)
+    assert body["cuts"] == [{"read": "land.1@4"}, {"read": "land.1@5"}]
+    nested = json.loads(call({"op": "count", "a": {"op": "union", "a": "land.1@4"}})
+                        ["content"][0]["text"])
+    assert (nested["type"], nested["value"]) == ("number", 3)
+    writer = sqlite3.connect(db, isolation_level=None, timeout=0.1)
+    writer.execute("BEGIN IMMEDIATE")                # a writer's transaction holds the lock
+    try:
+        locked = call({"op": "count"})
+    finally:
+        writer.execute("ROLLBACK")
+        writer.close()
+    assert locked["isError"] is False
+    assert json.loads(locked["content"][0]["text"])["value"] == 2
+    refused = call({"op": "join", "a": {"op": "held"}})
+    assert refused["isError"] is True
+    assert refused["content"][0]["text"] == ("CutError: join takes a cut as a, and a set of "
+                                             "versions was given")
+    guest = mcp.Server("guest")
+    assert "cut" not in {t[0] for t in mcp.GUEST_TOOLS}
+    reply = guest.handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call",
+                          "params": {"name": "cut", "arguments": {"op": "head"}}})
+    assert reply is not None and reply["error"] == {"code": -32602,
+                                                    "message": "unknown tool 'cut'"}
+
+
 def _calls(*calls: tuple[str, dict[str, Any]]) -> io.StringIO:
     return io.StringIO("".join(json.dumps({
         "jsonrpc": "2.0", "id": i, "method": "tools/call",

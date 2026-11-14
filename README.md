@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/ci.yml)
 [![Lean](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml/badge.svg)](https://github.com/ascalva/mind-palace/actions/workflows/lean.yml)
-[![laws](https://img.shields.io/badge/laws-106_rows_in_16_families-blue)](docs/LAWS.md)
-[![Lean statements](https://img.shields.io/badge/Lean-380_statements_judged-blue)](formal/README.md)
+[![laws](https://img.shields.io/badge/laws-113_rows_in_16_families-blue)](docs/LAWS.md)
+[![Lean statements](https://img.shields.io/badge/Lean-460_statements_judged-blue)](formal/README.md)
 [![sorry](https://img.shields.io/badge/sorry-0-brightgreen)](formal/sorry-budget)
 [![kernels](https://img.shields.io/badge/kernel_replay-6_checkers-6f42c1)](formal/check.sh)
-[![attacks](https://img.shields.io/badge/attacks-232_with_controls-blue)](formal/PalaceTest)
-[![tests](https://img.shields.io/badge/tests-3721-brightgreen)](docs/runbook.md)
-[![coverage](https://img.shields.io/badge/coverage-77%25-green)](pyproject.toml)
+[![attacks](https://img.shields.io/badge/attacks-253_with_controls-blue)](formal/PalaceTest)
+[![tests](https://img.shields.io/badge/tests-3757-brightgreen)](docs/runbook.md)
+[![coverage](https://img.shields.io/badge/coverage-78%25-green)](pyproject.toml)
 [![mypy](https://img.shields.io/badge/mypy-0_errors_in_core-brightgreen)](pyproject.toml)
 [![sealed core](https://img.shields.io/badge/sealed_core-zero_egress-6f42c1)](scripts/check_imports.py)
 [![python](https://img.shields.io/badge/python-3.15-blue)](pyproject.toml)
@@ -33,7 +33,7 @@ read "reference:openai-math:Local-smoothing" chunk 3
 
 There are five sorts: a *field* (a score on every node), a *region* (a set of nodes), *chains* (paths that spell a word over the edge types), a *witness* (the commit that minted an edge) and a *text* (one record). The verbs move between them: `near`, `diffuse`, `reach`, `relate`, `trace`, `walk … via`, `witness`, `read`. The connectives compose them: `and`, `or`, `minus`, `then`; `within`, `over` and `as of` restrict; `top k`, `atleast t`, `far` and `not` bound; `assume … in` evaluates a sentence under a hypothesis, and its answer is a `Hyp` beside the actual answer, never a fact. The grammar is `core/sentence/grammar.py`; [`docs/query/asking.md`](docs/query/asking.md) is the guide to writing a sentence.
 
-Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has one read tool, `query`, and the Open WebUI bridge serves the same manifest. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A third surface holds a narrower grant: `scripts/palace_mcp.py --role guest` serves an external agent `query` and `overview` alone, read-only over the dialogue, the repository's code and docs, the papers and the observed records, never the notes or the interpretations derived from them (SCO-9, `docs/design-notes/dn-guest-principal.md`); it is how the code instance below serves a coding agent. A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
+Two surfaces share one grant. `mind-palace query "<sentence>"` runs a sentence read-only from the live checkout. The Ambassador's MCP server has two read tools, `query` and `cut`, the algebra of cuts over the landing log (`agents/ambassador/cut_tool.py`, which reads the store as of a cut), and the Open WebUI bridge serves its manifest without `cut`. Both hold the Ambassador's grant with the hypothetical overlay the owner switched on; `--as <role>` labels the asker in the query log and grants nothing. A third surface holds a narrower grant: `scripts/palace_mcp.py --role guest` serves an external agent `query` and `overview` alone, read-only over the dialogue, the repository's code and docs, the papers and the observed records, never the notes or the interpretations derived from them (SCO-9, `docs/design-notes/dn-guest-principal.md`); it is how the code instance below serves a coding agent. A sentence that cannot be answered is refused with the reason: the production that failed to parse, the sort rule it broke, the plane no grant covers, the note that matched twice. It is not answered with nearest neighbours instead.
 
 ## From a sentence to an answer
 
@@ -121,12 +121,12 @@ A law has one row in [`docs/LAWS.md`](docs/LAWS.md): its statement, the structur
 | | |
 |---|---|
 | toolchain | Lean `v4.36.0-rc2`, Mathlib; Plausible for the attacks |
-| the library | 38 proof modules, 37 models, 27 statement files; 25,700 lines of models and proofs, 3,841 of statements, 5,757 of attacks |
-| theorems | 1,544 proved in `formal/Palace`; 380 statements in `formal/Spec` judged identical by the comparator |
-| the ledger | 106 rows in 16 families, 386 cited declarations, 93 law markers checked against the rows |
-| attacks | 232 Plausible attacks and 206 negative controls over 33 modules, fixed seeds |
+| the library | 39 proof modules, 38 models, 28 statement files; 27,136 lines of models and proofs, 4,452 of statements, 6,185 of attacks |
+| theorems | 1,654 proved in `formal/Palace`; 460 statements in `formal/Spec` judged identical by the comparator |
+| the ledger | 113 rows in 16 families, 466 cited declarations, 100 law markers checked against the rows |
+| attacks | 253 Plausible attacks and 223 negative controls over 34 modules, fixed seeds |
 | axioms | `propext`, `Classical.choice`, `Quot.sound`; `sorry` 0 |
-| the replay | 56,238 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
+| the replay | 56,530 declarations accepted by all six checkers on the run of `formal/check.sh` this commit was built with |
 | families | memberships · Laplacian, balance and spectral · cut and conductance · curvature · the global event clock · the shared prose plane · capability scopes · the abstraction ultrametric σ* · bridges · the retrieval curve · the query sentence algebra · the ingress · stored vectors · the growth readout · the utility field · the temporal snapshot |
 
 ## The mathematics
@@ -149,7 +149,7 @@ Utility is a side effect and is treated as one. What the project optimizes for i
 
 ## Architecture
 
-- **The query algebra.** `core/sentence/`: the grammar, the sorts, the compiler and planner, the universe builder, the executor, the trace, the surfaces. The one read.
+- **The query algebra.** `core/sentence/`: the grammar, the sorts, the compiler and planner, the universe builder, the executor, the trace, the surfaces. The read by sentence; the other read is the algebra of cuts (`core/stores/cuts.py`, the `cut` tool), over the versions the landing log holds at cuts and between them.
 - **Ambassador.** The reasoning layer, over MCP and the web bridge. Computationally light, deterministic where exactness matters, and plain about how much effort an answer took.
 - **Dreamer.** The offline layer that works over the structure of what is stored. Deterministic clustering feeds model synthesis; the outputs are content-addressed proposals that cannot silently become beliefs.
 - **The store and its typed views.** The shared prose plane with its clearances, the curated literature store held structurally apart, the ledger of the repository's own history (three million citations over 1,487 commits), the version chains, the causal edges. A read-only reflection of memory and a write-only path to the world, distinct by type.
@@ -177,7 +177,7 @@ The build's own history is a dataset. Every commit's structure is snapshotted in
 
 ```sh
 uv sync --extra dev
-uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,721 tests
+uv run pytest -q -m 'not live and not podman and not needs_vault and not needs_restic'   # the deterministic tier: 3,757 tests
 uv run mypy                                        # strict core: 0 errors (the 67 in tests/ are pinned)
 uv run python scripts/check_imports.py             # the sealed core names no network module
 uv run python -m ops.type_gate                     # every core-reaching package is type-checked
@@ -185,7 +185,7 @@ uv run python -m ops.type_gate                     # every core-reaching package
 bin/mind-palace query 'top 5 near "sleep" and diffuse S from "health.md"' --trace   # from the live checkout
 ```
 
-The suite is tiered by intent (unit, integration, property, metamorphic, adversarial, integrity, longitudinal, emergent), so an invariant regression reads differently from a flaky assertion; the property tier is the ledger's Python falsifiers. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates and are skipped when absent. Line-and-branch coverage over the deterministic tier is 77%, reported rather than gated: a structural test that deletes an illegal state matters more than a line touched.
+The suite is tiered by intent (unit, integration, property, metamorphic, adversarial, integrity, longitudinal, emergent), so an invariant regression reads differently from a flaky assertion; the property tier is the ledger's Python falsifiers. Live axes (`-m live`, `-m podman`, a dev-Vault CI service) verify against the real substrates and are skipped when absent. Line-and-branch coverage over the deterministic tier is 78%, reported rather than gated: a structural test that deletes an illegal state matters more than a line touched.
 
 ## Running it
 

@@ -1,0 +1,471 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,noabbrev]{cleveref}
+\setlength{\emergencystretch}{3em}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\newcommand{\lean}[1]{\path{#1}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\alive}{\mathrm{alive}}
+\newcommand{\gone}{\mathrm{gone}}
+\newcommand{\come}{\mathrm{come}}
+\newcommand{\held}{\mathrm{held}}
+\newcommand{\born}{\mathrm{born}}
+\newcommand{\died}{\mathrm{died}}
+
+\title{The Algebra of Cuts:\\
+Positions, Contents and Their Differences over an Append-Only Log}
+\author{Alberto Serrano-Calva}
+\date{November 13, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+A personal knowledge store records every change to its catalog in an append-only log, one chain a
+provenance class, so a cut, one position a chain, names the store as of a moment. Its first read
+of every version a cut holds built a row in Python a head, 1.7 to 1.8~s for the 400{,}274 heads
+of a corpus chain whose walk in SQL takes 66~ms. This paper treats the cut as a lazy value with an
+algebra instead. On positions, cuts form a distributive lattice, as the consistent cuts of a
+distributed computation do, and the difference of two cuts is the events between them. On
+contents, a version is one row of the log, alive on one half-open interval of positions, so the
+union, the intersection and the difference of what cuts hold are predicates on a row's position
+and its closing stamp: they compose without a read and run as one statement, and the signed
+difference of two cuts is two range reads whose cost grows with what changed. The union on
+contents is not the union on positions: it holds both versions of an edited note, and the two
+agree exactly on rows that are never closed. Seven laws are proved in Lean~4, 110 theorems with
+six controls among them, and a property test checks the code against a fold of the log. On a
+copy of the corpus catalog, every head counts in 66~ms and reads as three columns in 0.22~s, and
+the signed difference over a thousand positions is counted in 2.5~ms and read and sorted in 2.7
+to 2.9~ms, against 3.6 to 3.8~s for two full reads and a set difference.
+\end{abstract}
+
+\section{Introduction}
+
+The system is a personal knowledge store \cite{serranocalva2026palace}: notes, dialogue, papers and
+code land through one writer into a dozen stores, and a sentence of a query algebra reads them.
+Its catalog maps each source path to the content it holds now and is rewritten in place. A
+landing log, built as the first stage of a design for reading the store as of a past cut, keeps
+the catalog's past: every write appends a row to a hash-chained chain of its provenance class, in
+the transaction of the catalog's own row, and a row stores the position of its path's next event
+when that event lands, its closing stamp. A cut is one position a chain, about a dozen integers
+for an instance.
+
+That stage's read of every version a cut holds returned a list of row objects: 3.5 to 3.9~$\mu$s a
+head beyond the walk, so the read passed a tenth of a second near 27{,}000 heads. Before a later
+stage builds the store's graph at a cut on this read, its shape had to change. The design takes
+five requirements as given. The value a cut names is the store's graph at its positions, evaluated
+lazily, so that holding a cut reads nothing. Operators take one cut with another, a difference, a
+union and an intersection among them, and operations of any kind apply to one cut or to a family of
+cuts. Each of the two set operations has two forms, one of positions and one of contents, and both
+are kept. An operation given no cut works on the current one, the way a stack operation takes the
+value on top. And editing a node gives it a new version while it stays the same node, so that a cut
+holds each node in the version alive there.
+
+The contributions:
+\begin{enumerate}
+\item A design (\cref{sec:design}): the cut as an immutable frontier; operators typed so that every
+  result that is a cut, a set or a difference is an operand again; four forms every operation is
+  written on; and a default that binds the head once an evaluation.
+\item The interval structure (\cref{sec:laws}): a version alive on one half-open interval makes
+  every set operation a predicate on two columns, both differences of two cuts range reads, and
+  the composition of differences exact through a cut between the two.
+\item Seven laws, SNP-11 to SNP-17, proved in Lean~4 over a model of the log, with controls that
+  show where each fails, and attacked by randomized instances.
+\item A build over SQLite (\cref{sec:build}): statements bounded by the intervals so that the
+  planner walks what changed, columns read as one buffer each, and a tool of the store's protocol
+  for agents.
+\item Measurements on a copy of a 400{,}274-item catalog (\cref{sec:eval}).
+\end{enumerate}
+
+\section{Background and related work}
+
+\paragraph{Cuts.} A cut of a distributed computation is a set of events closed under the order of
+each process; Chandy and Lamport recorded consistent global states with markers
+\cite{chandy1985snapshots}, and Mattern showed that the consistent cuts form a lattice under union
+and intersection, with vector time as its coordinates \cite{mattern1989virtual}. Down-sets of a
+partial order form a distributive lattice \cite{davey2002lattices}. Each chain here is one append
+order, so a cut is a down-set of a disjoint union of chains, the lattice is the product of the
+chains' positions, and every frontier of chains that read no other chain is consistent. The log's
+chains read no other chain but for a change of class, which writes a row in each of two chains in
+one transaction (\cref{sec:limits}).
+
+\paragraph{Temporal data.} Transaction-time databases keep each version of a record with the
+interval of time it was current, and a survey compares the access methods for such data
+\cite{salzberg1999access}; SQL:2011 stores a system-time period on each row of a versioned table
+\cite{kulkarni2012sql2011}. The relational interval tree answers interval intersection queries
+with the indexes a relational system already has \cite{kriegel2000intervals}, and a timeline index
+serves temporal aggregation, joins and time travel in a column store \cite{kaufmann2013timeline}.
+The landing log is a transaction-time table whose period ends at the closing stamp. Allen's
+thirteen relations classify how two intervals stand \cite{allen1983intervals}; a cut asks only
+whether a point lies in an interval, and that is what keeps every operator a range read.
+
+\paragraph{Graphs over time.} DeltaGraph retrieves past snapshots of a graph from a hierarchy of
+stored deltas \cite{khurana2013deltagraph}, a temporal graph algebra gives operators on evolving
+graphs under point semantics \cite{moffitt2017tga}, and temporal networks are studied for the
+structure of contacts in time \cite{holme2012temporal}. The cut here is a frontier over several
+chains read under a grant, and its graph is a later stage; the quantities that stage updates over
+a difference rest on standard tools: a low-rank correction of a factor \cite{woodbury1950inverting},
+eigensolvers started from earlier vectors \cite{knyazev2001lobpcg}, and union-find for added edges
+\cite{tarjan1975union}.
+
+\paragraph{Tools.} The laws are proved in Lean~4 \cite{moura2021lean4} with mathlib
+\cite{mathlib2020}; the code is tested with Hypothesis \cite{maciver2019hypothesis}.
+
+\section{The model and the laws}\label{sec:laws}
+
+\begin{definition}[Stores, cuts, reads]
+A store is a family of lists indexed by chain keys $K$, and a cut is a function $c : K \to \N$.
+The read at $c$ takes the first $c(k)$ events of each chain, the head is the cut of the lengths,
+and the cuts inside a store are those at or under the head. The events between cuts $a$ and $b$
+are, on each chain, those after position $a(k)$ and up to $b(k)$.
+\end{definition}
+
+\begin{definition}[Generations]
+On a chain of keyed writes each write is a row $r$ with a key, a value, its position $\born(r)$,
+and its closing stamp $\died(r)$, the position of the key's next write, or none. The row is
+alive at $c$ when $\born(r) \le c$ and $\died(r)$ is none or above $c$. A tombstone and a purged
+row carry no value: they close the row before them and are no version.
+\end{definition}
+
+\begin{definition}[Sets of rows]
+A set is an expression: $\held(c)$, or the union, the intersection or the difference of two
+sets. A row is in $\held(c)$ when it is alive at $c$, and in a combination by the Boolean
+operation on the operands. The signed difference of two cuts is
+$\gone(a,b) = \held(a) \setminus \held(b)$ and $\come(a,b) = \held(b) \setminus \held(a)$.
+\end{definition}
+
+The definitions are \lean{Gen}, \lean{Held} and \lean{Held.has} in
+\lean{formal/Palace/SnapshotAlgebra/Defs.lean}, over the model of the reads in
+\lean{formal/Palace/Snapshot/Defs.lean}. There is no complement, deliberately: every set lies
+inside the contents of the cuts it names (\lean{Held.exists_atom_of_has}), and the complement, the
+rows a cut does not hold, grows with every landing (\lean{Witness.complement_grows}).
+
+\begin{theorem}[SNP-11, the lattice of cuts]
+The cuts inside a store are closed under the pointwise meet and join, with the empty cut at the
+bottom and the head at the top, and no cut leaves as the store grows. The read at $a \sqcup b$
+is, chain by chain, the later of the two reads and at $a \sqcap b$ the earlier; the events
+between $a$ and $b$ are those between $a \sqcap b$ and $b$, and those between $a$ and
+$a \sqcup b$. (\lean{cutsIn}, \lean{readAt_sup}, \lean{readAt_inf}, \lean{readBetween_inf_left},
+\lean{readBetween_sup_right}.)
+\end{theorem}
+
+\begin{theorem}[SNP-12, a row lives on an interval]
+A row alive at two cuts is alive at every cut between them. For $a \le b$ on a chain,
+\begin{align*}
+r \in \come(a,b) &\iff a < \born(r) \le b \text{ and } \died(r) \notin [\born(r), b],\\
+r \in \gone(a,b) &\iff \born(r) \le a < \died(r) \le b,\\
+r \in \held(a) \cap \held(b) &\iff \born(r) \le a \text{ and } \died(r) \notin [\born(r), b],
+\end{align*}
+and a row is alive at every cut of a family exactly when it is alive at the least and the
+greatest. On the generations of a chain a cut holds one row a key. (\lean{Gen.aliveAt_of_between},
+\lean{Gen.aliveAt_and_not}, \lean{Gen.aliveAt_and_not'}, \lean{Gen.aliveAt_and},
+\lean{Gen.forall_aliveAt_iff}, \lean{eq_of_key_eq_of_mem_contentAt}.)
+\end{theorem}
+
+The first two are what make a difference cheap: the rows come are a range of positions, read on
+the primary key, and the rows gone a range of closing stamps, read on an index of them. Both cost
+what changed, not what is held. The control is a value rather than a row: a path that returns to
+bytes it held holds them at two cuts and not between (\lean{Witness.value_not_contiguous}), which
+is why the element of a cut's contents is a row of the log and not a digest.
+
+\begin{theorem}[SNP-13, the signed difference]
+$\held(b) = (\held(a) \setminus \gone(a,b)) \cup \come(a,b)$. When $b$ lies between $a$ and $c$ on
+every chain, in either direction,
+\begin{align*}
+\come(a,c) &= (\come(a,b) \setminus \gone(b,c)) \cup \come(b,c),\\
+\gone(a,c) &= \gone(a,b) \cup (\gone(b,c) \setminus \come(a,b)),
+\end{align*}
+and a row that came and went on the way is on neither side. A sum over the rows at $b$ is the
+sum at $a$ less the rows gone, with the rows come. Sorted by key, each row gone is removed or the
+first of a replaced pair and not both, each row come is added or the second of one, and every key
+of the difference is one the events between name. (\lean{Held.has_cut_eq_apply},
+\lean{Held.has_come_trans}, \lean{Held.has_gone_trans}, \lean{Held.sum_rows_delta},
+\lean{mem_gone_iff}, \lean{not_replacedOf_of_removedOf}, \lean{mem_come_iff},
+\lean{key_mem_of_mem_delta}.)
+\end{theorem}
+
+Through a cut outside the two the composition fails (\lean{Witness.delta_through_outside}). The
+region of identities the events between two cuts name holds more than the difference: a path
+landed and retired between them is named by the events and holds a version at neither cut
+(\lean{Witness.changed_not_delta}).
+
+\begin{theorem}[SNP-14, closure]
+Whether a row is in a set is a function of its position and its closing stamp alone; a set read
+is the set operation on the reads; a row's own test commutes with every set; a set whose cuts
+lie inside the chain is unchanged by its growth; and what every cut of a family holds is what
+its least and its greatest both hold. A function of two reads, a measure at each cut of a family
+and a fold over one are unchanged by growth. (\lean{Held.has_eq_of_interval},
+\lean{Held.mem_rows_union}, \lean{Held.rows_filter}, \lean{Held.rows_gens_append},
+\lean{Held.has_all_eq_kept}, \lean{combine_grow}, \lean{series_grow}, \lean{foldOver_grow}.)
+\end{theorem}
+
+\begin{theorem}[SNP-15, contents against positions]
+What either of two cuts holds is what their join holds with the rows gone between their meet and
+their join; what both hold is what their meet and their join both hold. For a row never closed,
+the join's contents are the union of the contents and the meet's their intersection.
+(\lean{Held.has_union_cut}, \lean{Held.has_inter_cut}, \lean{Gen.aliveAt_sup_of_open},
+\lean{Gen.aliveAt_inf_of_open}.)
+\end{theorem}
+
+The control is one key written twice between two cuts: the union on contents holds two rows and
+the contents of the join one (\lean{Witness.union_ne_join}). So the two meanings are two
+operators, and the types tell them apart.
+
+\begin{theorem}[SNP-16 and SNP-17, the grant and the erasure]
+A set read on the chains a grant shows is the grant's restriction of the set read on the whole
+store, reads only those chains and its cuts' positions on them, and names no other. The closing
+stamps are a function of the keys alone, so a purged row that keeps its key moves no position and
+no stamp; it leaves every set and changes no other row of any set. A retire is a removal in every
+signed difference that spans it. (\lean{Held.across_restrict}, \lean{Held.across_congr},
+\lean{gens_map}, \lean{Held.rows_gens_holes}, \lean{removed_of_retire}.)
+\end{theorem}
+
+Each proof is a case analysis on the Boolean values of aliveness at the cuts involved, or an
+induction on the list of rows; the composition laws use contiguity to exclude the one case,
+alive at $a$ and $c$ and not at $b$, that a cut between rules out. The library proves the seven
+laws in 110 theorems, six of them the controls, with no axiom beyond the standard three; 80 of
+the declarations are restated with their proofs left out and judged identical by a comparator,
+and every proof is replayed by six independent kernel checkers. Seeds 529 to 566 attack the
+statements with 500 random instances each: twenty-one attacks survive, one of them on the 295
+instances its guard admits, and seventeen negative controls are refuted.
+
+\section{The design}\label{sec:design}
+
+\Cref{tab:objects} gives the objects and what each holds before anything is read. A cut is its
+positions, compared and hashed as a value, so two equal cuts are one key. Every other object holds
+cuts and how they are combined, and reading is a separate act: a count, columns, or the sorted
+rows of a difference.
+
+\begin{table}[t]
+\centering\small
+\begin{tabularx}{\linewidth}{@{}lXX@{}}
+\toprule
+object & holds, unread & read as \\
+\midrule
+a cut & one position a chain & nothing: it is the value \\
+events between two cuts & the two cuts & a count; rows of every kind \\
+a set of versions & an expression over cuts & a count; columns \\
+a signed difference & two sets, gone and come & counts of removed, added, replaced; sorted rows \\
+a family & a list of cuts & by operation \\
+a number, a series, a table & nothing: a result & itself; no operand of a set operator \\
+\bottomrule
+\end{tabularx}
+\caption{The objects of the algebra. Join and meet take two cuts and return a cut; union,
+intersection, difference and symmetric difference take two sets and return a set, a cut given
+there being the set it holds.}\label{tab:objects}
+\end{table}
+
+\paragraph{The interface.} Every operation is written against four forms: \emph{apply}, a
+function of one cut's read; \emph{combine}, a function of two; \emph{map}, a function at each
+cut of a family; and \emph{fold}, an accumulation over a family. A read hands an operator the cut,
+the versions it holds and the events up to it, all unread. The named operations are instances:
+what a cut holds is an apply, the events between and the signed difference are combines, what
+persisted through a family is a fold that carries the family's meet and join, and the count at
+each cut walked by the differences is a fold that carries the last read and its count. Each form
+is a function of the prefixes, so by SNP-14 each is unchanged by growth, and any operation that
+is none of the named ones is admitted by writing it against the same four.
+
+\paragraph{The default.} An operation that names no cut reads the head, and the head is read once,
+when the evaluation starts: every part of one answer reads one cut, and the answer names its
+positions. Asked again with those positions, the question gives the same answer whatever has
+landed since, up to what a later purge erased. The stack the requirement compares the default to
+is a comparison only; no stack of cuts and no state is kept between two evaluations.
+
+\paragraph{Scope and erasure.} The grant names chains, so every statement names the chains of the
+grant's classes and no other; a cut naming another chain is refused in the words used for a chain
+that does not exist. A purged version is a row without its salt, which the version's own test
+leaves out of every set; the answer counts such rows in the ranges it read.
+
+\section{The build}\label{sec:build}
+
+The engine is one module over the log's tables in the catalog's SQLite file. An evaluation reads
+the chains of the asker's classes and their heads in one statement; cuts are restricted to those
+chains, and a position past a chain's head is refused.
+
+\paragraph{From an expression to a statement.} For each chain the expression compiles to two
+things (\cref{alg:compile}): the predicate, a Boolean combination of
+\texttt{seq <= c AND (closed\_at IS NULL OR closed\_at > c)} for each cut's position $c$; and the
+bounds the intervals imply, a range of positions and a range of closing stamps that every row of
+the set lies in. The bounds add nothing to the predicate's meaning, but they are ranges an index
+can take: for $\come(a,b)$ the positions $(a, b]$, on the primary key; for $\gone(a,b)$ the closing
+stamps $(a, b]$, on the index of closing stamps. A chain whose bounds are empty is skipped, so a
+difference between two cuts that agree on a chain reads nothing there. A set of any depth is then
+one statement, and combining two sets runs none.
+
+\begin{algorithm}[t]
+\caption{The bounds of a set on one chain: positions in $(\ell, h]$, closing stamps in $(d, u]$,
+$u = \top$ for an open row.}\label{alg:compile}
+\begin{algorithmic}[1]
+\Function{Bounds}{$e$}
+  \If{$e = \held(c)$} \Return $(0, c, c, \top)$ if $c > 0$, else empty \EndIf
+  \State $P \gets \Call{Bounds}{e.p}$
+  \If{$e$ is a union} \Return the hull of $P$ and \Call{Bounds}{$e.q$} \EndIf
+  \If{$e$ is an intersection} \Return the meet of $P$ and \Call{Bounds}{$e.q$}, or empty \EndIf
+  \For{each cut $c > 0$ that $e.q$ is, or is a union of}\Comment{$e = e.p \setminus e.q$}
+    \If{$d_P \ge c$} $\ell_P \gets \max(\ell_P, c)$\Comment{alive past $c$, not at it: stored after it}\EndIf
+    \If{$h_P \le c$} $u_P \gets \min(u_P, c)$\Comment{stored by $c$, not alive at it: closed by it}\EndIf
+  \EndFor
+  \State \Return $P$, or empty if a range is empty
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Columns.} A count is one statement of two aggregates, the versions and the holes, and
+builds no row. Rows are read as columns: each column is aggregated in SQL into one string and
+decoded into one buffer, an integer column into an array of 64-bit integers, the path's key into
+an array of 32-byte values, and text into one run of bytes with an array of offsets, decoded a
+value at a time when a listing asks for it. Reading rows makes fewer than one Python object a
+row.
+
+\paragraph{The signed difference.} Its counts are one statement: the two sides, materialized,
+joined on the chain and the path's key, so a path replaced is counted once and removed and added
+are the rest. Read, both sides are sorted in one sort of their 40-byte keys, the chain and the
+path's key; since a cut holds one row a path on a chain, a key on both sides is two neighbours,
+the row gone first. Composition takes the formulas of SNP-13 and is refused unless the shared cut
+lies between the outer two on every chain.
+
+\paragraph{Families.} What persisted reads two positions a chain whatever the family's size. The
+pairwise table reads once what some cut of the family holds, as positions and closing stamps,
+builds the matrix $M$ with $M_{ri} = 1$ when cut $i$ holds row $r$, and returns
+$M^{\top}(1 - M)$, whose entry $(i,j)$ counts what $i$ holds and $j$ does not.
+
+\paragraph{The tool.} One tool of the store's protocol for agents, \texttt{cut}, takes an operator
+and its operands: each a cut's name (\texttt{head}, \texttt{bottom}, or positions written
+\texttt{land.<chain>@<seq>}) or a call written as an object, whose result is the operand. So a
+call is one expression: it reads the heads when it starts, a chain's horizon once for a position
+named under the chain's head, and then what its outermost operator needs. The server opens the
+catalog's file to only read, and a call's sets name at most 256 cuts, counted each time their
+statement names one. A set given where a cut is expected is refused by its type, and the refusal
+names what was given and what is taken. A
+position under a chain's horizon, inside the block that opens a chain and is not history, is read
+at the chain's empty prefix, and the answer's note says so. Every answer names the cuts it read
+by their positions and says that it is of versions only: edges and graph mathematics at a cut
+arrive with a later stage.
+
+The read the contents replace is removed with nothing kept beside it; the measurements keep its
+statement as their baseline. The tests check every law against a plain fold of the log kept in
+the test code, over Hypothesis's random sequences of catalog writes: records, retires, renames,
+relabels, re-keys, changes of class and purges, at every position and every pair of positions of
+each chain and at random frontiers over several chains, ordered and not.
+
+\section{Evaluation}\label{sec:eval}
+
+The deterministic tier of the repository's tests passes at 3{,}757 tests with the algebra's 36.
+The measurements are of the code as built, on two copy-on-write clones of a corpus instance's
+catalog: 400{,}274 items of one class, so one chain whose genesis ends at position 400{,}276, then
+200{,}000 writes after it (100{,}000 new versions of held paths, 50{,}000 retires, 50{,}000 new
+paths, shuffled), the chain ending at 600{,}276 with 400{,}274 heads. One machine, an Apple M2
+Pro with 32~GB, Python 3.15.2, SQLite 3.54.1 and NumPy 2.5.4, with other work running at a load
+average between 2.3 and 4.0. The figures are medians of five repetitions, the two runs given as a
+range (\cref{tab:heads,tab:delta}).
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+every head of the chain, 400{,}274 & at the genesis's head & after the history \\
+\midrule
+a row in Python a head (the read replaced) & 1.74--1.79~s & 1.82--1.86~s \\
+counted & 66~ms & 90--95~ms \\
+three columns: position, key, digest & 219--224~ms & 236--241~ms \\
+eight columns & 433--437~ms & 440--442~ms \\
+\bottomrule
+\end{tabular}
+\caption{Every head of the corpus chain. The columns equal the rows in both runs.}\label{tab:heads}
+\end{table}
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}rrrrrr@{}}
+\toprule
+positions & removed, added, replaced & counts & sides as columns & sorted & two reads \\
+\midrule
+1 & 1, 0, 0 & 0.02 & 0.02, 0.02 & 0.08 & 3{,}670--3{,}728 \\
+1{,}000 & 248, 224, 528 & 2.5 & 0.4, 1.9--2.0 & 2.7--2.9 & 3{,}684--3{,}742 \\
+100{,}000 & 24{,}995, 25{,}010, 49{,}995 & 279--305 & 42, 218--238 & 318--362 & 3{,}655--3{,}787 \\
+200{,}000 & 50{,}000, 50{,}000, 100{,}000 & 560--604 & 83--90, 448--463 & 657--682 & 3{,}634--3{,}812 \\
+600{,}276 & 0, 400{,}274, 0 & 144--147 & 238--260, 0.01 & 398--448 & 1{,}783--1{,}879 \\
+\bottomrule
+\end{tabular}
+\caption{The signed difference ending at the head, over spans of positions, in milliseconds: its
+counts, its two sides as columns (come, then gone), its rows sorted, and two reads of every head
+with a set difference. Every side equalled the set difference.}\label{tab:delta}
+\end{table}
+
+\paragraph{Every head.} Counted, every head of the chain takes 66~ms, 0.17~$\mu$s an event walked
+and no row built, 27 times faster than the rows it replaces, so a count passes a tenth of a second
+up to about 600{,}000 events. Three columns take 0.22~s, eight times faster than the rows and over
+that bar: beyond the walk a head costs 0.39~$\mu$s as three columns, against 4.2~$\mu$s as a row.
+Three columns pass the bar near 180{,}000 heads on a chain whose events are its heads. That is the
+size at which the design keeps heads at recorded cuts or walks the differences from a first read,
+and the corpus chain is over it.
+
+\paragraph{The difference.} Counted, it costs what changed: 0.02~ms for one position, 2.5~ms for
+a thousand (2.7 to 2.9~ms read and sorted), 0.28 to 0.31~s for 100{,}000 and 0.56 to 0.60~s for
+the whole history, against 3.6 to 3.8~s for two reads of every head and a set difference at every
+span that ends at the head from inside the history, and 1.8 to 1.9~s from the bottom, where one
+of the two reads is empty. The planner took the primary key for the rows come and the index of
+closing stamps for the rows gone, unprompted. The
+rows gone cost 2.9 to 3.2~$\mu$s a row against 0.57 for the rows come, since each is found on the
+index and then read from the table by its position, where the rows come are one run of the
+primary key.
+
+\paragraph{A family.} For ten cuts spread over the history, the counts walked by the differences
+took 0.43 to 0.49~s against 0.79 to 0.83~s for ten counts, and equalled them; what persisted
+through all took 64~ms, one walk to the least position; what existed in any 99~ms; and the
+pairwise table 0.32~s, equal to the hundred differences' sizes.
+
+\section{Limitations}\label{sec:limits}
+
+The model states the laws over lists, and the statements the code runs are not in it: that each
+runs as its predicate is the property test's, not a theorem's. Every head as columns is over the
+bar at the corpus's size, so a reader of every head of such a chain reads it once and walks the
+differences. The rows gone are read through an index and the table, five times the cost a row of
+the rows come. The measurements are of one chain of one class, so a difference between two cuts
+neither of which is under the other was tested and not measured, and the history purged nothing.
+A position named under a chain's head is checked against the chain's horizon by a walk back to
+the horizon's row, once a call for each chain, since no index finds it. A change of class writes
+a row in each of two chains in one transaction, and a frontier can hold one without the other,
+so that the path is in both classes or in neither; such a frontier is read as asked and the tool
+says so, and whether the pair becomes a reference the resolver follows is left to the next
+stage. And this is not yet the graph: the edges by species and the graph's quantities at a cut
+are the next stage's.
+
+\section{Future work}
+
+The next stages add the store's other chains (the chat log, the attestation ledger, the commit
+order) to the same cut value, then build the graph at a cut on this algebra: the nodes as the
+versions a cut holds, each handed to an operator as its parts, the edges by species and their
+differences between two cuts, and the quantities updated over a difference where that is cheaper.
+On synthetic nearest-neighbour graphs the design measured where each update pays: a low-rank
+correction of a factor up to about a hundred changed edges, eigenvectors carried from the earlier
+cut with its factor as the preconditioner at every edit measured, and union-find for added edges
+up to a few hundred to a few thousand. A later stage writes the algebra's regions into the query
+language, and whether an agent outside the owner's grant may call the tool is left to the owner.
+
+\section{Conclusion}
+
+A cut is a handful of positions. Reading what it holds as rows built in Python cost a row object
+a head; reading it as a predicate on two columns costs a walk, and the difference of two cuts
+costs what changed between them. The two meanings of union and intersection differ by a theorem
+and by their types, the seven laws the code relies on are machine-checked, and the code is tested
+against them on random histories.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}

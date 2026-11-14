@@ -67,6 +67,8 @@ public import Palace.SigmaStar
 public import Palace.SigmaStar.Defs
 public import Palace.Snapshot
 public import Palace.Snapshot.Defs
+public import Palace.SnapshotAlgebra
+public import Palace.SnapshotAlgebra.Defs
 public import Palace.Spectral
 public import Palace.Spectral.Defs
 public import Palace.Superconnection

@@ -4,12 +4,16 @@
 
 A harness (OpenCode, or anything that speaks MCP over stdio) spawns this process; it has no
 listener and no socket of its own, and it seals itself (Invariant 1) before it opens a store. It is
-the Ambassador's client of the core: every read is ONE command, `query` — a sentence of the query
-algebra (`core.sentence`, dn-query-sentence-algebra) compiled under the Ambassador's grant, widened
-by the hypothetical overlay the owner granted on 2026-11-04 — so an ill-scoped read is refused in
-code, not by the prompt, and the plan rides with every answer; writes are only the ones the
-grant's W_Σ allows — dialogue capture (provenance fixed by role, never by the text) and
-interpreted relation edges. Long operations (dream, relate, sync) wake models and run on demand.
+the Ambassador's client of the core, with two reads. `query` reads the palace by a sentence of the
+query algebra (`core.sentence`, dn-query-sentence-algebra) compiled under the Ambassador's grant,
+widened by the hypothetical overlay the owner granted on 2026-11-04, so an ill-scoped read is
+refused in code, not by the prompt, and the plan rides with every answer. `cut` reads the algebra
+of cuts (`agents/ambassador/cut_tool.py`, dn-temporal-snapshot §7.5): the palace as of a cut and
+the operators on cuts, over the landing log and the classes the Ambassador's grant reads, through
+a connection that only reads; it is not yet the graph, and edges and graph mathematics at a cut
+arrive with SN-4. Writes are only the ones the grant's W_Σ allows: dialogue capture (provenance
+fixed by role, never by the text) and interpreted relation edges. Long operations (dream, relate,
+sync) wake models and run on demand.
 
 `--role guest` serves an external agent instead (dn-guest-principal): `query` under the read-only
 `GUEST` grant, over the dialogue, the repo's code and docs, the papers and the observed records,
@@ -36,6 +40,9 @@ import traceback
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
+
+from agents.ambassador.cut_tool import DESCRIPTION as CUT_DESCRIPTION
+from agents.ambassador.cut_tool import SCHEMA as CUT_SCHEMA
 
 if TYPE_CHECKING:
     from core.query import QueryEngine
@@ -97,7 +104,7 @@ class Ambassador:
             self._launcher = build_launcher()
         return self._launcher
 
-    # the one read ------------------------------------------------------------------------------
+    # the reads ---------------------------------------------------------------------------------
     def query(self, sentence: str, trace: bool = False) -> dict[str, Any]:
         """A sentence of the query algebra (dn-query-sentence-algebra) under `sentence_grant()` —
         the Ambassador's grant with the overlay the owner granted: the plan rides with the answer,
@@ -136,6 +143,24 @@ class Ambassador:
         if code:
             out["code"] = code
         return out
+
+    def cut(self, **arguments: Any) -> dict[str, Any]:
+        """The algebra of cuts over the landing log (`agents/ambassador/cut_tool.py`,
+        dn-temporal-snapshot §7.5), under the classes the Ambassador's grant reads: the cut as a
+        value, the versions a cut holds and the operators on them. It reads the instance's
+        catalog through a connection that only reads (`core.stores.cuts.read_only`), so it
+        takes no lock a writer waits on and writes nothing: opening the catalog itself would
+        run its migration, a write transaction."""
+        from agents.ambassador import cut_tool
+        from core.kernel.clearance import classes_of
+        from core.query import AMBASSADOR
+        from core.stores.cuts import read_only
+
+        conn = read_only(self.engine.config.paths.vault_catalog)
+        try:
+            return cut_tool.cut(conn, [str(c) for c in classes_of(AMBASSADOR.strata)], arguments)
+        finally:
+            conn.close()
 
     # writes and on-demand work -----------------------------------------------------------------
     def _run(self, fn: Callable[[], int]) -> dict[str, Any]:
@@ -487,7 +512,7 @@ _WHEN = {"type": "string", "description": "local ISO time (2026-10-30T09:00) or 
 TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
     (
         "query",
-        "The one read: a sentence of the query algebra, not keywords. Verbs: "
+        "Read the palace by a sentence of the query algebra, not keywords. Verbs: "
         'near "text" | diffuse S from <note> [beta b] | reach F from <note> [depth n] '
         "[back|forward] | relate <note> | trace <note> | walk from <note> [to <note>] via <regex "
         'over S,F,D,C> | witness "<edge id>" | read "<ref>" [chunk n] (the full text; read before '
@@ -512,6 +537,9 @@ TOOLS: list[tuple[str, str, dict[str, Any], str]] = [
         _schema({}, []),
         "overview",
     ),
+    # the algebra of cuts (dn-temporal-snapshot §7.5): the Ambassador's alone until the owner
+    # rules on what a guest may call (D34)
+    ("cut", CUT_DESCRIPTION, CUT_SCHEMA, "cut"),
     (
         "sync_dialogue",
         "Sync new Open WebUI and OpenCode chats into the palace now.",
